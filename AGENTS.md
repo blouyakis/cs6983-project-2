@@ -60,7 +60,7 @@ Names only, in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` and `JWT_SECRET` stay
 
 - Server Components by default. `"use client"` only for state, effects, or event handlers.
 - Code flows route handler → service → domain and db. Zod at the boundary. Only `lib/db` talks to Supabase.
-- Routes, the error shape, and status codes are in `docs/api/openapi.yaml`. The draft schema is in `docs/architecture.md`.
+- Routes, the error shape, and status codes are in [docs/api/openapi.yaml](docs/api/openapi.yaml). The draft schema is in [docs/architecture.md](docs/architecture.md).
 
 ---
 
@@ -82,7 +82,7 @@ Names only, in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` and `JWT_SECRET` stay
 ## 5. PRD and design references
 
 - PRD: [docs/PRD.md](docs/PRD.md). Issues: https://github.com/blouyakis/cs6983-project-2/issues
-- UI work follows `DESIGN.md`. Mockups are in `docs/design/`.
+- UI work follows [DESIGN.md](DESIGN.md). Mockups are in [docs/design/](docs/design/).
 
 ### User flows
 
@@ -133,8 +133,8 @@ These are also the Playwright scenarios.
 ### Do
 
 - Add a SQL migration for every schema change (`npx supabase migration new <name>`).
-- Update `docs/api/openapi.yaml` in the same PR as any API change.
-- Follow `DESIGN.md` for UI work.
+- Update [docs/api/openapi.yaml](docs/api/openapi.yaml) in the same PR as any API change.
+- Follow [DESIGN.md](DESIGN.md) for UI work.
 
 ### Don't
 
@@ -174,9 +174,10 @@ Prefer the stack in Section 1, plus `server-only`, `@testing-library/react`, `@p
 
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
 
-- 2026-10-28, Ziye: added the LifeBoard mockups in `docs/design/` and the colors sampled from them in `DESIGN.md`.
-- 2026-10-28, Ziye: moved ListItemRow and MoneyText into `DESIGN.md`.
+- 2026-10-28, Ziye: linked the docs that already exist so those paths open directly.
+- 2026-10-28, Ziye: added the LifeBoard mockups in [docs/design/](docs/design/) and the colors sampled from them in [DESIGN.md](DESIGN.md).
+- 2026-10-28, Ziye: moved ListItemRow and MoneyText into [DESIGN.md](DESIGN.md).
 - 2026-10-28, Ziye: working name is LifeBoard.
-- 2026-10-28, Ziye: shortened this file to the rules an agent needs on every request. The route list is now `docs/api/openapi.yaml`, the draft schema is `docs/architecture.md`, and the PRD is `docs/PRD.md`.
+- 2026-10-28, Ziye: shortened this file to the rules an agent needs on every request. The route list is now [docs/api/openapi.yaml](docs/api/openapi.yaml), the draft schema is [docs/architecture.md](docs/architecture.md), and the PRD is [docs/PRD.md](docs/PRD.md).
 - 2026-10-26, Ziye: chose `swagger-ui-react` for the API docs page (#16).
 - 2026-10-26, Ziye: first draft. Mockups and the final schema are still open.
