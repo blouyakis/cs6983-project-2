@@ -1,5 +1,5 @@
 Readme · MD
-# LifeBoard — Shared & Personal Expense Manager
+# <!-- TODO: Project name --> — Shared & Personal Expense Manager
  
 <!-- TODO: One-line tagline, e.g. "Track what you spend, what you share, and what your plans will cost — in one place." -->
  
@@ -11,14 +11,14 @@ Readme · MD
 | **Production URL** | <!-- TODO: deployed app URL --> |
 | **API docs (Swagger)** | <!-- TODO: production URL -->/api/docs |
 | **Project board** | <!-- TODO: GitHub Projects board URL --> |
-| **PRD** | [docs/PRD.md](docs/PRD.md) |
+| **PRD** | <!-- TODO: link to PRD Google Doc --> |
 | **Demo video** | <!-- TODO: link, due with final submission --> |
  
 ---
  
 ## Overview
  
-LifeBoard is a web app for people who split costs with others but still want to see their own spending in one view. Users create **groups** (a dorm, a household, a co-parenting arrangement, a weekend trip) and log expenses that are either personal or shared with a group. Shared expenses can be split evenly, by custom amounts, or by a group's default ratio. Groups also carry a **to-do list with estimated costs** and a **shared shopping list**, so planned spending shows up before it happens and checked-off purchases become expenses automatically.
+<!-- TODO: Project name --> is a web app for people who split costs with others but still want to see their own spending in one view. Users create **groups** (a dorm, a household, a co-parenting arrangement, a weekend trip) and log expenses that are either personal or shared with a group. Shared expenses can be split evenly, by custom amounts, or by a group's default ratio. Groups also carry a **to-do list with estimated costs** and a **shared shopping list**, so planned spending shows up before it happens and checked-off purchases become expenses automatically.
  
 ### Who it's for
  
@@ -28,7 +28,7 @@ LifeBoard is a web app for people who split costs with others but still want to 
 | Frequent traveler | Plan outings as to-dos with estimated costs and compare to actuals |
 | Co-parent | Split childcare costs by a fixed ratio and keep a settlement history |
  
-See the [PRD](docs/PRD.md) for full user stories and acceptance criteria.
+See the [PRD](<!-- TODO: PRD link -->) for full user stories and acceptance criteria.
  
 ## Features
  
@@ -138,12 +138,12 @@ Workflow files: [`.github/workflows/`](./.github/workflows/) <!-- TODO: confirm 
 - **PRs:** link the issue (`Closes #8`), CI must pass, partner review required before merge
 - **Sprints:** three one-week sprints tracked as GitHub milestones (`Sprint 1 v.01`, `Sprint 2 v.02`, `Sprint 3 v.03`); 5+ issues each with acceptance-criteria checklists, labels, and estimates
 - **Standups and meetings:** logged in the [communication log](<!-- TODO: link to Google Sheet -->)
-- **Retrospectives:** [`docs/sprints/`](./docs/sprints/) <!-- TODO: create -->
+- **Retrospectives:** [`docs/retros/`](./docs/retros/) <!-- TODO: create -->
 Full conventions, do's and don'ts, and design references are in [`AGENTS.md`](./AGENTS.md).
  
 ## API
  
-The REST API is documented with OpenAPI 3. Swagger UI is served at `/api/docs` and the spec lives at [`docs/api/openapi.yaml`](./docs/api/openapi.yaml).
+The REST API is documented with OpenAPI 3. Swagger UI is served at `/api/docs` and the spec lives at [`docs/openapi.yaml`](./docs/openapi.yaml). <!-- TODO: create -->
  
 Main resources: `/api/auth`, `/api/groups`, `/api/expenses`, `/api/groups/:id/balances`, `/api/groups/:id/settlements`, `/api/groups/:id/todos`, `/api/groups/:id/shopping`.
  
@@ -151,11 +151,11 @@ Main resources: `/api/auth`, `/api/groups`, `/api/expenses`, `/api/groups/:id/ba
  
 | Document | Location |
 |---|---|
-| PRD and user stories | [`docs/PRD.md`](./docs/PRD.md) |
-| Mockups | [`docs/design/`](./docs/design/) |
+| PRD and user stories | <!-- TODO --> |
+| Mockups | <!-- TODO --> |
 | Architecture diagram | <!-- TODO --> |
-| Schema | [`docs/architecture.md`](./docs/architecture.md) <!-- diagram TODO #3 --> |
-| Sprint retrospectives | `docs/sprints/` |
+| Schema diagram | <!-- TODO --> |
+| Sprint retrospectives | `docs/retros/` |
 | Communication log | <!-- TODO --> |
 | Contribution log | [`docs/contributions.md`](./docs/contributions.md) <!-- TODO: create --> |
 | HW3 before/after test | <!-- TODO --> |
