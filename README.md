@@ -30,7 +30,7 @@ Checking off a list item records what it cost and who shares it. Costs that were
 
 Roommates sharing a dorm or apartment, partners sharing a home, friends planning outings, co-parents splitting childcare costs, and anyone who wants to track their own plans and spending in the same place.
 
-User stories and priorities are in the [PRD](./docs/PRD.md). Acceptance criteria are on each [GitHub issue](https://github.com/blouyakis/cs6983-project-2/issues).
+User stories are in [`docs/user-stories.md`](./docs/user-stories.md). Priorities are in the [PRD](./docs/PRD.md). Acceptance criteria for each piece of work are on its [GitHub issue](https://github.com/blouyakis/cs6983-project-2/issues).
 
 ## Features
 
@@ -82,6 +82,7 @@ Today the repo contains only documentation:
 ├── LICENSE
 └── docs/
     ├── PRD.md
+    ├── user-stories.md
     ├── architecture.md # draft schema
     ├── api/openapi.yaml
     ├── design/         # mockup screenshots
@@ -169,6 +170,7 @@ Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `
 |---|---|
 | Rules for AI coding tools | [`AGENTS.md`](./AGENTS.md) |
 | PRD | [`docs/PRD.md`](./docs/PRD.md) |
+| User stories | [`docs/user-stories.md`](./docs/user-stories.md) |
 | Project proposal | [`docs/research/project-proposal.md`](./docs/research/project-proposal.md) |
 | Design and mockups | [`DESIGN.md`](./DESIGN.md) · [`docs/design/`](./docs/design/) |
 | Schema (draft) | [`docs/architecture.md`](./docs/architecture.md) |

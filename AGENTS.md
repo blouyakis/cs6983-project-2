@@ -43,6 +43,7 @@ Names only, in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` and `JWT_SECRET` stay
 ├── .github/workflows/ci.yml
 ├── docs/
 │   ├── PRD.md
+│   ├── user-stories.md
 │   ├── architecture.md
 │   ├── research/ design/ decisions/
 │   ├── api/openapi.yaml
@@ -81,7 +82,7 @@ Names only, in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` and `JWT_SECRET` stay
 
 ## 5. PRD and design references
 
-- PRD: [docs/PRD.md](docs/PRD.md). Issues: https://github.com/blouyakis/cs6983-project-2/issues
+- PRD: [docs/PRD.md](docs/PRD.md). User stories: [docs/user-stories.md](docs/user-stories.md).
 - UI work follows [DESIGN.md](DESIGN.md). Mockups are in [docs/design/](docs/design/).
 
 ### User flows
@@ -118,7 +119,7 @@ These are also the Playwright scenarios.
 
 ## 7. Scrum and Git workflow
 
-- Board: Backlog → Sprint Todo → In Progress → In Review → Done. One issue per piece of work.
+- Board: Backlog → Sprint Todo → In Progress → In Review → Done. One issue per piece of work, on the [issue board](https://github.com/blouyakis/cs6983-project-2/issues).
 - Product Owner and Scrum Master rotate each sprint.
 - Branch from `main`: `feature/19-settle-up`. One branch per issue.
 - Commits: `feat(settle): summary (#19)`. Each commit should build.
@@ -174,6 +175,7 @@ Prefer the stack in Section 1, plus `server-only`, `@testing-library/react`, `@p
 
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
 
+- 2026-10-28, Ziye: moved the issues link to Section 7, and added [docs/user-stories.md](docs/user-stories.md) from the shared user-story doc, linked in Section 5.
 - 2026-10-28, Ziye: linked the docs that already exist so those paths open directly.
 - 2026-10-28, Ziye: added the LifeBoard mockups in [docs/design/](docs/design/) and the colors sampled from them in [DESIGN.md](DESIGN.md).
 - 2026-10-28, Ziye: moved ListItemRow and MoneyText into [DESIGN.md](DESIGN.md).

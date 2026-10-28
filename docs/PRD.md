@@ -64,6 +64,8 @@ Design principles:
 
 ## 4. Prioritization (MoSCoW)
 
+Story numbers below are [US-1 through US-8](user-stories.md).
+
 ### Must Have
 
 | Story | Feature | Description | Justification |
