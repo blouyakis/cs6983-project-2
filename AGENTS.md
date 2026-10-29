@@ -37,6 +37,8 @@ Names only, in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` and `JWT_SECRET` stay
 
 ### Folder structure
 
+This is the **target structure**. Paths marked `(planned)` do not exist yet; create them there when the first issue needs them.
+
 ```text
 .
 ├── AGENTS.md
@@ -48,16 +50,17 @@ Names only, in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` and `JWT_SECRET` stay
 │   ├── PRD.md
 │   ├── user-stories.md
 │   ├── architecture.md
-│   ├── research/ design/ decisions/
+│   ├── research/ design/
+│   ├── decisions/           # (planned)
 │   ├── api/openapi.yaml
-│   └── sprints/sprint-1/
-├── supabase/migrations/
+│   └── sprints/sprint-1/    # (planned)
+├── supabase/migrations/     # (planned)
 ├── e2e/
 └── src/
-    ├── proxy.ts
-    ├── app/                 # (auth), (app), api
-    ├── components/          # ui/ and feature folders
-    └── lib/                 # domain, services, db, auth, validation, http
+    ├── proxy.ts             # (planned)
+    ├── app/                 # (auth), (app), api — only the scaffold page exists so far
+    ├── components/          # (planned) ui/ and feature folders
+    └── lib/                 # (planned) domain, services, db, auth, validation, http
 ```
 
 ### Key patterns
@@ -177,6 +180,8 @@ Prefer the stack in Section 1, plus `server-only`, `@testing-library/react`, `@p
 ## Changelog
 
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
+
+- 2026-10-29, Barbara: labeled the folder structure as the target structure and marked the paths that don't exist yet, so agents don't assume `src/proxy.ts`, `lib/` or migrations are already there.
 
 - 2026-10-28, Ziye: pointed agents at the installed Next.js 16 docs in `node_modules/next/dist/docs/01-app`, because `agentRules` is off and Next no longer writes that pointer.
 - 2026-10-28, Ziye: added Prettier beside ESLint because issue #1 requires both, and `npm run lint` now checks formatting.
