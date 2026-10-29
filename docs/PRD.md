@@ -68,47 +68,47 @@ Story numbers below are [US-1 through US-8](user-stories.md).
 
 ### Must Have
 
-| Story | Feature                       | Description                                                                                                                                                               | Justification                                                                                  |
-| ----- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| 4     | Accounts and authentication   | Users register with email and password, log in with an expiring JWT, and log out. Protected pages redirect to login, and API requests without a valid token return 401.   | Every other feature depends on knowing who the user is.                                        |
-| 4     | Group-based access control    | Users can only read or modify lists, expenses and balances in groups they belong to.                                                                                      | Financial data is private; this is a basic security requirement.                               |
-| 1, 2  | Groups and invitations        | Users create a group for any part of life, name it, and invite members by email.                                                                                          | Lists, expenses and balances all live inside groups.                                           |
-| 2, 5  | Lists                         | Members add things to do or buy, see who added them and their status, and check them off with an actual cost and the members who share it, which creates a group expense. | Connects plans to costs; the main thing that sets the app apart from a plain expense splitter. |
-| 1, 5  | Expense logging and splitting | Users log personal or group expenses directly and split group expenses evenly or by custom amounts. The payer can edit or delete an expense until it is settled.          | The core record that every balance and bill is calculated from.                                |
-| 6     | Balances                      | Each group shows every member’s net balance across unsettled expenses.                                                                                                    | Answers the core question of who owes what.                                                    |
-| 6     | Group settle-up               | The app suggests the fewest payments that clear all balances; members mark payments as paid, recipients confirm, and the period closes.                                   | Completes the core loop by turning balances into action.                                       |
-| 1     | Overview                      | Users see their personal total, their share in each group, and a net “you owe / you are owed” balance across all groups.                                                  | Users need one place to see where they stand across every part of life.                        |
+| Story | Feature | Description | Justification |
+| --- | --- | --- | --- |
+| 4 | Accounts and authentication | Users register with email and password, log in with an expiring JWT, and log out. Protected pages redirect to login, and API requests without a valid token return 401. | Every other feature depends on knowing who the user is. |
+| 4 | Group-based access control | Users can only read or modify lists, expenses and balances in groups they belong to. | Financial data is private; this is a basic security requirement. |
+| 1, 2 | Groups and invitations | Users create a group for any part of life, name it, and invite members by email. | Lists, expenses and balances all live inside groups. |
+| 2, 5 | Lists | Members add things to do or buy, see who added them and their status, and check them off with an actual cost and the members who share it, which creates a group expense. | Connects plans to costs; the main thing that sets the app apart from a plain expense splitter. |
+| 1, 5 | Expense logging and splitting | Users log personal or group expenses directly and split group expenses evenly or by custom amounts. The payer can edit or delete an expense until it is settled. | The core record that every balance and bill is calculated from. |
+| 6 | Balances | Each group shows every member’s net balance across unsettled expenses. | Answers the core question of who owes what. |
+| 6 | Group settle-up | The app suggests the fewest payments that clear all balances; members mark payments as paid, recipients confirm, and the period closes. | Completes the core loop by turning balances into action. |
+| 1 | Overview | Users see their personal total, their share in each group, and a net “you owe / you are owed” balance across all groups. | Users need one place to see where they stand across every part of life. |
 
 ### Should Have
 
-| Story | Feature             | Description                                                                                                                              | Justification                                                                                                                  |
-| ----- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| 2     | Estimated costs     | List items carry an optional estimated cost; the group shows a running total for open items and compares estimated and actual totals.    | Lets users see what a plan will cost before they commit, though lists work with actual costs alone.                            |
-| 6     | Direct payments     | A member pays another member before a group settle-up; once confirmed, balances and suggested payments update.                           | Lets one person settle without the whole group and is needed for leaving a group, though the group settle-up works without it. |
-| 7     | Itemized bill       | Each member sees every expense they are included in, who paid, their share, and their total owed to each member, including past periods. | Lets members check charges before paying, though balances alone already show the totals.                                       |
-| 8     | Leaving a group     | A member can leave once settled and keeps read-only access to history up to the date they left.                                          | Handles common situations like moving out, though groups work without it.                                                      |
-| 3     | Default split ratio | A group sets a ratio (e.g., 60/40) that applies to new expenses and can be overridden on any single expense.                             | Saves time for groups that always split unevenly, though custom splits already cover the need.                                 |
-| 1, 3  | Filtering           | Users filter expenses by group, by person and by date range.                                                                             | Helps users find expenses as history grows, though a simple list works when there are only a few.                              |
+| Story | Feature | Description | Justification |
+| --- | --- | --- | --- |
+| 2 | Estimated costs | List items carry an optional estimated cost; the group shows a running total for open items and compares estimated and actual totals. | Lets users see what a plan will cost before they commit, though lists work with actual costs alone. |
+| 6 | Direct payments | A member pays another member before a group settle-up; once confirmed, balances and suggested payments update. | Lets one person settle without the whole group and is needed for leaving a group, though the group settle-up works without it. |
+| 7 | Itemized bill | Each member sees every expense they are included in, who paid, their share, and their total owed to each member, including past periods. | Lets members check charges before paying, though balances alone already show the totals. |
+| 8 | Leaving a group | A member can leave once settled and keeps read-only access to history up to the date they left. | Handles common situations like moving out, though groups work without it. |
+| 3 | Default split ratio | A group sets a ratio (e.g., 60/40) that applies to new expenses and can be overridden on any single expense. | Saves time for groups that always split unevenly, though custom splits already cover the need. |
+| 1, 3 | Filtering | Users filter expenses by group, by person and by date range. | Helps users find expenses as history grows, though a simple list works when there are only a few. |
 
 ### Could Have
 
-| Story | Feature           | Description                                                                      | Justification                                                                                                                                |
-| ----- | ----------------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| 3     | History export    | Users export a group’s expenses and settlements for a date range (e.g., as CSV). | Useful as an outside record, for example between co-parents, though history can already be viewed in the app.                                |
-| 5     | Real-time updates | Lists and balances update live for all members without refreshing the page.      | Helps when several members use a list at the same time, such as two roommates shopping, though changes already appear when the page reloads. |
+| Story | Feature | Description | Justification |
+| --- | --- | --- | --- |
+| 3 | History export | Users export a group’s expenses and settlements for a date range (e.g., as CSV). | Useful as an outside record, for example between co-parents, though history can already be viewed in the app. |
+| 5 | Real-time updates | Lists and balances update live for all members without refreshing the page. | Helps when several members use a list at the same time, such as two roommates shopping, though changes already appear when the page reloads. |
 
 ### Won’t Have (This Time)
 
-| Item | Feature             | Description                                                                                        | Justification                                                                                                                 |
-| ---- | ------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| —    | Recurring bills     | Monthly bills like utilities are created automatically.                                            | Bills can be added directly each month; automation adds scheduling logic for little gain.                                     |
-| —    | Group activity log  | Each group keeps an automatic, time-ordered record of every change, including edits and deletions. | Adds record-keeping to every action; members already review their bills before settling up, when any wrong amount would show. |
-| —    | Group messaging     | Members send their own messages or comments within a group.                                        | Adds a separate feature to build, and members can talk outside the app for now.                                               |
-| —    | Disputing charges   | Members flag a charge, add a comment, and notify the payer, who can then edit it.                  | Requires comments and notifications; members can discuss a charge outside the app for now.                                    |
-| —    | Group admin roles   | One member manages invitations and removes members.                                                | Group members are equals, and admin roles add edge cases (such as the admin leaving) without much value.                      |
-| —    | In-app payments     | Members send money through Venmo, PayPal or a bank from inside the app.                            | Payment integration is complex and sensitive; the app records payments people make elsewhere.                                 |
-| —    | Map of past outings | Completed outings appear as pins on a map.                                                         | A fun way to look back, but complex to build and outside the core loop.                                                       |
-| —    | AI features         | AI estimates item prices, or reads items and amounts from a receipt photo.                         | Parked until we confirm whether AI API calls are allowed in Project 2.                                                        |
+| Item | Feature | Description | Justification |
+| --- | --- | --- | --- |
+| — | Recurring bills | Monthly bills like utilities are created automatically. | Bills can be added directly each month; automation adds scheduling logic for little gain. |
+| — | Group activity log | Each group keeps an automatic, time-ordered record of every change, including edits and deletions. | Adds record-keeping to every action; members already review their bills before settling up, when any wrong amount would show. |
+| — | Group messaging | Members send their own messages or comments within a group. | Adds a separate feature to build, and members can talk outside the app for now. |
+| — | Disputing charges | Members flag a charge, add a comment, and notify the payer, who can then edit it. | Requires comments and notifications; members can discuss a charge outside the app for now. |
+| — | Group admin roles | One member manages invitations and removes members. | Group members are equals, and admin roles add edge cases (such as the admin leaving) without much value. |
+| — | In-app payments | Members send money through Venmo, PayPal or a bank from inside the app. | Payment integration is complex and sensitive; the app records payments people make elsewhere. |
+| — | Map of past outings | Completed outings appear as pins on a map. | A fun way to look back, but complex to build and outside the core loop. |
+| — | AI features | AI estimates item prices, or reads items and amounts from a receipt photo. | Parked until we confirm whether AI API calls are allowed in Project 2. |
 
 ## 5. Scope
 
