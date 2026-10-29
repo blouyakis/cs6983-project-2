@@ -1,175 +1,195 @@
-Readme · MD
-# <!-- TODO: Project name --> — Shared & Personal Expense Manager
- 
-<!-- TODO: One-line tagline, e.g. "Track what you spend, what you share, and what your plans will cost — in one place." -->
- 
+# LifeBoard
+
+Your everyday plans and costs, alone or together.
+
 **CS6983 AI Coding · Project 2 (Full-Stack Application) · Fall 2026**
-**Team:** Barbara Louyakis ([@blouyakis](https://github.com/blouyakis)) · Ziye Huang: <!-- TODO: Ziye's GitHub handle -->
- 
+**Team:** Barbara Louyakis ([@blouyakis](https://github.com/blouyakis)) · Ziye Huang ([@SeraphimHuang](https://github.com/SeraphimHuang))
+
+## Status
+
+Planning is done and implementation has not started. The repo holds the rules file, design, PRD, and draft API and schema. Sprint 1 starts with scaffolding the app ([#1](https://github.com/blouyakis/cs6983-project-2/issues/1)) and the CI pipeline ([#2](https://github.com/blouyakis/cs6983-project-2/issues/2)).
+
 | | |
 |---|---|
-| **Production URL** | <!-- TODO: deployed app URL --> |
-| **API docs (Swagger)** | <!-- TODO: production URL -->/api/docs |
+| **Production URL** | Not deployed yet |
+| **API docs (Swagger)** | Served at `/api/docs` once deployed. Draft spec: [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
+| **Issues and milestones** | [Issues](https://github.com/blouyakis/cs6983-project-2/issues) · [Milestones](https://github.com/blouyakis/cs6983-project-2/milestones) |
 | **Project board** | <!-- TODO: GitHub Projects board URL --> |
-| **PRD** | <!-- TODO: link to PRD Google Doc --> |
-| **Demo video** | <!-- TODO: link, due with final submission --> |
- 
+| **PRD** | [`docs/PRD.md`](./docs/PRD.md) |
+| **Demo video** | Due with the final submission |
+
 ---
- 
+
 ## Overview
- 
-<!-- TODO: Project name --> is a web app for people who split costs with others but still want to see their own spending in one view. Users create **groups** (a dorm, a household, a co-parenting arrangement, a weekend trip) and log expenses that are either personal or shared with a group. Shared expenses can be split evenly, by custom amounts, or by a group's default ratio. Groups also carry a **to-do list with estimated costs** and a **shared shopping list**, so planned spending shows up before it happens and checked-off purchases become expenses automatically.
- 
+
+LifeBoard is a web app for planning and paying for everyday life, alone or with others. Every user has a **personal space** with their own list and spending. Users also create **groups** for any part of life, such as a dorm, a weekend picnic, or date nights. Members share one list and one ledger.
+
+Checking off a list item records what it cost and who shares it. Costs that were never on the list can be added directly. Each group shows who owes whom, and a settle-up suggests the fewest payments that clear every balance. One overview shows personal spending, your share in each group, and what you owe or are owed.
+
 ### Who it's for
- 
-| Persona | Need |
-|---|---|
-| Dorm roommate | Track shared and personal expenses in one place; see who owes whom |
-| Frequent traveler | Plan outings as to-dos with estimated costs and compare to actuals |
-| Co-parent | Split childcare costs by a fixed ratio and keep a settlement history |
- 
-See the [PRD](<!-- TODO: PRD link -->) for full user stories and acceptance criteria.
- 
+
+Roommates sharing a dorm or apartment, partners sharing a home, friends planning outings, co-parents splitting childcare costs, and anyone who wants to track their own plans and spending in the same place.
+
+User stories are in [`docs/user-stories.md`](./docs/user-stories.md). Priorities are in the [PRD](./docs/PRD.md). Acceptance criteria for each piece of work are on its [GitHub issue](https://github.com/blouyakis/cs6983-project-2/issues).
+
 ## Features
- 
-- **Authentication** — email/password registration, JWT login, protected routes, group-scoped data access
-- **Groups** — create, name, and invite members; set a default split ratio for two-person groups
-- **Expenses** — personal or group; even / custom / default-ratio splits; edit and delete with permission checks
-- **Balances & settlements** — per-group "you owe / you are owed"; record payments and watch balances update
-- **Dashboard** — monthly personal total, share of each group, net balance
-- **To-do list with costs** — estimated cost per item, running total per group, estimated vs. actual on completion
-- **Shared shopping list** — checking off an item records the purchase as a group expense
-- **Expense history** — filter by group, person, and date range; CSV export
-- **Public REST API** — documented with OpenAPI 3 / Swagger UI
-### Out of scope (parked)
-Password reset, receipt scanning, AI price estimation, outings map. See the [project board](<!-- TODO -->) for any that get picked up.
- 
+
+Nothing below is built yet. The list follows the PRD's priorities.
+
+**Must have**
+
+- **Accounts:** register with email and password, log in with an expiring JWT, log out
+- **Access control:** users only read or change data in groups they belong to
+- **Groups and invitations:** create a group for any part of life and invite members by email
+- **Lists:** add things to do or buy, and check them off with the actual cost and who shares it
+- **Expenses:** log personal or group costs, split evenly or by custom amounts, and edit or delete until settled
+- **Balances:** each member's net balance across unsettled expenses
+- **Settle-up:** the fewest payments that clear every balance, marked paid and confirmed by the recipient
+- **Overview:** personal total, share in each group, and net balance across groups
+
+**Should have:** estimated costs on list items, direct payments between two members, an itemized bill per member, leaving a group with read-only history, a default split ratio, and filters by group, person, and date.
+
+**Could have:** CSV export of a group's history and real-time updates.
+
+### Out of scope
+
+Recurring bills, a group activity log, group messaging, disputing charges, group admin roles, in-app payments, a map of past outings, and AI features. Reasons are in the [PRD](./docs/PRD.md).
+
 ## Tech stack
- 
+
 | Layer | Choice |
 |---|---|
-| Frontend | Next.js <!-- TODO: version --> (App Router) · React · TypeScript · Tailwind CSS |
-| Backend | Next.js API routes <!-- TODO: confirm vs. separate Express server --> |
-| Database | <!-- TODO: Supabase (PostgreSQL) via Prisma, or MongoDB Atlas via Mongoose — pending professor's answer --> |
-| Auth | JWT (bcrypt password hashing) |
-| Testing | Vitest (unit/integration) · Playwright (E2E) |
-| CI/CD | GitHub Actions · Vercel deploy previews <!-- TODO: confirm host --> |
-| AI harness | <!-- TODO: Cursor / Claude Code / Antigravity --> guided by [`AGENTS.md`](./AGENTS.md) |
- 
+| Frontend | Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4 |
+| Backend | Next.js route handlers · Zod validation |
+| Database | Supabase Postgres, used only as a database, through `@supabase/supabase-js` (no ORM) |
+| Auth | Our own JWT with `jose` · `bcryptjs` password hashing |
+| Testing | Vitest (unit and integration) · Playwright (E2E) |
+| API docs | OpenAPI 3 · `swagger-ui-react` |
+| CI/CD | GitHub Actions · Vercel (preview per PR, production from `main`) |
+| AI harness | Guided by [`AGENTS.md`](./AGENTS.md) |
+
 ## Architecture
- 
-<!-- TODO: architecture diagram (image or Mermaid) — required deliverable -->
- 
+
+<!-- TODO(#3): architecture diagram — required deliverable -->
+
+Today the repo contains only documentation:
+
+```text
+.
+├── AGENTS.md           # shared rules for AI coding tools
+├── DESIGN.md           # colors, screens, and UI components
+├── README.md
+├── LICENSE
+└── docs/
+    ├── PRD.md
+    ├── user-stories.md
+    ├── architecture.md # draft schema
+    ├── api/openapi.yaml
+    ├── design/         # mockup screenshots
+    └── research/       # project proposal
 ```
-<!-- TODO: replace with real folder structure once scaffolded -->
-/
-├── app/                # Next.js App Router pages and layouts
-│   ├── (auth)/         # login, register
-│   ├── dashboard/
-│   ├── groups/[id]/
-│   └── api/            # REST API route handlers
-├── components/         # Reusable UI components
-├── lib/                # Business logic (split calculations, balances, auth helpers)
-├── prisma/ or models/  # Schema and migrations / Mongoose models
-├── tests/
-│   ├── unit/
-│   ├── integration/
-│   └── e2e/
-├── docs/               # Diagrams, retros, API spec
-├── AGENTS.md           # Rules file for AI-assisted development
-└── README.md
-```
- 
+
+The planned application layout is in [`AGENTS.md`](./AGENTS.md) Section 2: `src/app`, `src/components`, and `src/lib` (domain, services, db, auth, validation, http), plus `supabase/migrations/` and `e2e/`.
+
 ### Database schema
- 
-<!-- TODO: schema diagram (image or Mermaid ERD) — required deliverable -->
- 
-Entities: `User`, `Group`, `GroupMember` (holds `defaultSplitRatio`), `Expense`, `ExpenseSplit`, `TodoItem`, `ShoppingItem`, `Settlement`. See [`docs/schema.md`](./docs/schema.md). <!-- TODO: create -->
- 
+
+<!-- TODO(#3): schema diagram — required deliverable -->
+
+The draft is in [`docs/architecture.md`](./docs/architecture.md): `users`, `groups`, `group_members`, `list_items`, `expenses`, `expense_shares`, `payments`, and `settlements`. Issue [#3](https://github.com/blouyakis/cs6983-project-2/issues/3) finalizes it as SQL migrations.
+
 ## Getting started
- 
+
+The app is not scaffolded yet. These steps will work once [#1](https://github.com/blouyakis/cs6983-project-2/issues/1) and [#3](https://github.com/blouyakis/cs6983-project-2/issues/3) are merged.
+
 ### Prerequisites
-- Node.js <!-- TODO: version --> and npm
-- <!-- TODO: Supabase project or MongoDB Atlas cluster --> (free tier is sufficient)
+
+- Node.js 24 and npm
+- Docker, for local Supabase
+
 ### Run locally
+
 ```bash
-git clone <!-- TODO: repo URL -->
-cd <!-- TODO: repo folder -->
+git clone git@github.com:blouyakis/cs6983-project-2.git
+cd cs6983-project-2
 npm install
-cp .env.example .env        # then fill in the values below
-npm run db:migrate          # TODO: confirm script name
-npm run db:seed             # creates a demo user and sample data
-npm run dev                 # http://localhost:3000
+cp .env.example .env.local   # then fill in the values
+npx supabase start
+npx supabase db reset        # apply all migrations
+npm run dev                  # http://localhost:3000
 ```
- 
+
 ### Environment variables
+
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | Connection string |
-| `JWT_SECRET` | Signing key for tokens |
-| `JWT_EXPIRES_IN` | Token lifetime, e.g. `7d` |
-| <!-- TODO: others --> | |
- 
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only database key |
+| `JWT_SECRET` | Signing key for session tokens, at least 32 random characters |
+| `NEXT_PUBLIC_APP_URL` | Base URL of the app, e.g. `http://localhost:3000` |
+
 ### Demo account
-<!-- TODO: seeded demo credentials, if you choose to publish them -->
- 
+
+None yet.
+
 ## Testing
- 
-We follow **TDD (red → green → refactor)**: failing tests are committed before the implementation for every feature, and that order is visible in the git history.
- 
+
+We follow **test-driven development**: the failing test is committed before the code, and that order is visible in the git history.
+
 ```bash
-npm test              # unit + integration (Vitest)
-npm run test:e2e      # Playwright, against local dev server
-npm run test:coverage # TODO: confirm script and coverage target
+npm test              # unit and integration (Vitest)
+npm run test:coverage # coverage report
+npm run test:e2e      # Playwright
 ```
- 
-Coverage goal: <!-- TODO: e.g. 80% on lib/ -->.
- 
+
+Coverage goal: 80% of lines overall and 100% of `src/lib/domain`.
+
 ## CI/CD
- 
-Every pull request runs a multi-stage GitHub Actions pipeline: **install → lint → unit/integration tests → build → security scan**, plus a deploy preview. Merges to `main` deploy to production automatically.
- 
-Workflow files: [`.github/workflows/`](./.github/workflows/) <!-- TODO: confirm -->
- 
+
+Not set up yet; this is [#2](https://github.com/blouyakis/cs6983-project-2/issues/2). The plan is a GitHub Actions pipeline on every pull request: install, lint, typecheck, test, build, and a security scan. Vercel builds a preview for each PR and deploys `main` to production.
+
 ## Development workflow
- 
-- **Branch per issue:** `feature/<issue#>-short-description`, `chore/…`, `docs/…`, `bug/…`
-- **Commits:** Conventional Commits, referencing the issue — `feat(expenses): add custom split (#8)`
-- **PRs:** link the issue (`Closes #8`), CI must pass, partner review required before merge
-- **Sprints:** three one-week sprints tracked as GitHub milestones (`Sprint 1 v.01`, `Sprint 2 v.02`, `Sprint 3 v.03`); 5+ issues each with acceptance-criteria checklists, labels, and estimates
+
+- **Branches:** one per issue, from `main`, e.g. `feature/19-settle-up`
+- **Commits:** Conventional Commits with the issue number, e.g. `feat(settle): suggest fewest payments (#19)`
+- **Pull requests:** `Closes #<issue>` and how it was tested; one partner approval and green CI; merged with a merge commit
+- **Sprints:** three sprints tracked as GitHub milestones (`Sprint 1 v.01`, `Sprint 2 v.02`, `Sprint 3 v.03`)
 - **Standups and meetings:** logged in the [communication log](<!-- TODO: link to Google Sheet -->)
-- **Retrospectives:** [`docs/retros/`](./docs/retros/) <!-- TODO: create -->
-Full conventions, do's and don'ts, and design references are in [`AGENTS.md`](./AGENTS.md).
- 
+- **Planning and retrospectives:** will live in `docs/sprints/`
+
+Full conventions are in [`AGENTS.md`](./AGENTS.md).
+
 ## API
- 
-The REST API is documented with OpenAPI 3. Swagger UI is served at `/api/docs` and the spec lives at [`docs/openapi.yaml`](./docs/openapi.yaml). <!-- TODO: create -->
- 
-Main resources: `/api/auth`, `/api/groups`, `/api/expenses`, `/api/groups/:id/balances`, `/api/groups/:id/settlements`, `/api/groups/:id/todos`, `/api/groups/:id/shopping`.
- 
+
+Not implemented yet. The draft REST API is in [`docs/api/openapi.yaml`](./docs/api/openapi.yaml), and Swagger UI will be served at `/api/docs`.
+
+Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `list-items`, `expenses`, `balances`, `bills/me`, `payments`, `settlements`, `invitations`, and `leave`.
+
 ## Project documentation
- 
+
 | Document | Location |
 |---|---|
-| PRD and user stories | <!-- TODO --> |
-| Mockups | <!-- TODO --> |
-| Architecture diagram | <!-- TODO --> |
-| Schema diagram | <!-- TODO --> |
-| Sprint retrospectives | `docs/retros/` |
+| Rules for AI coding tools | [`AGENTS.md`](./AGENTS.md) |
+| PRD | [`docs/PRD.md`](./docs/PRD.md) |
+| User stories | [`docs/user-stories.md`](./docs/user-stories.md) |
+| Project proposal | [`docs/research/project-proposal.md`](./docs/research/project-proposal.md) |
+| Design and mockups | [`DESIGN.md`](./DESIGN.md) · [`docs/design/`](./docs/design/) |
+| Schema (draft) | [`docs/architecture.md`](./docs/architecture.md) |
+| API spec (draft) | [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
+| Architecture and schema diagrams | Not started (#3) |
+| Sprint planning and retrospectives | Not started (`docs/sprints/`) |
 | Communication log | <!-- TODO --> |
-| Contribution log | [`docs/contributions.md`](./docs/contributions.md) <!-- TODO: create --> |
+| Contribution log | Not started (`docs/contributions.md`) |
 | HW3 before/after test | <!-- TODO --> |
- 
+
 ## Contributors
- 
+
 | Partner | Primary areas |
 |---|---|
 | Barbara Louyakis | <!-- TODO: fill in as work is divided --> |
 | Ziye Huang | <!-- TODO --> |
- 
-Both partners commit, review, and maintain `AGENTS.md`. See the contribution log for a detailed breakdown.
- 
-## License
- 
-<!-- TODO: e.g. MIT, or "Academic project — not licensed for reuse" -->
 
+Both partners commit, review, and maintain `AGENTS.md`.
+
+## License
+
+[MIT](./LICENSE)
