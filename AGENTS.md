@@ -8,13 +8,14 @@ You are working on **LifeBoard**, a web app for planning and paying for everyday
 
 ## 1. Tech stack and versions
 
-- Node.js 24, Next.js 16 (App Router), React 19, TypeScript strict, Tailwind CSS 4, Supabase Postgres (database only), `jose`, `bcryptjs`, Zod 4, Vitest, Playwright, OpenAPI 3, npm, Vercel, GitHub Actions
+- Node.js 24, Next.js 16 (App Router), React 19, TypeScript strict, Tailwind CSS 4, Supabase Postgres (database only), `jose`, `bcryptjs`, Zod 4, Vitest, Playwright, Prettier, OpenAPI 3, npm, Vercel, GitHub Actions
 
 ### Commands
 
 ```bash
 npm run dev            # start the dev server
-npm run lint           # ESLint
+npm run lint           # ESLint, then Prettier check
+npm run format         # Prettier write
 npm run typecheck      # tsc --noEmit
 npm test               # Vitest (unit + integration)
 npm run test:coverage  # Vitest with coverage report
@@ -175,6 +176,7 @@ Prefer the stack in Section 1, plus `server-only`, `@testing-library/react`, `@p
 
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
 
+- 2026-10-28, Ziye: added Prettier beside ESLint because issue #1 requires both, and `npm run lint` now checks formatting.
 - 2026-10-28, Ziye: moved the issues link to Section 7, and added [docs/user-stories.md](docs/user-stories.md) from the shared user-story doc, linked in Section 5.
 - 2026-10-28, Ziye: linked the docs that already exist so those paths open directly.
 - 2026-10-28, Ziye: added the LifeBoard mockups in [docs/design/](docs/design/) and the colors sampled from them in [DESIGN.md](DESIGN.md).

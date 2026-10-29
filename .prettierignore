@@ -5,3 +5,4 @@ coverage
 playwright-report
 test-results
 docs/design
+.env*
