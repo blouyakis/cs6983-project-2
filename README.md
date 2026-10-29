@@ -9,14 +9,14 @@ Your everyday plans and costs, alone or together.
 
 Planning is done and implementation has not started. The repo holds the rules file, design, PRD, and draft API and schema. Sprint 1 starts with scaffolding the app ([#1](https://github.com/blouyakis/cs6983-project-2/issues/1)) and the CI pipeline ([#2](https://github.com/blouyakis/cs6983-project-2/issues/2)).
 
-| | |
-|---|---|
-| **Production URL** | Not deployed yet |
-| **API docs (Swagger)** | Served at `/api/docs` once deployed. Draft spec: [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
+|                           |                                                                                                                                         |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Production URL**        | Not deployed yet                                                                                                                        |
+| **API docs (Swagger)**    | Served at `/api/docs` once deployed. Draft spec: [`docs/api/openapi.yaml`](./docs/api/openapi.yaml)                                     |
 | **Issues and milestones** | [Issues](https://github.com/blouyakis/cs6983-project-2/issues) · [Milestones](https://github.com/blouyakis/cs6983-project-2/milestones) |
-| **Project board** | <!-- TODO: GitHub Projects board URL --> |
-| **PRD** | [`docs/PRD.md`](./docs/PRD.md) |
-| **Demo video** | Due with the final submission |
+| **Project board**         | <!-- TODO: GitHub Projects board URL -->                                                                                                |
+| **PRD**                   | [`docs/PRD.md`](./docs/PRD.md)                                                                                                          |
+| **Demo video**            | Due with the final submission                                                                                                           |
 
 ---
 
@@ -57,16 +57,16 @@ Recurring bills, a group activity log, group messaging, disputing charges, group
 
 ## Tech stack
 
-| Layer | Choice |
-|---|---|
-| Frontend | Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4 |
-| Backend | Next.js route handlers · Zod validation |
-| Database | Supabase Postgres, used only as a database, through `@supabase/supabase-js` (no ORM) |
-| Auth | Our own JWT with `jose` · `bcryptjs` password hashing |
-| Testing | Vitest (unit and integration) · Playwright (E2E) |
-| API docs | OpenAPI 3 · `swagger-ui-react` |
-| CI/CD | GitHub Actions · Vercel (preview per PR, production from `main`) |
-| AI harness | Guided by [`AGENTS.md`](./AGENTS.md) |
+| Layer      | Choice                                                                               |
+| ---------- | ------------------------------------------------------------------------------------ |
+| Frontend   | Next.js 16 (App Router) · React 19 · TypeScript (strict) · Tailwind CSS 4            |
+| Backend    | Next.js route handlers · Zod validation                                              |
+| Database   | Supabase Postgres, used only as a database, through `@supabase/supabase-js` (no ORM) |
+| Auth       | Our own JWT with `jose` · `bcryptjs` password hashing                                |
+| Testing    | Vitest (unit and integration) · Playwright (E2E)                                     |
+| API docs   | OpenAPI 3 · `swagger-ui-react`                                                       |
+| CI/CD      | GitHub Actions · Vercel (preview per PR, production from `main`)                     |
+| AI harness | Guided by [`AGENTS.md`](./AGENTS.md)                                                 |
 
 ## Architecture
 
@@ -120,12 +120,12 @@ npm run dev                  # http://localhost:3000
 
 ### Environment variables
 
-| Variable | Purpose |
-|---|---|
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only database key |
-| `JWT_SECRET` | Signing key for session tokens, at least 32 random characters |
-| `NEXT_PUBLIC_APP_URL` | Base URL of the app, e.g. `http://localhost:3000` |
+| Variable                    | Purpose                                                       |
+| --------------------------- | ------------------------------------------------------------- |
+| `SUPABASE_URL`              | Supabase project URL                                          |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only database key                                      |
+| `JWT_SECRET`                | Signing key for session tokens, at least 32 random characters |
+| `NEXT_PUBLIC_APP_URL`       | Base URL of the app, e.g. `http://localhost:3000`             |
 
 ### Demo account
 
@@ -166,27 +166,27 @@ Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `
 
 ## Project documentation
 
-| Document | Location |
-|---|---|
-| Rules for AI coding tools | [`AGENTS.md`](./AGENTS.md) |
-| PRD | [`docs/PRD.md`](./docs/PRD.md) |
-| User stories | [`docs/user-stories.md`](./docs/user-stories.md) |
-| Project proposal | [`docs/research/project-proposal.md`](./docs/research/project-proposal.md) |
-| Design and mockups | [`DESIGN.md`](./DESIGN.md) · [`docs/design/`](./docs/design/) |
-| Schema (draft) | [`docs/architecture.md`](./docs/architecture.md) |
-| API spec (draft) | [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
-| Architecture and schema diagrams | Not started (#3) |
-| Sprint planning and retrospectives | Not started (`docs/sprints/`) |
-| Communication log | <!-- TODO --> |
-| Contribution log | Not started (`docs/contributions.md`) |
-| HW3 before/after test | <!-- TODO --> |
+| Document                           | Location                                                                   |
+| ---------------------------------- | -------------------------------------------------------------------------- |
+| Rules for AI coding tools          | [`AGENTS.md`](./AGENTS.md)                                                 |
+| PRD                                | [`docs/PRD.md`](./docs/PRD.md)                                             |
+| User stories                       | [`docs/user-stories.md`](./docs/user-stories.md)                           |
+| Project proposal                   | [`docs/research/project-proposal.md`](./docs/research/project-proposal.md) |
+| Design and mockups                 | [`DESIGN.md`](./DESIGN.md) · [`docs/design/`](./docs/design/)              |
+| Schema (draft)                     | [`docs/architecture.md`](./docs/architecture.md)                           |
+| API spec (draft)                   | [`docs/api/openapi.yaml`](./docs/api/openapi.yaml)                         |
+| Architecture and schema diagrams   | Not started (#3)                                                           |
+| Sprint planning and retrospectives | Not started (`docs/sprints/`)                                              |
+| Communication log                  | <!-- TODO -->                                                              |
+| Contribution log                   | Not started (`docs/contributions.md`)                                      |
+| HW3 before/after test              | <!-- TODO -->                                                              |
 
 ## Contributors
 
-| Partner | Primary areas |
-|---|---|
+| Partner          | Primary areas                             |
+| ---------------- | ----------------------------------------- |
 | Barbara Louyakis | <!-- TODO: fill in as work is divided --> |
-| Ziye Huang | <!-- TODO --> |
+| Ziye Huang       | <!-- TODO -->                             |
 
 Both partners commit, review, and maintain `AGENTS.md`.
 
