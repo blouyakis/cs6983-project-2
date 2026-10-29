@@ -7,7 +7,7 @@ Your everyday plans and costs, alone or together.
 
 ## Status
 
-Planning is done and implementation has not started. The repo holds the rules file, design, PRD, and draft API and schema. Sprint 1 starts with scaffolding the app ([#1](https://github.com/blouyakis/cs6983-project-2/issues/1)) and the CI pipeline ([#2](https://github.com/blouyakis/cs6983-project-2/issues/2)).
+The app scaffold is in place ([#1](https://github.com/blouyakis/cs6983-project-2/issues/1)). Accounts, the database, and product features are not built yet. CI is [#2](https://github.com/blouyakis/cs6983-project-2/issues/2).
 
 | | |
 |---|---|
@@ -72,24 +72,26 @@ Recurring bills, a group activity log, group messaging, disputing charges, group
 
 <!-- TODO(#3): architecture diagram — required deliverable -->
 
-Today the repo contains only documentation:
-
 ```text
 .
-├── AGENTS.md           # shared rules for AI coding tools
-├── DESIGN.md           # colors, screens, and UI components
+├── AGENTS.md              # shared rules for AI coding tools
+├── DESIGN.md              # colors, screens, and UI components
 ├── README.md
 ├── LICENSE
+├── .env.example
+├── .nvmrc                 # Node 24
+├── e2e/                   # Playwright
+├── src/app/               # App Router. A placeholder home page only.
 └── docs/
     ├── PRD.md
     ├── user-stories.md
-    ├── architecture.md # draft schema
+    ├── architecture.md    # draft schema
     ├── api/openapi.yaml
-    ├── design/         # mockup screenshots
-    └── research/       # project proposal
+    ├── design/            # mockup screenshots
+    └── research/          # project proposal
 ```
 
-The planned application layout is in [`AGENTS.md`](./AGENTS.md) Section 2: `src/app`, `src/components`, and `src/lib` (domain, services, db, auth, validation, http), plus `supabase/migrations/` and `e2e/`.
+Later issues add `src/components/`, `src/lib/`, and `supabase/migrations/`. The target layout is in [`AGENTS.md`](./AGENTS.md) Section 2.
 
 ### Database schema
 
@@ -99,23 +101,32 @@ The draft is in [`docs/architecture.md`](./docs/architecture.md): `users`, `grou
 
 ## Getting started
 
-The app is not scaffolded yet. These steps will work once [#1](https://github.com/blouyakis/cs6983-project-2/issues/1) and [#3](https://github.com/blouyakis/cs6983-project-2/issues/3) are merged.
+These steps run the placeholder app. The database is not connected yet.
 
 ### Prerequisites
 
-- Node.js 24 and npm
-- Docker, for local Supabase
+- Node.js 24 and npm. If you use nvm, `nvm use` reads `.nvmrc`.
+- Docker, only after the database lands in [#3](https://github.com/blouyakis/cs6983-project-2/issues/3)
 
 ### Run locally
 
 ```bash
 git clone git@github.com:blouyakis/cs6983-project-2.git
 cd cs6983-project-2
+nvm use                      # if you use nvm
 npm install
-cp .env.example .env.local   # then fill in the values
+npx playwright install chromium
+cp .env.example .env.local   # the app does not read these values yet
+npm run dev                  # http://localhost:3000
+```
+
+### Database
+
+Not needed to run the app yet. After [#3](https://github.com/blouyakis/cs6983-project-2/issues/3):
+
+```bash
 npx supabase start
 npx supabase db reset        # apply all migrations
-npm run dev                  # http://localhost:3000
 ```
 
 ### Environment variables
@@ -136,6 +147,8 @@ None yet.
 We follow **test-driven development**: the failing test is committed before the code, and that order is visible in the git history.
 
 ```bash
+npm run lint          # ESLint, then Prettier check
+npm run typecheck     # tsc --noEmit
 npm test              # unit and integration (Vitest)
 npm run test:coverage # coverage report
 npm run test:e2e      # Playwright
