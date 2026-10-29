@@ -14,7 +14,7 @@ The app scaffold is in place ([#1](https://github.com/blouyakis/cs6983-project-2
 | **Production URL** | Not deployed yet |
 | **API docs (Swagger)** | Served at `/api/docs` once deployed. Draft spec: [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
 | **Issues and milestones** | [Issues](https://github.com/blouyakis/cs6983-project-2/issues) · [Milestones](https://github.com/blouyakis/cs6983-project-2/milestones) |
-| **Project board** | <!-- TODO: GitHub Projects board URL --> |
+| **Project board** | [LifeBoard board](https://github.com/users/blouyakis/projects/3) (Backlog → Sprint ToDo → In Progress → In Review → Done) |
 | **PRD** | [`docs/PRD.md`](./docs/PRD.md) |
 | **Demo video** | Due with the final submission |
 
