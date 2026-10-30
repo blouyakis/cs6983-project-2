@@ -41,7 +41,16 @@ export async function cleanUp(): Promise<void> {
   if (ids.length === 0) {
     return;
   }
-  await db.from("group_members").delete().in("user_id", ids);
-  await db.from("groups").delete().in("created_by", ids);
-  await db.from("users").delete().in("id", ids);
+  const steps = [
+    () => db.from("group_members").delete().in("user_id", ids),
+    () => db.from("groups").delete().in("created_by", ids),
+    () => db.from("users").delete().in("id", ids),
+  ];
+  for (const step of steps) {
+    const { error } = await step();
+    // Fail loudly: a new table that references users must be cleaned here too.
+    if (error) {
+      throw error;
+    }
+  }
 }

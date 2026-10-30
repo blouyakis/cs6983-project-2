@@ -163,7 +163,7 @@ npm run test:e2e      # Playwright
 
 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) ([#2](https://github.com/blouyakis/cs6983-project-2/issues/2)) runs on every pull request and on every push to `main`. The jobs are `install`, `lint`, `typecheck`, `test` (with coverage), `db-test` (local Supabase), `build`, and `audit`. `audit` fails on high or critical npm advisories.
 
-Vercel builds a preview for each pull request and deploys `main` to production. The repository admin turns on branch protection for `main`: a pull request, one review, and these six checks. That setting is not part of the workflow file.
+Vercel builds a preview for each pull request and deploys `main` to production. The repository admin turns on branch protection for `main`: a pull request, one review, and these seven checks. That setting is not part of the workflow file.
 
 ## Development workflow
 
