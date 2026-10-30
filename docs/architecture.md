@@ -87,7 +87,7 @@ sequenceDiagram
   R-->>B: 200 JSON
 ```
 
-Writes that touch several tables (registering an account with its personal space; an expense with its shares; closing a settlement) run in a single Postgres function called through `rpc`, so a half-written expense can never exist.
+Writes that touch several tables (registering an account with its personal space; an expense with its shares; closing a settlement) run in a single Postgres function called through `rpc`, so a half-finished write, such as an account without its personal space or an expense without its shares, can never exist.
 
 ## 4. Authentication and access control
 
