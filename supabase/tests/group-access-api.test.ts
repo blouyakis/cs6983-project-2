@@ -118,7 +118,8 @@ describe("GET /api/groups/{groupId} against the database", () => {
     const former = await createUser();
     const groupId = await createGroup(owner, [
       { userId: owner },
-      { userId: former, leftAt: new Date().toISOString() },
+      // A fixed time: left_at may not be before the database's joined_at.
+      { userId: former, leftAt: "2099-01-01T00:00:00+00:00" },
     ]);
 
     const response = await getAs(former, groupId);
