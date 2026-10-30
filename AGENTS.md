@@ -10,7 +10,7 @@ You are working on **LifeBoard**, a web app for planning and paying for everyday
 
 _Why: CI and Vercel build with exactly these versions. Next.js 16 changed APIs that older examples still use, so code written from memory often breaks._
 
-- Node.js 24, Next.js 16 (App Router), React 19, TypeScript strict, Tailwind CSS 4, Supabase Postgres (database only, through `@supabase/supabase-js`; the Supabase CLI is pinned in `devDependencies`), `jose`, `bcryptjs`, Zod 4, Vitest, Playwright, Prettier, OpenAPI 3, npm, Vercel, GitHub Actions
+- Node.js 26, Next.js 16 (App Router), React 19, TypeScript strict, Tailwind CSS 4, Supabase Postgres (database only, through `@supabase/supabase-js`; the Supabase CLI is pinned in `devDependencies`), `jose`, `bcryptjs`, Zod 4, Vitest, Playwright, Prettier, OpenAPI 3, npm, Vercel, GitHub Actions
 
 Before writing Next.js code, read the matching page in `node_modules/next/dist/docs/01-app`. Those pages match the installed Next.js 16. This file still wins if they disagree. Do not follow `02-pages`; the Pages Router is forbidden.
 
@@ -206,6 +206,7 @@ Non-negotiable values, check them before opening a PR: bcrypt cost **12** · ses
 
 ## Changelog
 
+- 2026-10-30, Barbara: moved the stack from Node 24 to Node 26 in Section 1, `.nvmrc`, `engines` and `@types/node`, because Node 26 became the LTS release on 2026-10-28 and Node 24 entered maintenance on 2026-10-20. Vercel supports 26.x, and the tests, build and Playwright flows pass on it.
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
 
 - 2026-10-30, Barbara: put the security numbers in one checklist line at the top of Section 8, because the no-rules run on #4 picked the library defaults for every value the prose didn't make prominent: bcrypt cost 10, a 7-day cookie, and `Secure` only in production. See [docs/sprints/issue-4-comparison.md](docs/sprints/issue-4-comparison.md).
