@@ -315,7 +315,7 @@ Positive means the group owes _m_; negative means _m_ owes. Balances in a group 
 | Environment | App | Database |
 |---|---|---|
 | Local | `npm run dev` | `npx supabase start` (Docker), migrations applied with `npx supabase db reset` |
-| CI | GitHub Actions jobs in [ci.yml](../.github/workflows/ci.yml) | Local Supabase started inside the job for database tests |
+| CI | GitHub Actions jobs in [ci.yml](../.github/workflows/ci.yml) | Local Supabase started inside the `db-test` job, which runs `npm run test:db` |
 | Preview and production | Vercel (a preview per pull request, production from `main`) | Hosted Supabase project |
 
 Variables are listed in [.env.example](../.env.example). `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are read only in `lib/db`; `JWT_SECRET` only in `lib/auth`. None has a `NEXT_PUBLIC_` prefix.

@@ -82,6 +82,10 @@ Diagrams of the system, its layers, and a request are in [`docs/architecture.md`
 ├── .nvmrc                 # Node 24
 ├── e2e/                   # Playwright
 ├── src/app/               # App Router. A placeholder home page only.
+├── src/lib/db/            # the only Supabase client
+├── supabase/
+│   ├── migrations/        # SQL migrations
+│   └── tests/             # database tests (npm run test:db)
 └── docs/
     ├── PRD.md
     ├── user-stories.md
@@ -91,7 +95,7 @@ Diagrams of the system, its layers, and a request are in [`docs/architecture.md`
     └── research/          # project proposal
 ```
 
-Later issues add `src/components/`, `src/lib/`, and `supabase/migrations/`. The target layout is in [`AGENTS.md`](./AGENTS.md) Section 2.
+Later issues add `src/components/` and the rest of `src/lib/`. The target layout is in [`AGENTS.md`](./AGENTS.md) Section 2.
 
 ### Database schema
 
@@ -104,7 +108,7 @@ These steps run the placeholder app. The database is not connected yet.
 ### Prerequisites
 
 - Node.js 24 and npm. If you use nvm, `nvm use` reads `.nvmrc`.
-- Docker, only after the database lands in [#3](https://github.com/blouyakis/cs6983-project-2/issues/3)
+- Docker, for local Supabase and `npm run test:db`
 
 ### Run locally
 
@@ -120,10 +124,10 @@ npm run dev                  # http://localhost:3000
 
 ### Database
 
-Not needed to run the app yet. After [#3](https://github.com/blouyakis/cs6983-project-2/issues/3):
+The app does not read the database yet, but the database tests do:
 
 ```bash
-npx supabase start
+npx supabase start           # Postgres and the API only
 npx supabase db reset        # apply all migrations
 ```
 
@@ -147,16 +151,17 @@ We follow **test-driven development**: the failing test is committed before the 
 ```bash
 npm run lint          # ESLint, then Prettier check
 npm run typecheck     # tsc --noEmit
-npm test              # unit and integration (Vitest)
-npm run test:coverage # coverage report
+npm test              # unit tests (Vitest)
+npm run test:db       # database tests (Vitest), needs npx supabase start
+npm run test:coverage # unit tests with coverage thresholds
 npm run test:e2e      # Playwright
 ```
 
-Coverage goal: 80% of lines overall and 100% of `src/lib/domain`.
+`npm run test:coverage` fails below 80% of lines overall or 100% of `src/lib/domain`.
 
 ## CI/CD
 
-[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) ([#2](https://github.com/blouyakis/cs6983-project-2/issues/2)) runs on every pull request and on every push to `main`. The jobs are `install`, `lint`, `typecheck`, `test`, `build`, and `audit`. `audit` fails on high or critical npm advisories.
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) ([#2](https://github.com/blouyakis/cs6983-project-2/issues/2)) runs on every pull request and on every push to `main`. The jobs are `install`, `lint`, `typecheck`, `test` (with coverage), `db-test` (local Supabase), `build`, and `audit`. `audit` fails on high or critical npm advisories.
 
 Vercel builds a preview for each pull request and deploys `main` to production. The repository admin turns on branch protection for `main`: a pull request, one review, and these six checks. That setting is not part of the workflow file.
 
