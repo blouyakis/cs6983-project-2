@@ -137,10 +137,26 @@ paths:
   /api/groups/{groupId}:
     get:
       summary: Group details
-      description: Issues #6, #8.
+      description: |
+        Issues #5, #6, #8. Current and former members can read it; anyone
+        else, and a group that does not exist, gets 403.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
+        "200":
+          description: The group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupResponse"
+        "400":
+          description: "`groupId` is not a UUID."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         "403":
           $ref: "#/components/responses/Error"
     patch:
@@ -327,6 +343,7 @@ components:
       required: true
       schema:
         type: string
+        format: uuid
     ItemId:
       name: itemId
       in: path
@@ -393,6 +410,30 @@ components:
         updatedAt:
           type: string
           format: date-time
+    Group:
+      type: object
+      required: [id, name, isPersonal, archivedAt, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        isPersonal:
+          type: boolean
+        archivedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    GroupResponse:
+      type: object
+      required: [group]
+      properties:
+        group:
+          $ref: "#/components/schemas/Group"
     UserResponse:
       type: object
       required: [user]
