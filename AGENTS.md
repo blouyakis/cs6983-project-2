@@ -161,6 +161,7 @@ _Why: These are the mistakes an agent is most likely to make in this stack, plus
 ### Do
 
 - Add a SQL migration for every schema change (`npx supabase migration new <name>`).
+- Let the database set `updated_at`. A trigger sets it on every update, so services never write it.
 - Update [docs/api/openapi.yaml](docs/api/openapi.yaml) in the same PR as any API change.
 - Follow [DESIGN.md](DESIGN.md) for UI work.
 
@@ -202,6 +203,7 @@ Prefer the stack in Section 1, plus `server-only`, `@testing-library/react`, `@p
 
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
 
+- 2026-10-29, Ziye: added the `updated_at` rule to Section 8 (#3). Barbara asked us to pick one way to keep it current, and a trigger can't be forgotten by a service.
 - 2026-10-29, Ziye: added `npm run test:db` and `supabase/tests/`, named `@supabase/supabase-js` and the pinned Supabase CLI in Section 1, and marked `supabase/migrations/` and `lib/db` as existing (#3). Database rules can only be tested against a real Postgres, and CI now runs those tests.
 - 2026-10-29, Barbara: switched [DESIGN.md](DESIGN.md) to the colors and components of the new mockups, and ruled in Section 6.7 that the payer can't be changed when editing, because the new edit mockup showed a payer picker the rules didn't cover.
 - 2026-10-29, Ziye: added settle-up periods to Section 6 and pointed at the final schema in [docs/architecture.md](docs/architecture.md) (#3), because the team decided that costs added during an open settle-up go to the next period and any member can cancel it until someone marks a payment paid.

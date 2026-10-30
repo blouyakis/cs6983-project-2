@@ -87,7 +87,7 @@ sequenceDiagram
   R-->>B: 200 JSON
 ```
 
-Writes that touch several tables (an expense with its shares; closing a settlement) run in a single Postgres function called through `rpc`, so a half-written expense can never exist.
+Writes that touch several tables (registering an account with its personal space; an expense with its shares; closing a settlement) run in a single Postgres function called through `rpc`, so a half-written expense can never exist.
 
 ## 4. Authentication and access control
 
@@ -217,17 +217,18 @@ erDiagram
 
 - `email` is unique and must equal `lower(email)`.
 - `password_hash` is a bcrypt hash. The plain password is never stored or logged.
+- `updated_at` is set by a trigger on every update. Code never writes it.
 
 **`groups`**: shared groups and personal spaces.
 
-- `is_personal` marks a user's personal space. Each user has exactly one, created at registration. A partial unique index on `(created_by) where is_personal` enforces it.
+- `is_personal` marks a user's personal space. Each user has exactly one, created at registration: `register_user(p_email, p_password_hash, p_name)` inserts the user (email trimmed and lowercase), the personal space and the owner's membership in one transaction and returns the user id. A partial unique index on `(created_by) where is_personal` enforces it.
 - `archived_at` is set when the last member leaves; the group is then read-only.
 
 **`group_members`**: who is or was in a group. Primary key `(group_id, user_id)`.
 
 - `default_share_weight` is a positive integer. A 60/40 group stores 3 and 2. New expenses split by these weights unless the payer overrides them. Even groups store 1 for everyone.
 - `left_at` is set when a member leaves; the row stays so history and read access still work.
-- A trigger rejects a new current member when a group already has `MAX_GROUP_MEMBERS = 12`.
+- A trigger rejects a join or rejoin that would make a 13th current member (`MAX_GROUP_MEMBERS = 12`). It locks the group row, so two joins cannot race for the last place.
 
 **`list_items`**: things to do or buy.
 
