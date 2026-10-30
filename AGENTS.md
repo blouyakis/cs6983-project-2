@@ -10,7 +10,7 @@ You are working on **LifeBoard**, a web app for planning and paying for everyday
 
 _Why: CI and Vercel build with exactly these versions. Next.js 16 changed APIs that older examples still use, so code written from memory often breaks._
 
-- Node.js 24, Next.js 16 (App Router), React 19, TypeScript strict, Tailwind CSS 4, Supabase Postgres (database only), `jose`, `bcryptjs`, Zod 4, Vitest, Playwright, Prettier, OpenAPI 3, npm, Vercel, GitHub Actions
+- Node.js 24, Next.js 16 (App Router), React 19, TypeScript strict, Tailwind CSS 4, Supabase Postgres (database only, through `@supabase/supabase-js`; the Supabase CLI is pinned in `devDependencies`), `jose`, `bcryptjs`, Zod 4, Vitest, Playwright, Prettier, OpenAPI 3, npm, Vercel, GitHub Actions
 
 Before writing Next.js code, read the matching page in `node_modules/next/dist/docs/01-app`. Those pages match the installed Next.js 16. This file still wins if they disagree. Do not follow `02-pages`; the Pages Router is forbidden.
 
@@ -21,8 +21,9 @@ npm run dev            # start the dev server
 npm run lint           # ESLint, then Prettier check
 npm run format         # Prettier write
 npm run typecheck      # tsc --noEmit
-npm test               # Vitest (unit + integration)
-npm run test:coverage  # Vitest with coverage report
+npm test               # Vitest unit tests (no Docker needed)
+npm run test:db        # Vitest database tests in supabase/tests (run npx supabase start first)
+npm run test:coverage  # unit tests with the coverage thresholds in Section 4
 npm run test:e2e       # Playwright
 npm run build          # production build
 npx supabase start     # local Supabase (requires Docker)
@@ -58,13 +59,15 @@ This is the **target structure**. Paths marked `(planned)` do not exist yet; cre
 │   ├── decisions/           # (planned)
 │   ├── api/openapi.yaml
 │   └── sprints/sprint-1/    # (planned)
-├── supabase/migrations/     # (planned)
+├── supabase/
+│   ├── migrations/
+│   └── tests/               # database tests (npm run test:db)
 ├── e2e/
 └── src/
     ├── proxy.ts             # (planned)
     ├── app/                 # (auth), (app), api — only the scaffold page exists so far
     ├── components/          # (planned) ui/ and feature folders
-    └── lib/                 # (planned) domain, services, db, auth, validation, http
+    └── lib/                 # db; (planned) domain, services, auth, validation, http
 ```
 
 ### Key patterns
@@ -90,6 +93,7 @@ _Why: Both partners and every agent write code the same way, so reviews can focu
 _Why: Project 2 grades test-driven development from the git history, and money bugs are easy to miss without tests._
 
 - Vitest for unit and integration tests, Playwright for the flows in Section 5. Coverage: 80% lines, 100% of `lib/domain`.
+- Rules the database enforces (constraints, triggers, SQL functions) are tested against local Supabase in `supabase/tests/`, next to the migrations.
 - Commit the failing test first, then the code, then the refactor. Never in the same commit.
 
 ---
@@ -198,6 +202,7 @@ Prefer the stack in Section 1, plus `server-only`, `@testing-library/react`, `@p
 
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
 
+- 2026-10-29, Ziye: added `npm run test:db` and `supabase/tests/`, named `@supabase/supabase-js` and the pinned Supabase CLI in Section 1, and marked `supabase/migrations/` and `lib/db` as existing (#3). Database rules can only be tested against a real Postgres, and CI now runs those tests.
 - 2026-10-29, Barbara: switched [DESIGN.md](DESIGN.md) to the colors and components of the new mockups, and ruled in Section 6.7 that the payer can't be changed when editing, because the new edit mockup showed a payer picker the rules didn't cover.
 - 2026-10-29, Ziye: added settle-up periods to Section 6 and pointed at the final schema in [docs/architecture.md](docs/architecture.md) (#3), because the team decided that costs added during an open settle-up go to the next period and any member can cancel it until someone marks a payment paid.
 - 2026-10-29, Barbara: described each UI component in [DESIGN.md](DESIGN.md) with its expected behavior (PR #29), because the screens were described but only two components were.
