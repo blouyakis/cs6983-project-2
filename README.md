@@ -12,7 +12,6 @@ The app scaffold is in place ([#1](https://github.com/blouyakis/cs6983-project-2
 | | |
 |---|---|
 | **Production URL** | Not deployed yet |
-| **API docs (Swagger)** | Served at `/api/docs` once deployed. Draft spec: [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
 | **Issues and milestones** | [Issues](https://github.com/blouyakis/cs6983-project-2/issues) · [Milestones](https://github.com/blouyakis/cs6983-project-2/milestones) |
 | **Project board** | [LifeBoard board](https://github.com/users/blouyakis/projects/3) (Backlog → Sprint ToDo → In Progress → In Review → Done) |
 | **PRD** | [`docs/PRD.md`](./docs/PRD.md) |
@@ -66,16 +65,12 @@ Recurring bills, a group activity log, group messaging, disputing charges, group
 | Testing | Vitest (unit and integration) · Playwright (E2E) |
 | API docs | OpenAPI 3 · `swagger-ui-react` |
 | CI/CD | GitHub Actions · Vercel (preview per PR, production from `main`) |
-| AI harness | Guided by [`AGENTS.md`](./AGENTS.md) |
 
 ## Architecture
 
-Diagrams of the system, its layers, and a request are in [`docs/architecture.md`](./docs/architecture.md).
 
 ```text
 .
-├── AGENTS.md              # shared rules for AI coding tools
-├── DESIGN.md              # colors, screens, and UI components
 ├── README.md
 ├── LICENSE
 ├── .env.example
@@ -85,17 +80,13 @@ Diagrams of the system, its layers, and a request are in [`docs/architecture.md`
 └── docs/
     ├── PRD.md
     ├── user-stories.md
-    ├── architecture.md    # system, layers, and schema
-    ├── api/openapi.yaml
     ├── design/            # mockup screenshots
     └── research/          # project proposal
 ```
 
-Later issues add `src/components/`, `src/lib/`, and `supabase/migrations/`. The target layout is in [`AGENTS.md`](./AGENTS.md) Section 2.
 
 ### Database schema
 
-The ER diagram and table definitions are in [`docs/architecture.md`](./docs/architecture.md) Section 5: `users`, `groups`, `group_members`, `list_items`, `expenses`, `expense_shares`, `payments`, and `settlements`. Issue [#3](https://github.com/blouyakis/cs6983-project-2/issues/3) turns them into SQL migrations.
 
 ## Getting started
 
@@ -169,11 +160,9 @@ Vercel builds a preview for each pull request and deploys `main` to production. 
 - **Standups and meetings:** logged in the [communication log](<!-- TODO: link to Google Sheet -->)
 - **Planning and retrospectives:** will live in `docs/sprints/`
 
-Full conventions are in [`AGENTS.md`](./AGENTS.md).
 
 ## API
 
-Not implemented yet. The draft REST API is in [`docs/api/openapi.yaml`](./docs/api/openapi.yaml), and Swagger UI will be served at `/api/docs`.
 
 Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `list-items`, `expenses`, `balances`, `bills/me`, `payments`, `settlements`, `invitations`, and `leave`.
 
@@ -181,13 +170,9 @@ Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `
 
 | Document | Location |
 |---|---|
-| Rules for AI coding tools | [`AGENTS.md`](./AGENTS.md) |
 | PRD | [`docs/PRD.md`](./docs/PRD.md) |
 | User stories | [`docs/user-stories.md`](./docs/user-stories.md) |
 | Project proposal | [`docs/research/project-proposal.md`](./docs/research/project-proposal.md) |
-| Design and mockups | [`DESIGN.md`](./DESIGN.md) · [`docs/design/`](./docs/design/) |
-| Architecture and schema | [`docs/architecture.md`](./docs/architecture.md) |
-| API spec (draft) | [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
 | Sprint planning and retrospectives | Not started (`docs/sprints/`) |
 | Communication log | <!-- TODO --> |
 | Contribution log | Not started (`docs/contributions.md`) |
@@ -200,7 +185,6 @@ Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `
 | Barbara Louyakis | <!-- TODO: fill in as work is divided --> |
 | Ziye Huang | <!-- TODO --> |
 
-Both partners commit, review, and maintain `AGENTS.md`.
 
 ## License
 
