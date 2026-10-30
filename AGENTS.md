@@ -64,7 +64,7 @@ Names only, in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` and `JWT_SECRET` stay
 
 - Server Components by default. `"use client"` only for state, effects, or event handlers.
 - Code flows route handler → service → domain and db. Zod at the boundary. Only `lib/db` talks to Supabase.
-- Routes, the error shape, and status codes are in [docs/api/openapi.yaml](docs/api/openapi.yaml). The draft schema is in [docs/architecture.md](docs/architecture.md).
+- Routes, the error shape, and status codes are in [docs/api/openapi.yaml](docs/api/openapi.yaml). The architecture and schema are in [docs/architecture.md](docs/architecture.md).
 
 ---
 
@@ -109,7 +109,7 @@ These are also the Playwright scenarios.
 2. **Even splits:** divide in cents; any leftover cents go to the **payer’s** share. Shares must always add up exactly to the expense total.
 3. **Custom splits** must add up to the total, or the request is rejected. A group’s default split ratio applies to new expenses and can be overridden per expense.
 4. **Balances:** a member’s balance is (what they paid for others) minus (what others paid for them), adjusted by confirmed payments, over unsettled expenses only.
-5. **Settle-up suggestions** must use the **fewest possible payments**, found with an exact subset (bitmask) search, not a greedy match. Groups are capped at `MAX_GROUP_MEMBERS = 12` so this stays fast. Suggestions are recalculated after every confirmed direct payment.
+5. **Settle-up suggestions** must use the **fewest possible payments**, found with an exact subset (bitmask) search, not a greedy match. Groups are capped at `MAX_GROUP_MEMBERS = 12` so this stays fast. Outside an open settle-up, suggestions are recalculated after every confirmed direct payment.
 6. **Access** (one helper, `requireGroupAccess`, used everywhere):
    - Current members can read and write.
    - Former members can only **read** data created **before** their `left_at`.
@@ -117,6 +117,7 @@ These are also the Playwright scenarios.
 7. **Editing:** only the payer can edit or delete an expense, and only while it is unsettled. Settled expenses are locked.
 8. **Leaving:** a member can leave only with a zero balance. A group with one member keeps working; when the last member leaves, set `archived_at` and make it read-only.
 9. **Payments** are records of money sent outside the app. The app never moves money.
+10. **Settle-up periods:** a settle-up works on the balances at the moment it starts. Expenses and direct payments added while it is open belong to the next period. Any current member can cancel it while every payment in it is still suggested; once one is marked paid, it can only close.
 
 ---
 
@@ -178,6 +179,7 @@ Prefer the stack in Section 1, plus `server-only`, `@testing-library/react`, `@p
 
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
 
+- 2026-10-29, Ziye: added settle-up periods to Section 6 and pointed at the final schema in [docs/architecture.md](docs/architecture.md) (#3), because the team decided that costs added during an open settle-up go to the next period and any member can cancel it until someone marks a payment paid.
 - 2026-10-28, Ziye: pointed agents at the installed Next.js 16 docs in `node_modules/next/dist/docs/01-app`, because `agentRules` is off and Next no longer writes that pointer.
 - 2026-10-28, Ziye: added Prettier beside ESLint because issue #1 requires both, and `npm run lint` now checks formatting.
 - 2026-10-28, Ziye: moved the issues link to Section 7, and added [docs/user-stories.md](docs/user-stories.md) from the shared user-story doc, linked in Section 5.
