@@ -15,6 +15,15 @@ export default defineConfig({
   test: {
     coverage: {
       provider: "v8",
+      // Count files no test imports, so untested code lowers the number.
+      include: ["src/**/*.{ts,tsx}"],
+      // The root layout only wires fonts and global CSS.
+      exclude: ["src/app/layout.tsx"],
+      // AGENTS.md Section 4.
+      thresholds: {
+        lines: 80,
+        "src/lib/domain/**": { 100: true },
+      },
     },
     projects: [
       {
