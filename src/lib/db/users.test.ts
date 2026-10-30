@@ -37,14 +37,14 @@ vi.mock("./client", () => ({
   }),
 }));
 
-const row = {
+const publicRow = {
   id: "6f1c2d4e-1111-4222-8333-944455556666",
   email: "sam@example.com",
   name: "Sam Lee",
-  password_hash: "$2b$12$hash",
   created_at: "2026-10-30T12:00:00+00:00",
   updated_at: "2026-10-30T12:00:00+00:00",
 };
+const row = { ...publicRow, password_hash: "$2b$12$hash" };
 
 beforeEach(() => {
   calls.length = 0;
@@ -81,7 +81,6 @@ describe("findUserByEmail", () => {
 
 describe("findUserById", () => {
   it("returns the user without the password hash", async () => {
-    const { password_hash: _omit, ...publicRow } = row;
     result = { data: publicRow, error: null };
     const user = await findUserById(row.id);
     expect(user).toEqual({
@@ -108,7 +107,6 @@ describe("findUserById", () => {
 
 describe("insertUser", () => {
   it("writes snake_case columns and returns the new user", async () => {
-    const { password_hash: _omit, ...publicRow } = row;
     result = { data: publicRow, error: null };
     const user = await insertUser({
       email: "sam@example.com",
