@@ -12,35 +12,108 @@ info:
     email, editing a settled expense, leaving with a balance).
 
     Error body: { "error": { "code": "FORBIDDEN", "message": "You are not a member of this group." } }
+security:
+  - sessionCookie: []
 paths:
   /api/auth/register:
     post:
       summary: Create an account (also creates the personal space)
-      description: Issues #4, #23.
+      description: |
+        Issues #4, #23. Stores the email lowercase and the password as a
+        bcrypt hash (cost 12), then sets the `session` cookie. The personal
+        space is not created yet (#23).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
       responses:
+        "201":
+          description: Account created. Sets the `session` cookie.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SessionCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          description: |
+            Invalid input. `fields` names each bad field, for example
+            `{ "password": "Password must be at least 8 characters." }`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: "`An account with this email already exists.`"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/auth/login:
     post:
       summary: Log in, set the session cookie
       description: Issue #4.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
       responses:
-        "401":
+        "200":
+          description: Logged in. Sets the `session` cookie.
+          headers:
+            Set-Cookie:
+              $ref: "#/components/headers/SessionCookie"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "400":
           $ref: "#/components/responses/Error"
+        "401":
+          description: |
+            Wrong email or password. The message is always
+            `Email or password is incorrect.`, so it does not reveal which
+            emails have accounts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/auth/logout:
     post:
       summary: Clear the session cookie
-      description: Issue #4.
+      description: |
+        Issue #4. Works without a valid session, so an expired cookie is
+        cleared the same way.
+      security: []
       responses:
-        "401":
-          $ref: "#/components/responses/Error"
+        "204":
+          description: Logged out. Sets `session` to empty with `Max-Age=0`.
   /api/auth/me:
     get:
       summary: Current user
       description: Issue #4.
       responses:
+        "200":
+          description: The user the session belongs to.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
         "401":
-          $ref: "#/components/responses/Error"
+          description: |
+            No session, an invalid token, or an expired token
+            (`Your session has expired. Please log in again.`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/overview:
     get:
       summary: Personal total, share per group, net balance
@@ -234,6 +307,19 @@ paths:
         "404":
           $ref: "#/components/responses/Error"
 components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: session
+      description: |
+        HS256 JWT holding only the user id, valid for 24 hours. Set as an
+        httpOnly, Secure, SameSite=Lax cookie by register and login.
+  headers:
+    SessionCookie:
+      description: "`session=<jwt>; Path=/; Max-Age=86400; HttpOnly; Secure; SameSite=Lax`"
+      schema:
+        type: string
   parameters:
     GroupId:
       name: groupId
@@ -260,6 +346,59 @@ components:
       schema:
         type: string
   schemas:
+    RegisterRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Sam Lee
+        email:
+          type: string
+          format: email
+          description: Trimmed and stored lowercase.
+          example: sam@example.com
+        password:
+          type: string
+          minLength: 8
+          description: At least 8 characters and at most 72 bytes.
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Matched case-insensitively.
+        password:
+          type: string
+          minLength: 1
+    User:
+      type: object
+      required: [id, email, name, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    UserResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
     Error:
       type: object
       required: [error]
@@ -274,6 +413,13 @@ components:
             message:
               type: string
               example: You are not a member of this group.
+            fields:
+              type: object
+              description: Only on 400. One message per invalid field.
+              additionalProperties:
+                type: string
+              example:
+                password: Password must be at least 8 characters.
   responses:
     Error:
       description: Request failed.
