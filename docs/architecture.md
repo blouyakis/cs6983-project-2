@@ -142,6 +142,7 @@ erDiagram
     text password_hash
     text name
     timestamptz created_at
+    timestamptz updated_at
   }
   groups {
     uuid id PK
