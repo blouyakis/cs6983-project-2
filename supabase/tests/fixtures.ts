@@ -77,6 +77,7 @@ export async function cleanUp(): Promise<void> {
   }
   const groupIds = groups.data.map((group) => group.id as string);
   const steps = [
+    () => db.from("payments").delete().in("group_id", groupIds),
     () => db.from("expenses").delete().in("group_id", groupIds),
     () => db.from("settlements").delete().in("group_id", groupIds),
     () => db.from("group_members").delete().in("user_id", ids),
