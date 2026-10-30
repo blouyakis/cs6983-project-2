@@ -71,7 +71,13 @@ export async function cleanUp(): Promise<void> {
   if (ids.length === 0) {
     return;
   }
+  const groups = await db.from("groups").select("id").in("created_by", ids);
+  if (groups.error) {
+    throw groups.error;
+  }
+  const groupIds = groups.data.map((group) => group.id as string);
   const steps = [
+    () => db.from("settlements").delete().in("group_id", groupIds),
     () => db.from("group_members").delete().in("user_id", ids),
     () => db.from("groups").delete().in("created_by", ids),
     () => db.from("users").delete().in("id", ids),
