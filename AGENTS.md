@@ -84,6 +84,7 @@ _Why: Both partners and every agent write code the same way, so reviews can focu
 
 - Components: PascalCase, one per file. Other TypeScript files: kebab-case. Tests sit next to the code.
 - API routes: plural kebab-case. JSON keys: camelCase. Database: plural snake_case. Money fields end in `Cents`; timestamps end in `At`.
+- `lib/db` maps `snake_case` columns to `camelCase` before anything leaves that layer; no other code sees column names.
 - TypeScript `strict`, no `any`. Named exports, except `page.tsx` and `layout.tsx`. Services throw typed errors from `lib/http/errors.ts`.
 
 ---
@@ -95,6 +96,7 @@ _Why: Project 2 grades test-driven development from the git history, and money b
 - Vitest for unit and integration tests, Playwright for the flows in Section 5. Coverage: 80% lines, 100% of `lib/domain`.
 - Rules the database enforces (constraints, triggers, SQL functions) are tested against local Supabase in `supabase/tests/`, next to the migrations.
 - Commit the failing test first, then the code, then the refactor. Never in the same commit.
+- Before committing a `test(...)` commit, run `git diff --cached --stat` and confirm every file is a `*.test.*` or `e2e/*` file.
 
 ---
 
@@ -171,12 +173,15 @@ _Why: These are the mistakes an agent is most likely to make in this stack, plus
 - Don't add a dependency without saying why in the PR.
 - Don't build Won't Have items from the PRD. Real-time is Could Have; ask before starting it.
 - Don't edit tests to match broken behavior.
+- Don't return the JWT in a response body or accept it from an `Authorization` header. The `session` cookie is the only transport.
 
 ### Preferred libraries
 
 Prefer the stack in Section 1, plus `server-only`, `@testing-library/react`, `@playwright/test`, and `swagger-ui-react`.
 
 ### Security requirements
+
+Non-negotiable values, check them before opening a PR: bcrypt cost **12** · session expiry **24 h** · cookie `httpOnly` + `Secure` (always, including dev) + `SameSite=Lax`, named `session` · password minimum **8** characters · emails stored **lowercase**.
 
 - Hash passwords with `bcryptjs` (cost factor 12). Passwords must be at least 8 characters. Store emails lowercase.
 - Store the JWT in an `httpOnly`, `Secure`, `SameSite=Lax` cookie named `session`. Tokens expire after 24 hours; expired tokens get `401` and the user is sent to login.
@@ -202,6 +207,10 @@ Prefer the stack in Section 1, plus `server-only`, `@testing-library/react`, `@p
 
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
 
+- 2026-10-30, Barbara: put the security numbers in one checklist line at the top of Section 8, because the no-rules run on #4 picked the library defaults for every value the prose didn't make prominent: bcrypt cost 10, a 7-day cookie, and `Secure` only in production. See [docs/sprints/issue-4-comparison.md](docs/sprints/issue-4-comparison.md).
+- 2026-10-30, Barbara: added a Don't about returning the JWT in the body or reading it from an `Authorization` header, because the no-rules run on #4 did both; the old rule only covered `localStorage` in the browser.
+- 2026-10-30, Barbara: said in Section 3 that `lib/db` is where `snake_case` becomes `camelCase`, because the no-rules run on #4 sent `created_at` to the client; the rule named both casings but not where the conversion happens.
+- 2026-10-30, Barbara: added a `git diff --cached --stat` check before `test(...)` commits in Section 4, because one of the ten test commits in the with-rules run on #4 (`e492056`) also carried `app/(app)/page.tsx`.
 - 2026-10-29, Ziye: added `npm run test:db` and `supabase/tests/`, named `@supabase/supabase-js` and the pinned Supabase CLI in Section 1, and marked `supabase/migrations/` and `lib/db` as existing (#3). Database rules can only be tested against a real Postgres, and CI now runs those tests.
 - 2026-10-29, Barbara: switched [DESIGN.md](DESIGN.md) to the colors and components of the new mockups, and ruled in Section 6.7 that the payer can't be changed when editing, because the new edit mockup showed a payer picker the rules didn't cover.
 - 2026-10-29, Ziye: added settle-up periods to Section 6 and pointed at the final schema in [docs/architecture.md](docs/architecture.md) (#3). The team decided that costs added during an open settle-up go to the next period, and that any member can cancel it until someone marks a payment paid.
