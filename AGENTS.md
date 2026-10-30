@@ -163,6 +163,7 @@ _Why: These are the mistakes an agent is most likely to make in this stack, plus
 ### Do
 
 - Add a SQL migration for every schema change (`npx supabase migration new <name>`).
+- Let the database set `updated_at`. A trigger sets it on every update, so services never write it.
 - Update [docs/api/openapi.yaml](docs/api/openapi.yaml) in the same PR as any API change.
 - Follow [DESIGN.md](DESIGN.md) for UI work.
 
@@ -211,6 +212,7 @@ Non-negotiable values, check them before opening a PR: bcrypt cost **12** · ses
 - 2026-10-30, Barbara: added a Don't about returning the JWT in the body or reading it from an `Authorization` header, because the no-rules run on #4 did both; the old rule only covered `localStorage` in the browser.
 - 2026-10-30, Barbara: said in Section 3 that `lib/db` is where `snake_case` becomes `camelCase`, because the no-rules run on #4 sent `created_at` to the client; the rule named both casings but not where the conversion happens.
 - 2026-10-30, Barbara: added a `git diff --cached --stat` check before `test(...)` commits in Section 4, because one of the ten test commits in the with-rules run on #4 (`e492056`) also carried `app/(app)/page.tsx`.
+- 2026-10-29, Ziye: added the `updated_at` rule to Section 8 (#3). Barbara asked us to pick one way to keep it current, and a trigger can't be forgotten by a service.
 - 2026-10-29, Ziye: added `npm run test:db` and `supabase/tests/`, named `@supabase/supabase-js` and the pinned Supabase CLI in Section 1, and marked `supabase/migrations/` and `lib/db` as existing (#3). Database rules can only be tested against a real Postgres, and CI now runs those tests.
 - 2026-10-29, Barbara: switched [DESIGN.md](DESIGN.md) to the colors and components of the new mockups, and ruled in Section 6.7 that the payer can't be changed when editing, because the new edit mockup showed a payer picker the rules didn't cover.
 - 2026-10-29, Ziye: added settle-up periods to Section 6 and pointed at the final schema in [docs/architecture.md](docs/architecture.md) (#3). The team decided that costs added during an open settle-up go to the next period, and that any member can cancel it until someone marks a payment paid.
