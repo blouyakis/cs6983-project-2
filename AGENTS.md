@@ -8,6 +8,8 @@ You are working on **LifeBoard**, a web app for planning and paying for everyday
 
 ## 1. Tech stack and versions
 
+_Why: CI and Vercel build with exactly these versions. Next.js 16 changed APIs that older examples still use, so code written from memory often breaks._
+
 - Node.js 24, Next.js 16 (App Router), React 19, TypeScript strict, Tailwind CSS 4, Supabase Postgres (database only), `jose`, `bcryptjs`, Zod 4, Vitest, Playwright, Prettier, OpenAPI 3, npm, Vercel, GitHub Actions
 
 Before writing Next.js code, read the matching page in `node_modules/next/dist/docs/01-app`. Those pages match the installed Next.js 16. This file still wins if they disagree. Do not follow `02-pages`; the Pages Router is forbidden.
@@ -35,7 +37,11 @@ Names only, in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` and `JWT_SECRET` stay
 
 ## 2. Architecture overview
 
+_Why: Every request takes the same path, so access checks and validation live in one place and no screen can skip them._
+
 ### Folder structure
+
+This is the **target structure**. Paths marked `(planned)` do not exist yet; create them there when the first issue needs them.
 
 ```text
 .
@@ -48,16 +54,17 @@ Names only, in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` and `JWT_SECRET` stay
 │   ├── PRD.md
 │   ├── user-stories.md
 │   ├── architecture.md
-│   ├── research/ design/ decisions/
+│   ├── research/ design/
+│   ├── decisions/           # (planned)
 │   ├── api/openapi.yaml
-│   └── sprints/sprint-1/
-├── supabase/migrations/
+│   └── sprints/sprint-1/    # (planned)
+├── supabase/migrations/     # (planned)
 ├── e2e/
 └── src/
-    ├── proxy.ts
-    ├── app/                 # (auth), (app), api
-    ├── components/          # ui/ and feature folders
-    └── lib/                 # domain, services, db, auth, validation, http
+    ├── proxy.ts             # (planned)
+    ├── app/                 # (auth), (app), api — only the scaffold page exists so far
+    ├── components/          # (planned) ui/ and feature folders
+    └── lib/                 # (planned) domain, services, db, auth, validation, http
 ```
 
 ### Key patterns
@@ -70,6 +77,8 @@ Names only, in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` and `JWT_SECRET` stay
 
 ## 3. Naming conventions and coding standards
 
+_Why: Both partners and every agent write code the same way, so reviews can focus on behavior instead of style._
+
 - Components: PascalCase, one per file. Other TypeScript files: kebab-case. Tests sit next to the code.
 - API routes: plural kebab-case. JSON keys: camelCase. Database: plural snake_case. Money fields end in `Cents`; timestamps end in `At`.
 - TypeScript `strict`, no `any`. Named exports, except `page.tsx` and `layout.tsx`. Services throw typed errors from `lib/http/errors.ts`.
@@ -78,12 +87,16 @@ Names only, in `.env.example`. `SUPABASE_SERVICE_ROLE_KEY` and `JWT_SECRET` stay
 
 ## 4. Testing strategy
 
+_Why: Project 2 grades test-driven development from the git history, and money bugs are easy to miss without tests._
+
 - Vitest for unit and integration tests, Playwright for the flows in Section 5. Coverage: 80% lines, 100% of `lib/domain`.
 - Commit the failing test first, then the code, then the refactor. Never in the same commit.
 
 ---
 
 ## 5. PRD and design references
+
+_Why: The PRD and mockups decide what to build. These flows turn them into steps an agent can follow and Playwright can test._
 
 - PRD: [docs/PRD.md](docs/PRD.md). User stories: [docs/user-stories.md](docs/user-stories.md).
 - UI work follows [DESIGN.md](DESIGN.md). Mockups are in [docs/design/](docs/design/).
@@ -105,6 +118,8 @@ These are also the Playwright scenarios.
 
 ## 6. Domain rules (must always hold)
 
+_Why: Money bugs hide here: lost cents, rounding drift, and the wrong person editing or seeing data. These rules hold in every feature, not just the one that added them._
+
 1. **Money is integer cents.** Never use floating point for money. Convert to dollars only when displaying.
 2. **Even splits:** divide in cents; any leftover cents go to the **payer’s** share. Shares must always add up exactly to the expense total.
 3. **Custom splits** must add up to the total, or the request is rejected. A group’s default split ratio applies to new expenses and can be overridden per expense.
@@ -122,6 +137,8 @@ These are also the Playwright scenarios.
 
 ## 7. Scrum and Git workflow
 
+_Why: The board, branches and PRs keep two partners and their agents from overlapping, and Project 2 grades this history._
+
 - Board: Backlog → Sprint Todo → In Progress → In Review → Done. One issue per piece of work, on the [issue board](https://github.com/blouyakis/cs6983-project-2/issues).
 - Product Owner and Scrum Master rotate each sprint.
 - Branch from `main`: `feature/19-settle-up`. One branch per issue.
@@ -133,6 +150,8 @@ These are also the Playwright scenarios.
 ---
 
 ## 8. Do’s and don’ts
+
+_Why: These are the mistakes an agent is most likely to make in this stack, plus the security and accessibility rules the app must meet._
 
 ### Do
 
@@ -178,6 +197,9 @@ Prefer the stack in Section 1, plus `server-only`, `@testing-library/react`, `@p
 
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
 
+- 2026-10-29, Barbara: described each UI component in [DESIGN.md](DESIGN.md) with its expected behavior (PR #29), because the screens were described but only two components were.
+- 2026-10-29, Barbara: added a one-line _Why_ note under each numbered section, so agents and reviewers know the reason behind each group of rules. The notes are visible text because Claude Code strips HTML comments from this file.
+- 2026-10-29, Barbara: labeled the folder structure as the target structure and marked the paths that don't exist yet, so agents don't assume `src/proxy.ts`, `lib/` or migrations are already there.
 - 2026-10-28, Ziye: pointed agents at the installed Next.js 16 docs in `node_modules/next/dist/docs/01-app`, because `agentRules` is off and Next no longer writes that pointer.
 - 2026-10-28, Ziye: added Prettier beside ESLint because issue #1 requires both, and `npm run lint` now checks formatting.
 - 2026-10-28, Ziye: moved the issues link to Section 7, and added [docs/user-stories.md](docs/user-stories.md) from the shared user-story doc, linked in Section 5.
