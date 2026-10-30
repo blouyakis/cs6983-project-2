@@ -304,9 +304,9 @@ The earlier draft had only `pending` and `confirmed`. That could not tell "the a
 
 **Balance of member _m_ for the current period** (expenses and payments whose `settlement_id` is null or points to the open settlement):
 
-\[
+```math
 \text{balance}(m) = \sum_{e:\ \text{payer}=m} \text{amount}_e \;-\; \sum_{e} \text{share}_{e,m} \;+\; \sum_{p\ \text{confirmed}:\ \text{from}=m} \text{amount}_p \;-\; \sum_{p\ \text{confirmed}:\ \text{to}=m} \text{amount}_p
-\]
+```
 
 Positive means the group owes _m_; negative means _m_ owes. Balances in a group always add up to zero, which the domain tests check.
 
