@@ -10,6 +10,7 @@ import {
 import { ConflictError, UnauthorizedError } from "@/lib/http/errors";
 import type { LoginInput, RegisterInput } from "@/lib/validation/auth";
 
+export type { User };
 export type AuthResult = { user: User; token: string };
 
 const LOGIN_FAILED = "Email or password is incorrect.";
