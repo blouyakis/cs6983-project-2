@@ -124,12 +124,14 @@ npm run dev                  # http://localhost:3000
 
 ### Database
 
-The app does not read the database yet, but the database tests do:
+Login, registration and the database tests need it:
 
 ```bash
 npx supabase start           # Postgres and the API only
-npx supabase db reset        # apply all migrations
+npx supabase db reset        # apply all migrations, then load the demo data
 ```
+
+`npx supabase status` prints the values for `SUPABASE_URL` (`API_URL`) and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`.
 
 ### Environment variables
 
@@ -142,7 +144,7 @@ npx supabase db reset        # apply all migrations
 
 ### Demo account
 
-None yet.
+After `npx supabase db reset`, log in locally as **`demo@lifeboard.test`** with the password **`lifeboard-demo`**. `sam@lifeboard.test` and `jo@lifeboard.test` use the same password. The three share a group called Flat with a few costs, a shopping list and a repayment, loaded from [`supabase/seed.sql`](./supabase/seed.sql).
 
 ## Testing
 

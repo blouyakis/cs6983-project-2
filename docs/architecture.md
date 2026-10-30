@@ -116,6 +116,8 @@ Postgres in Supabase, changed only through SQL files in `supabase/migrations/`. 
 - Table names are plural `snake_case`. Primary keys are `uuid` with `gen_random_uuid()`.
 - Money is `integer` cents in columns ending in `_cents`. Timestamps are `timestamptz` in columns ending in `_at`. The date an expense happened is a `date`.
 - Every table has Row Level Security on and no policies. `anon` and `authenticated` have no grants.
+- A person named in a group's row (payer, sharer, sender, recipient, who added or checked off an item, who started a settle-up) must be a member of that group, current or former, so a member's history survives when they leave. A composite foreign key to `group_members (group_id, user_id)` enforces it, or a trigger for `expense_shares`, which has no `group_id`. Services check that the member is current before a new write.
+- An expense or settlement referenced from another row must be in the same group, through composite foreign keys to `unique (group_id, id)`.
 
 ### Entity relationships
 
@@ -234,33 +236,39 @@ erDiagram
 
 - `status` is `open` or `done`. While `open`, `completed_by`, `completed_at` and `expense_id` are null. When `done`, `completed_by` and `completed_at` are set.
 - `estimated_cents` and `quantity` are optional and must be positive when present.
-- `expense_id` is null when the item was done with no cost. If that expense is deleted, it becomes null again and the item stays done.
+- `expense_id` is null when the item was done with no cost. It must be an expense of the same group, and an expense belongs to one item at most. If that expense is deleted, only `expense_id` becomes null and the item stays done.
 
 **`expenses`**: one cost, personal or shared.
 
 - `amount_cents >= 0`. `payer_id` must be a member of the group.
-- `settlement_id` is null while unsettled. Setting it locks the expense: services reject edits and deletes with `409`.
+- An expense with a cost is written together with its shares by `create_expense(p_group_id, p_description, p_amount_cents, p_payer_id, p_spent_on, p_shares)`, where `p_shares` is a JSON array of `{"user_id", "share_cents"}`. It returns the expense id and fails with `23514` if the shares don't add up. The split itself is calculated before the call, in `lib/domain`.
+- `settlement_id` is null while unsettled, and must be a settlement of the same group. Setting it locks the expense: services reject edits and deletes with `409`.
 - `edited_at` is set on every edit so the UI can show "edited".
 
 **`expense_shares`**: who shares an expense and how much. Primary key `(expense_id, user_id)`.
 
-- `share_cents >= 0`.
-- A deferred constraint trigger checks at commit that the shares of an expense add up exactly to `amount_cents`.
+- `share_cents >= 0`. The person must be a member of the expense's group (a trigger, see the conventions above).
+- Deferred constraint triggers on both tables check at commit that the shares of an expense add up exactly to `amount_cents`. Writing an expense and its shares in one transaction passes; changing one share, removing one, or changing the amount on its own fails. Editing an expense therefore needs one call that replaces the amount and the shares together, as `create_expense` does for a new one.
 - Shares are deleted with their expense (`on delete cascade`).
 
 **`payments`**: money sent outside the app.
 
 - `from_user_id` and `to_user_id` are different members of the group. `amount_cents > 0`.
-- `status` is `suggested`, `paid` or `confirmed`. See the payment lifecycle below.
-- `paid_at` is set when the sender marks it paid; `confirmed_at` when the recipient confirms. A check constraint requires `paid_at` for `paid` and both for `confirmed`.
-- `settlement_id` points to the settle-up that suggested it, or is null for a direct payment until the period closes.
+- `status` is `suggested`, `paid` or `confirmed`. See the payment lifecycle below. A `suggested` payment always has a `settlement_id`.
+- `paid_at` is set when the sender marks it paid; `confirmed_at` when the recipient confirms. A check constraint requires neither for `suggested`, only `paid_at` for `paid`, and both for `confirmed`, with `confirmed_at` no earlier than `paid_at`.
+- `settlement_id` points to the settle-up that suggested it, or is null for a direct payment until the period closes. It must be a settlement of the same group.
 
 **`settlements`**: one settle-up period.
 
 - `status` is `open`, `closed` or `cancelled`. A partial unique index allows one `open` settlement per group.
-- `closed_at` is when it ended, by closing or by cancelling.
+- `closed_at` is when it ended, by closing or by cancelling. It is set exactly when the status is not `open`, and is never before `started_at`.
+- `started_by` must be a member of the group.
 
-Every foreign key is `on delete restrict` except `expense_shares.expense_id` (`cascade`) and `list_items.expense_id` (`set null`). Nothing else is ever hard-deleted, so history stays intact.
+Every foreign key is `on delete restrict` except `expense_shares.expense_id` (`cascade`) and `list_items.expense_id` (`set null`, which clears only `expense_id`). Nothing else is ever hard-deleted, so history stays intact.
+
+### Demo data
+
+`supabase/seed.sql` loads after the migrations on `npx supabase db reset`, and on `npx supabase start` with a new database. It never reaches the hosted database. It registers Demo, Sam and Jo (`demo@lifeboard.test`, `sam@lifeboard.test`, `jo@lifeboard.test`, all with the password `lifeboard-demo`), puts them in a group called Flat with four expenses, two list items and a confirmed payment, and leaves Demo owed $1.98, Jo owing $8.02 and Sam owed $6.04. `supabase/tests/seed.test.ts` checks that it is there.
 
 ### Payment lifecycle
 
