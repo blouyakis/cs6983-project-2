@@ -1,5 +1,12 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { anonDb, cleanUp, db, trackUser, uniqueEmail } from "./fixtures";
+import {
+  anonDb,
+  cleanUp,
+  createUser,
+  db,
+  trackUser,
+  uniqueEmail,
+} from "./fixtures";
 
 afterAll(cleanUp);
 
@@ -51,6 +58,42 @@ describe("users table", () => {
       .insert({ email: uniqueEmail(), password_hash: "hash" });
 
     expect(error?.code).toBe("23502");
+  });
+
+  it("moves updated_at forward on every update", async () => {
+    const id = await createUser();
+    const before = await db
+      .from("users")
+      .select("updated_at")
+      .eq("id", id)
+      .single();
+
+    const after = await db
+      .from("users")
+      .update({ name: "Renamed" })
+      .eq("id", id)
+      .select("updated_at")
+      .single();
+
+    expect(after.error).toBeNull();
+    expect(Date.parse(after.data!.updated_at)).toBeGreaterThan(
+      Date.parse(before.data!.updated_at),
+    );
+  });
+
+  it("ignores an updated_at sent by the caller", async () => {
+    const id = await createUser();
+
+    const { data } = await db
+      .from("users")
+      .update({ name: "Renamed", updated_at: "2000-01-01T00:00:00Z" })
+      .eq("id", id)
+      .select("updated_at")
+      .single();
+
+    expect(Date.parse(data!.updated_at)).toBeGreaterThan(
+      Date.parse("2026-01-01T00:00:00Z"),
+    );
   });
 
   it("is closed to the anon key", async () => {
