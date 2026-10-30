@@ -36,13 +36,34 @@ function readLocalSupabase(): Record<string, string> {
   return values;
 }
 
-export default function setup(project: TestProject) {
+// Right after `npx supabase db reset`, the API answers "Retrying the
+// connection" for a second or two while it reconnects to Postgres.
+async function waitForApi(url: string, key: string): Promise<void> {
+  const deadline = Date.now() + 15_000;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${url}/rest/v1/users?select=id&limit=0`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}` },
+      });
+      if (response.ok) {
+        return;
+      }
+    } catch {
+      // Not listening yet.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  fail("Local Supabase did not become ready within 15 seconds.");
+}
+
+export default async function setup(project: TestProject) {
   const { API_URL, SERVICE_ROLE_KEY, ANON_KEY } = readLocalSupabase();
   if (!API_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
     fail(
       "`supabase status` did not print API_URL, SERVICE_ROLE_KEY and ANON_KEY.",
     );
   }
+  await waitForApi(API_URL, SERVICE_ROLE_KEY);
   project.provide("supabaseUrl", API_URL);
   project.provide("serviceRoleKey", SERVICE_ROLE_KEY);
   project.provide("anonKey", ANON_KEY);
