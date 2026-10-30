@@ -4,6 +4,7 @@ create table public.users (
   password_hash text not null,
   name text not null,
   created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   constraint users_email_lowercase check (email = lower(email)),
   constraint users_email_key unique (email)
 );
