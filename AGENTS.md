@@ -199,7 +199,7 @@ Prefer the stack in Section 1, plus `server-only`, `@testing-library/react`, `@p
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
 
 - 2026-10-29, Barbara: switched [DESIGN.md](DESIGN.md) to the colors and components of the new mockups, and ruled in Section 6.7 that the payer can't be changed when editing, because the new edit mockup showed a payer picker the rules didn't cover.
-- 2026-10-29, Ziye: added settle-up periods to Section 6 and pointed at the final schema in [docs/architecture.md](docs/architecture.md) (#3), because the team decided that costs added during an open settle-up go to the next period and any member can cancel it until someone marks a payment paid.
+- 2026-10-29, Ziye: added settle-up periods to Section 6 and pointed at the final schema in [docs/architecture.md](docs/architecture.md) (#3). The team decided that costs added during an open settle-up go to the next period, and that any member can cancel it until someone marks a payment paid.
 - 2026-10-29, Barbara: described each UI component in [DESIGN.md](DESIGN.md) with its expected behavior (PR #29), because the screens were described but only two components were.
 - 2026-10-29, Barbara: added a one-line _Why_ note under each numbered section, so agents and reviewers know the reason behind each group of rules. The notes are visible text because Claude Code strips HTML comments from this file.
 - 2026-10-29, Barbara: labeled the folder structure as the target structure and marked the paths that don't exist yet, so agents don't assume `src/proxy.ts`, `lib/` or migrations are already there.
