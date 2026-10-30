@@ -304,9 +304,9 @@ The earlier draft had only `pending` and `confirmed`. That could not tell "the a
 
 **Balance of member _m_ for the current period** (expenses and payments whose `settlement_id` is null or points to the open settlement):
 
-\[
+```math
 \text{balance}(m) = \sum_{e:\ \text{payer}=m} \text{amount}_e \;-\; \sum_{e} \text{share}_{e,m} \;+\; \sum_{p\ \text{confirmed}:\ \text{from}=m} \text{amount}_p \;-\; \sum_{p\ \text{confirmed}:\ \text{to}=m} \text{amount}_p
-\]
+```
 
 Positive means the group owes _m_; negative means _m_ owes. Balances in a group always add up to zero, which the domain tests check.
 
@@ -315,7 +315,7 @@ Positive means the group owes _m_; negative means _m_ owes. Balances in a group 
 | Environment | App | Database |
 |---|---|---|
 | Local | `npm run dev` | `npx supabase start` (Docker), migrations applied with `npx supabase db reset` |
-| CI | GitHub Actions jobs in [ci.yml](../.github/workflows/ci.yml) | Local Supabase started inside the job for database tests |
+| CI | GitHub Actions jobs in [ci.yml](../.github/workflows/ci.yml) | Local Supabase started inside the `db-test` job, which runs `npm run test:db` |
 | Preview and production | Vercel (a preview per pull request, production from `main`) | Hosted Supabase project |
 
 Variables are listed in [.env.example](../.env.example). `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are read only in `lib/db`; `JWT_SECRET` only in `lib/auth`. None has a `NEXT_PUBLIC_` prefix.

@@ -54,7 +54,20 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: npm ci
-      - run: npm test
+      - run: npm run test:coverage
+
+  db-test:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci
+      # Studio and postgres-meta are only for browsing tables by hand.
+      - run: npx supabase start -x studio,postgres-meta
+      - run: npm run test:db
 
   build:
     needs: install
