@@ -1,16 +1,33 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { clearSessionCookie } from "@/lib/auth/cookies";
 import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
-import { UnauthorizedError } from "@/lib/http/errors";
+import { UnauthorizedError, toErrorResponse } from "@/lib/http/errors";
 
 const AUTH_PAGES = ["/login", "/register"];
+// The only API routes that work without a session.
+const PUBLIC_API_ROUTES = [
+  "/api/auth/register",
+  "/api/auth/login",
+  "/api/auth/logout",
+];
 
-// A convenience redirect for pages, not the security boundary: route
-// handlers and pages check the session again themselves.
+// A first check, not the security boundary: route handlers and pages check
+// the session again themselves.
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const token = request.cookies.get(SESSION_COOKIE)?.value;
-  const signedIn = await hasValidSession(token);
+
+  if (PUBLIC_API_ROUTES.includes(pathname)) {
+    return NextResponse.next();
+  }
+  const rejection = await checkSession(token);
+  const signedIn = rejection === null;
+
+  // API clients get the 401 error body from the OpenAPI spec, not a redirect.
+  if (pathname.startsWith("/api/")) {
+    return signedIn ? NextResponse.next() : toErrorResponse(rejection);
+  }
+
   const isAuthPage = AUTH_PAGES.includes(pathname);
 
   if (signedIn && isAuthPage) {
@@ -31,13 +48,16 @@ export async function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
-async function hasValidSession(token: string | undefined): Promise<boolean> {
+// Returns why the session is not valid, or null when it is.
+async function checkSession(
+  token: string | undefined,
+): Promise<UnauthorizedError | null> {
   try {
     await verifySession(token);
-    return true;
+    return null;
   } catch (error) {
     if (error instanceof UnauthorizedError) {
-      return false;
+      return error;
     }
     throw error;
   }
@@ -45,6 +65,6 @@ async function hasValidSession(token: string | undefined): Promise<boolean> {
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
   ],
 };
