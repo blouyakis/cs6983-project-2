@@ -154,8 +154,9 @@ max_indexes = 5
 # [storage.vector.buckets.documents-openai]
 
 [auth]
-# LifeBoard does its own auth (bcryptjs + jose). This stays on only because the local CLI issues the
-# service role key that lib/db uses through it; `supabase status` prints no keys when it is off.
+# LifeBoard does its own auth (bcryptjs + jose). This stays on only because `supabase status` prints
+# the API keys only while the auth container runs, and the database tests read the service role key
+# from there. The keys themselves are derived from the JWT secret and work without it.
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
