@@ -84,8 +84,10 @@ begin
   select new_expense_id, share.user_id, share.share_cents
   from jsonb_to_recordset(p_shares) as share(user_id uuid, share_cents integer);
 
-  -- Check now, so the caller gets the error from this call instead of from the commit.
-  set constraints public.expenses_shares_add_up, public.expense_shares_add_up immediate;
+  -- Check now, so the caller gets the error from this call instead of from the commit. Not with
+  -- `set constraints ... immediate`: that lasts for the rest of the transaction, so a second call
+  -- in the same transaction would fail as soon as it inserted its expense, before its shares.
+  perform public.assert_expense_total(new_expense_id);
   return new_expense_id;
 end;
 $$;
