@@ -4,7 +4,7 @@ import { ForbiddenError } from "@/lib/http/errors";
 import { getGroup } from "./group-service";
 
 const access = vi.hoisted(() => ({ requireGroupAccess: vi.fn() }));
-vi.mock("./group-access", () => access);
+vi.mock("./access", () => access);
 
 const userId = "6f1c2d4e-1111-4222-8333-944455556666";
 const groupId = "0b7e8a10-2222-4333-8444-a55566667777";

@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Membership } from "@/lib/db/group-members";
 import { ForbiddenError } from "@/lib/http/errors";
-import { requireGroupAccess } from "./group-access";
+import { requireGroupAccess } from "./access";
 
 const db = vi.hoisted(() => ({ findMembership: vi.fn() }));
 vi.mock("@/lib/db/group-members", () => db);

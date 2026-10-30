@@ -1,6 +1,6 @@
 import "server-only";
 import type { Group } from "@/lib/db/group-members";
-import { requireGroupAccess } from "./group-access";
+import { requireGroupAccess } from "./access";
 
 export type GroupDetails = Omit<Group, "createdBy">;
 
