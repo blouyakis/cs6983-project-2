@@ -70,7 +70,7 @@ Recurring bills, a group activity log, group messaging, disputing charges, group
 
 ## Architecture
 
-<!-- TODO(#3): architecture diagram — required deliverable -->
+Diagrams of the system, its layers, and a request are in [`docs/architecture.md`](./docs/architecture.md).
 
 ```text
 .
@@ -85,7 +85,7 @@ Recurring bills, a group activity log, group messaging, disputing charges, group
 └── docs/
     ├── PRD.md
     ├── user-stories.md
-    ├── architecture.md    # draft schema
+    ├── architecture.md    # system, layers, and schema
     ├── api/openapi.yaml
     ├── design/            # mockup screenshots
     └── research/          # project proposal
@@ -95,9 +95,7 @@ Later issues add `src/components/`, `src/lib/`, and `supabase/migrations/`. The 
 
 ### Database schema
 
-<!-- TODO(#3): schema diagram — required deliverable -->
-
-The draft is in [`docs/architecture.md`](./docs/architecture.md): `users`, `groups`, `group_members`, `list_items`, `expenses`, `expense_shares`, `payments`, and `settlements`. Issue [#3](https://github.com/blouyakis/cs6983-project-2/issues/3) finalizes it as SQL migrations.
+The ER diagram and table definitions are in [`docs/architecture.md`](./docs/architecture.md) Section 5: `users`, `groups`, `group_members`, `list_items`, `expenses`, `expense_shares`, `payments`, and `settlements`. Issue [#3](https://github.com/blouyakis/cs6983-project-2/issues/3) turns them into SQL migrations.
 
 ## Getting started
 
@@ -188,9 +186,8 @@ Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `
 | User stories | [`docs/user-stories.md`](./docs/user-stories.md) |
 | Project proposal | [`docs/research/project-proposal.md`](./docs/research/project-proposal.md) |
 | Design and mockups | [`DESIGN.md`](./DESIGN.md) · [`docs/design/`](./docs/design/) |
-| Schema (draft) | [`docs/architecture.md`](./docs/architecture.md) |
+| Architecture and schema | [`docs/architecture.md`](./docs/architecture.md) |
 | API spec (draft) | [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
-| Architecture and schema diagrams | Not started (#3) |
 | Sprint planning and retrospectives | Not started (`docs/sprints/`) |
 | Communication log | <!-- TODO --> |
 | Contribution log | Not started (`docs/contributions.md`) |
