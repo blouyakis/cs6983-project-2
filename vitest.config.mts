@@ -13,11 +13,30 @@ export default defineConfig({
     },
   },
   test: {
-    environment: "jsdom",
-    setupFiles: ["./vitest.setup.ts"],
-    exclude: ["e2e/**", "node_modules/**"],
     coverage: {
       provider: "v8",
     },
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          environment: "jsdom",
+          setupFiles: ["./vitest.setup.ts"],
+          include: ["src/**/*.test.{ts,tsx}"],
+        },
+      },
+      {
+        // Needs local Supabase: npx supabase start
+        extends: true,
+        test: {
+          name: "db",
+          environment: "node",
+          include: ["supabase/tests/**/*.test.ts"],
+          globalSetup: ["./supabase/tests/global-setup.ts"],
+          setupFiles: ["./supabase/tests/setup.ts"],
+        },
+      },
+    ],
   },
 });
