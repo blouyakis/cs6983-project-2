@@ -129,7 +129,7 @@ _Why: Money bugs hide here: lost cents, rounding drift, and the wrong person edi
    - Current members can read and write.
    - Former members can only **read** data created **before** their `left_at`.
    - Everyone else gets `403`. A personal space is visible only to its owner and cannot have invitations.
-7. **Editing:** only the payer can edit or delete an expense, and only while it is unsettled. Settled expenses are locked.
+7. **Editing:** only the payer can edit or delete an expense, and only while it is unsettled. The payer can't be changed; to fix a wrong payer, delete the expense and add it again. Settled expenses are locked.
 8. **Leaving:** a member can leave only with a zero balance. A group with one member keeps working; when the last member leaves, set `archived_at` and make it read-only.
 9. **Payments** are records of money sent outside the app. The app never moves money.
 10. **Settle-up periods:** a settle-up works on the balances at the moment it starts. Expenses and direct payments added while it is open belong to the next period. Any current member can cancel it while every payment in it is still suggested; once one is marked paid, it can only close.
@@ -198,6 +198,7 @@ Prefer the stack in Section 1, plus `server-only`, `@testing-library/react`, `@p
 
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
 
+- 2026-10-29, Barbara: switched [DESIGN.md](DESIGN.md) to the colors and components of the new mockups, and ruled in Section 6.7 that the payer can't be changed when editing, because the new edit mockup showed a payer picker the rules didn't cover.
 - 2026-10-29, Ziye: added settle-up periods to Section 6 and pointed at the final schema in [docs/architecture.md](docs/architecture.md) (#3), because the team decided that costs added during an open settle-up go to the next period and any member can cancel it until someone marks a payment paid.
 - 2026-10-29, Barbara: described each UI component in [DESIGN.md](DESIGN.md) with its expected behavior (PR #29), because the screens were described but only two components were.
 - 2026-10-29, Barbara: added a one-line _Why_ note under each numbered section, so agents and reviewers know the reason behind each group of rules. The notes are visible text because Claude Code strips HTML comments from this file.

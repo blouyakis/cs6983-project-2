@@ -162,7 +162,7 @@ paths:
   /api/groups/{groupId}/expenses/{expenseId}:
     patch:
       summary: Edit an unsettled expense
-      description: Issue #20. A settled expense is 409. A non-payer gets 403.
+      description: Issue #20. A settled expense is 409. A non-payer gets 403. The payer can't be changed.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ExpenseId"
