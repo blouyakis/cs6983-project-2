@@ -84,7 +84,7 @@ src/app/auth-form.tsx  src/app/auth-nav.tsx  src/app/login/page.tsx  src/app/reg
 | §7 Workflow | commits `feat(auth): … (#4)`; `TODO(#n)` | no commits, no issue references | — |
 | Schema | `users.name` is `NOT NULL` | `name` optional, silently defaulted to the email's local part | `register/route.ts` |
 
-Count: **14 rule deviations, 5 of them security rules**, in ~710 lines.
+Count: **14 AGENTS.md rule deviations (5 of them security rules) plus 1 schema deviation**, in ~710 lines.
 
 ## 3. Run B — WITH rules (what was actually produced)
 
@@ -132,7 +132,7 @@ cf6e488 test(e2e): cover register, login, logout and expired sessions (#4)
 ```
 Nine test → code pairs plus one refactor commit. One slip: `e492056` is labelled `test` but also carries `src/app/(app)/page.tsx`, so that pair is not cleanly separated.
 
-**Rule check — the same 14 rows as Run A**
+**Rule check — the same 15 rows as Run A**
 
 | Area | AGENTS.md says | Run B did | Evidence |
 |---|---|---|---|
@@ -154,7 +154,7 @@ Nine test → code pairs plus one refactor commit. One slip: `e492056` is labell
 
 Also present without being asked: `import "server-only"` on every server module, a constant-time dummy-hash compare for unknown emails (Run A had this too), the exact login message from §8 ("Email or password is incorrect."), and a `next=` redirect back to the page the user wanted.
 
-Count: **0 of 14 rule deviations** (one process slip in commit `e492056`).
+Count: **0 of 15 deviations** (one process slip in commit `e492056`).
 
 ## 4. Comparison
 
@@ -170,7 +170,7 @@ Count: **0 of 14 rule deviations** (one process slip in commit `e492056`).
 
 | Metric | Without rules | With rules |
 |---|---|---|
-| AGENTS.md deviations (14 checked) | 14 | 0 |
+| Deviations (14 AGENTS.md rules + 1 schema rule) | 15 | 0 |
 | §8 security rules met | 4 / 9 | 9 / 9 |
 | Vitest cases (branch total) | 16 | 83 |
 | Playwright E2E cases | 0 | 6 |
@@ -180,6 +180,85 @@ Count: **0 of 14 rule deviations** (one process slip in commit `e492056`).
 | `docs/api/openapi.yaml` updated | no | yes (+160 lines) |
 
 Both runs had the same prompt, the same libraries named, and the same `users` table. The only difference was the rules context (`AGENTS.md`, `DESIGN.md`, `docs/architecture.md`, `docs/api/openapi.yaml`).
+
+### Code side by side
+
+The same feature, quoted from both runs. Run A is the code on `feature/4-auth-no-rules` (commit `58db85f`). Run B is the code merged to `main` in PR #42.
+
+**Password hashing.** AGENTS.md §8 says bcrypt cost 12.
+
+```ts
+// Run A, src/lib/auth/password.ts
+const COST = 10;
+
+// Run B, src/lib/auth/password.ts
+const COST_FACTOR = 12;
+```
+
+Run B also has a test that fails if the cost changes: `it("uses bcrypt cost factor 12", …)`.
+
+**Session lifetime and cookie.** AGENTS.md §8 says 24 hours, and `Secure` always, including in development.
+
+```ts
+// Run A, src/lib/auth/token.ts and session.ts
+export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+res.cookies.set(SESSION_COOKIE, token, {
+  httpOnly: true,
+  sameSite: "lax",
+  secure: process.env.NODE_ENV === "production", // not Secure in development
+  path: "/",
+  maxAge: SESSION_TTL_SECONDS,
+});
+
+// Run B, src/lib/auth/session.ts
+export const SESSION_MAX_AGE_SECONDS = 24 * 60 * 60;
+export const sessionCookieOptions = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+  path: "/",
+  maxAge: SESSION_MAX_AGE_SECONDS,
+} as const;
+```
+
+**The login route.** AGENTS.md §2 says route handler → service → db, with one typed error body. §8 says the JWT is never returned in the body and never read from an `Authorization` header.
+
+```ts
+// Run A, src/app/api/auth/login/route.ts: queries Supabase in the route,
+// sends created_at to the client, returns the token in the body, and uses its own error shape
+const { data: row } = await getDb()
+  .from("users")
+  .select("id, email, name, created_at, password_hash")
+  .eq("email", email)
+  .maybeSingle();
+...
+return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+...
+const res = NextResponse.json({ user, token });
+setSessionCookie(res, token);
+
+// Run B, src/app/api/auth/login/route.ts: validates, calls the service, returns the user only
+export async function POST(request: NextRequest) {
+  try {
+    const input = parseInput(loginSchema, await readJson(request));
+    const { user, token } = await login(input);
+    const response = NextResponse.json({ user });
+    setSessionCookie(response, token);
+    return response;
+  } catch (error) {
+    return toErrorResponse(error);
+  }
+}
+```
+
+Run A's `getCurrentUser` also accepts the token from an `Authorization: Bearer` header (`src/lib/auth/session.ts`). Run B reads only the `session` cookie.
+
+**Tests.** Run A put its tests for three modules in one file, `src/lib/auth/auth.test.ts`, with titles such as `"hashes without storing plain text and verifies"` and `"rejects passwords shorter than 8 characters"`. Run B has one test file next to each module, written before the code. Examples from `src/lib/auth/session.test.ts`:
+
+```ts
+it("is an httpOnly, Secure, SameSite=Lax cookie named session for 24 hours", () => { … });
+it("holds only the user id and expires after 24 hours", async () => { … });
+```
 
 ## 5. What this changed in AGENTS.md (HW3 §4)
 

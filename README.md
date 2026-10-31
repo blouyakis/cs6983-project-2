@@ -7,12 +7,12 @@ Your everyday plans and costs, alone or together.
 
 ## Status
 
-The app scaffold is in place ([#1](https://github.com/blouyakis/cs6983-project-2/issues/1)). Accounts, the database, and product features are not built yet. CI is [#2](https://github.com/blouyakis/cs6983-project-2/issues/2).
+**Sprint 1 is complete.** The scaffold ([#1](https://github.com/blouyakis/cs6983-project-2/issues/1)), CI/CD ([#2](https://github.com/blouyakis/cs6983-project-2/issues/2)), the database ([#3](https://github.com/blouyakis/cs6983-project-2/issues/3)), accounts ([#4](https://github.com/blouyakis/cs6983-project-2/issues/4)) and access control ([#5](https://github.com/blouyakis/cs6983-project-2/issues/5)) are built and deployed. Sprint 2 starts on groups, expenses, splits and balances. See the [Sprint 1 retrospective](./docs/sprints/sprint-1/retrospective.md).
 
 | | |
 |---|---|
-| **Production URL** | Not deployed yet |
-| **API docs (Swagger)** | Served at `/api/docs` once deployed. Draft spec: [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
+| **Production URL** | <https://cs6983-project-2.vercel.app> (from `main`) |
+| **API docs (Swagger)** | Swagger UI at `/api/docs` is planned in [#16](https://github.com/blouyakis/cs6983-project-2/issues/16). The spec is [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
 | **Issues and milestones** | [Issues](https://github.com/blouyakis/cs6983-project-2/issues) · [Milestones](https://github.com/blouyakis/cs6983-project-2/milestones) |
 | **Project board** | [LifeBoard board](https://github.com/users/blouyakis/projects/3) (Backlog → Sprint ToDo → In Progress → In Review → Done) |
 | **PRD** | [`docs/PRD.md`](./docs/PRD.md) |
@@ -34,20 +34,20 @@ User stories are in [`docs/user-stories.md`](./docs/user-stories.md). Priorities
 
 ## Features
 
-Nothing below is built yet. The list follows the PRD's priorities.
+The list follows the PRD's priorities. **Built** means it is on `main`; the rest is planned in the issue shown.
 
 **Must have**
 
-- **Accounts:** register with email and password, log in with an expiring JWT, log out
-- **Access control:** users only read or change data in groups they belong to
-- **Groups and invitations:** create a group for any part of life and invite members by email
-- **Lists:** add things to do or buy, and check them off with the actual cost and who shares it
-- **Expenses:** log personal or group costs, split evenly or by custom amounts, and edit or delete until settled
-- **Balances:** each member's net balance across unsettled expenses
-- **Settle-up:** the fewest payments that clear every balance, marked paid and confirmed by the recipient
-- **Overview:** personal total, share in each group, and net balance across groups
+- **Accounts (built, [#4](https://github.com/blouyakis/cs6983-project-2/issues/4)):** register with email and password, log in with an expiring JWT, log out
+- **Access control (built, [#5](https://github.com/blouyakis/cs6983-project-2/issues/5)):** users only read or change data in groups they belong to. API requests without a session get `401`, and `requireGroupAccess` gives `403` to anyone outside a group
+- **Groups and invitations ([#6](https://github.com/blouyakis/cs6983-project-2/issues/6)):** create a group for any part of life and invite members by email
+- **Lists ([#11](https://github.com/blouyakis/cs6983-project-2/issues/11), [#12](https://github.com/blouyakis/cs6983-project-2/issues/12), [#13](https://github.com/blouyakis/cs6983-project-2/issues/13)):** add things to do or buy, and check them off with the actual cost and who shares it
+- **Expenses ([#7](https://github.com/blouyakis/cs6983-project-2/issues/7), [#8](https://github.com/blouyakis/cs6983-project-2/issues/8), [#20](https://github.com/blouyakis/cs6983-project-2/issues/20)):** log personal or group costs, split evenly or by custom amounts, and edit or delete until settled
+- **Balances ([#9](https://github.com/blouyakis/cs6983-project-2/issues/9)):** each member's net balance across unsettled expenses
+- **Settle-up ([#19](https://github.com/blouyakis/cs6983-project-2/issues/19)):** the fewest payments that clear every balance, marked paid and confirmed by the recipient
+- **Overview ([#10](https://github.com/blouyakis/cs6983-project-2/issues/10)):** personal total, share in each group, and net balance across groups
 
-**Should have:** estimated costs on list items, direct payments between two members, an itemized bill per member, leaving a group with read-only history, a default split ratio, and filters by group, person, and date.
+**Should have:** estimated costs on list items ([#11](https://github.com/blouyakis/cs6983-project-2/issues/11)), direct payments between two members ([#14](https://github.com/blouyakis/cs6983-project-2/issues/14)), an itemized bill per member ([#21](https://github.com/blouyakis/cs6983-project-2/issues/21)), leaving a group with read-only history ([#22](https://github.com/blouyakis/cs6983-project-2/issues/22)), a default split ratio ([#8](https://github.com/blouyakis/cs6983-project-2/issues/8)), and filters by group, person, and date ([#15](https://github.com/blouyakis/cs6983-project-2/issues/15)).
 
 **Could have:** CSV export of a group's history and real-time updates.
 
@@ -81,10 +81,13 @@ Diagrams of the system, its layers, and a request are in [`docs/architecture.md`
 ├── .env.example
 ├── .nvmrc                 # Node 26
 ├── e2e/                   # Playwright
-├── src/app/               # App Router. A placeholder home page only.
-├── src/lib/db/            # the only Supabase client
+├── src/proxy.ts           # first check on every request: 401 for the API, redirect to /login for pages
+├── src/app/               # App Router: (auth) login and register, (app) overview, api routes
+├── src/components/        # ui/ primitives and auth/ forms
+├── src/lib/               # auth, db (the only Supabase client), http, services, validation
 ├── supabase/
 │   ├── migrations/        # SQL migrations
+│   ├── seed.sql           # demo data for local development
 │   └── tests/             # database tests (npm run test:db)
 └── docs/
     ├── PRD.md
@@ -92,18 +95,19 @@ Diagrams of the system, its layers, and a request are in [`docs/architecture.md`
     ├── architecture.md    # system, layers, and schema
     ├── api/openapi.yaml
     ├── design/            # mockup screenshots
-    └── research/          # project proposal
+    ├── research/          # project proposal
+    └── sprints/           # Sprint 1 retrospective, HW3 before/after test
 ```
 
-Later issues add `src/components/` and the rest of `src/lib/`. The target layout is in [`AGENTS.md`](./AGENTS.md) Section 2.
+`src/lib/domain/` (splits, balances, settle-up) arrives with the expense issues. The target layout is in [`AGENTS.md`](./AGENTS.md) Section 2.
 
 ### Database schema
 
-The ER diagram and table definitions are in [`docs/architecture.md`](./docs/architecture.md) Section 5: `users`, `groups`, `group_members`, `list_items`, `expenses`, `expense_shares`, `payments`, and `settlements`. Issue [#3](https://github.com/blouyakis/cs6983-project-2/issues/3) turns them into SQL migrations.
+The ER diagram and table definitions are in [`docs/architecture.md`](./docs/architecture.md) Section 5: `users`, `groups`, `group_members`, `list_items`, `expenses`, `expense_shares`, `payments`, and `settlements`. Issue [#3](https://github.com/blouyakis/cs6983-project-2/issues/3) turned them into SQL migrations in `supabase/migrations/`. Every table has Row Level Security on and no policies, so only the server, with the service role key, can read or write.
 
 ## Getting started
 
-These steps run the placeholder app. The database is not connected yet.
+These steps run the app against a local Supabase database.
 
 ### Prerequisites
 
@@ -116,22 +120,17 @@ These steps run the placeholder app. The database is not connected yet.
 git clone git@github.com:blouyakis/cs6983-project-2.git
 cd cs6983-project-2
 nvm use                      # if you use nvm
-npm install
+npm ci
 npx playwright install chromium
-cp .env.example .env.local   # the app does not read these values yet
+cp .env.example .env.local   # then fill it in, see Database and Environment variables
+npx supabase start -x studio,postgres-meta   # local database, needs Docker
+npx supabase db reset        # apply all migrations, then load the demo data
 npm run dev                  # http://localhost:3000
 ```
 
 ### Database
 
-Login, registration and the database tests need it:
-
-```bash
-npx supabase start           # Postgres and the API only
-npx supabase db reset        # apply all migrations, then load the demo data
-```
-
-`npx supabase status` prints the values for `SUPABASE_URL` (`API_URL`) and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`.
+Login, registration and the database tests need local Supabase (the `start` and `db reset` lines above). `npx supabase status` prints the values for `SUPABASE_URL` (`API_URL`) and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. For `JWT_SECRET`, use `openssl rand -base64 32`.
 
 ### Environment variables
 
@@ -165,7 +164,7 @@ npm run test:e2e      # Playwright
 
 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) ([#2](https://github.com/blouyakis/cs6983-project-2/issues/2)) runs on every pull request and on every push to `main`. The jobs are `install`, `lint`, `typecheck`, `test` (with coverage), `db-test` (local Supabase), `build`, and `audit`. `audit` fails on high or critical npm advisories.
 
-Vercel builds a preview for each pull request and deploys `main` to production. The repository admin turns on branch protection for `main`: a pull request, one review, and these seven checks. That setting is not part of the workflow file.
+Vercel builds a preview for each pull request and deploys `main` to production. The repository admin turns on branch protection for `main`: a pull request, one review, and these seven checks: `install`, `lint`, `typecheck`, `test`, `db-test`, `build` and `audit`. That setting is not part of the workflow file.
 
 ## Development workflow
 
@@ -173,14 +172,16 @@ Vercel builds a preview for each pull request and deploys `main` to production. 
 - **Commits:** Conventional Commits with the issue number, e.g. `feat(settle): suggest fewest payments (#19)`
 - **Pull requests:** `Closes #<issue>` and how it was tested; one partner approval and green CI; merged with a merge commit
 - **Sprints:** three sprints tracked as GitHub milestones (`Sprint 1 v.01`, `Sprint 2 v.02`, `Sprint 3 v.03`)
-- **Standups and meetings:** logged in the [communication log](<!-- TODO: link to Google Sheet -->)
-- **Planning and retrospectives:** will live in `docs/sprints/`
+- **Standups and meetings:** logged in the [communication log](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?gid=229896090#gid=229896090)
+- **Planning and retrospectives:** in `docs/sprints/`, starting with the [Sprint 1 retrospective](./docs/sprints/sprint-1/retrospective.md)
 
 Full conventions are in [`AGENTS.md`](./AGENTS.md).
 
 ## API
 
-Not implemented yet. The draft REST API is in [`docs/api/openapi.yaml`](./docs/api/openapi.yaml), and Swagger UI will be served at `/api/docs`.
+Five routes are implemented: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` and `GET /api/groups/{groupId}`. The rest of the REST API is described in [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) and is built issue by issue. Swagger UI will be served at `/api/docs` ([#16](https://github.com/blouyakis/cs6983-project-2/issues/16)).
+
+Errors use one body, `{ "error": { "code", "message", "fields"? } }`. The session is an `httpOnly` cookie named `session`; the API never returns the token.
 
 Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `list-items`, `expenses`, `balances`, `bills/me`, `payments`, `settlements`, `invitations`, and `leave`.
 
@@ -194,20 +195,21 @@ Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `
 | Project proposal | [`docs/research/project-proposal.md`](./docs/research/project-proposal.md) |
 | Design and mockups | [`DESIGN.md`](./DESIGN.md) · [`docs/design/`](./docs/design/) |
 | Architecture and schema | [`docs/architecture.md`](./docs/architecture.md) |
-| API spec (draft) | [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
-| Sprint planning and retrospectives | Not started (`docs/sprints/`) |
-| Communication log | <!-- TODO --> |
-| Contribution log | Not started (`docs/contributions.md`) |
-| HW3 before/after test | <!-- TODO --> |
+| API spec | [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
+| Sprint planning and retrospectives | [`docs/sprints/sprint-1/retrospective.md`](./docs/sprints/sprint-1/retrospective.md) |
+| Communication log | [Google Sheet](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?gid=229896090#gid=229896090) |
+| Contribution log | [Contributors](#contributors) section below |
+| HW3 submission (Scrum setup, rules file, before/after test, reflection) | [`docs/hw3-submission.md`](./docs/hw3-submission.md) |
+| HW3 before/after test of `AGENTS.md`, in full | [`docs/sprints/issue-4-comparison.md`](./docs/sprints/issue-4-comparison.md) |
 
 ## Contributors
 
 | Partner | Primary areas |
 |---|---|
-| Barbara Louyakis | <!-- TODO: fill in as work is divided --> |
-| Ziye Huang | <!-- TODO --> |
+| Barbara Louyakis | **Project management:** the GitHub project board, the three milestones and issues [#1](<https://github.com/blouyakis/cs6983-project-2/issues/1>) to [#18](<https://github.com/blouyakis/cs6983-project-2/issues/18>), branch protection and the Vercel connection. **Design:** the LifeBoard and Sunny Ledger mockups and the `DESIGN.md` colors and components. **Features:** accounts and login ([#4](<https://github.com/blouyakis/cs6983-project-2/issues/4>)), route protection and group access ([#5](<https://github.com/blouyakis/cs6983-project-2/issues/5>)), and the Node 26 move ([#45](<https://github.com/blouyakis/cs6983-project-2/issues/45>)). **AI harness:** `CLAUDE.md`, maintaining `AGENTS.md`, the HW3 before/after test ([`docs/sprints/issue-4-comparison.md`](./docs/sprints/issue-4-comparison.md)), and the Sprint 1 retrospective. |
+| Ziye Huang | **Planning:** the PRD, user stories US-5 to US-8, the project proposal, issues [#19](<https://github.com/blouyakis/cs6983-project-2/issues/19>) to [#23](<https://github.com/blouyakis/cs6983-project-2/issues/23>), and the first drafts of `AGENTS.md` and `DESIGN.md`. **Engineering foundation:** the Next.js scaffold ([#1](<https://github.com/blouyakis/cs6983-project-2/issues/1>)), CI/CD with GitHub Actions ([#2](<https://github.com/blouyakis/cs6983-project-2/issues/2>)), and the database ([#3](<https://github.com/blouyakis/cs6983-project-2/issues/3>)): the architecture document, all eight tables as SQL migrations, `register_user` and `create_expense`, the 12-member cap, the seed data, and the database tests with their CI job. |
 
-Both partners commit, review, and maintain `AGENTS.md`.
+Both partners commit, review each other's pull requests, and maintain `AGENTS.md`. Of the 20 pull requests merged in Sprint 1, 17 have the other partner's approval. Day-to-day coordination is in the [communication log](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?gid=229896090#gid=229896090).
 
 ## License
 
