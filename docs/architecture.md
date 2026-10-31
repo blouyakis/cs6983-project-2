@@ -95,7 +95,7 @@ Writes that touch several tables (registering an account with its personal space
 
 **Two checks per request.**
 
-1. `proxy.ts` sends page requests without a valid cookie to `/login`. It is a convenience, not the security boundary.
+1. `proxy.ts` runs first. A page request without a valid cookie is sent to `/login`. An API request without one gets `401` and the error body, except `POST /api/auth/register`, `/login` and `/logout`. It is a first check, not the security boundary.
 2. Every route handler and every page reads the session itself and passes the user id to the service.
 
 **`requireGroupAccess(userId, groupId, mode)`** is the one place access is decided. Every service calls it before reading or writing group data.
@@ -108,6 +108,8 @@ Writes that touch several tables (registering an account with its personal space
 | Anyone else, including other users' personal spaces | `403` | `403` |
 
 A personal space is a group with `is_personal = true` and exactly one member, its owner. Invitations to it return `403`.
+
+`requireGroupAccess` returns the group and `readUntil`: the former member's `left_at`, or null for a current member. A service that lists rows must show a former member only rows created before `readUntil`. A group that does not exist gets the same `403` as one the user is not in, so ids can't be probed. A `groupId` that is not a UUID is rejected with `400` by the route before the service runs.
 
 ## 5. Database schema
 
