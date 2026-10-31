@@ -224,12 +224,16 @@ paths:
   /api/groups/{groupId}/list-items/{itemId}/complete:
     post:
       summary: Check off an item and create the expense
-      description: Issues #12, #13.
+      description: Issues #12, #13. An item that is already done is 409.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ItemId"
       responses:
         "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/list-items/{itemId}/reopen:
     post:
