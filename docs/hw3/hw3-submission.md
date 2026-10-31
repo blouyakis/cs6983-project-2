@@ -17,9 +17,13 @@
 
 ![The LifeBoard project board with its five columns](project-board.png)
 
+*The board on Oct 30, 2026 at 9:54 pm ET: all eight Sprint 1 issues are in Done.*
+
 **Milestones.** Sprint 1 v.01 (Oct 26–31, foundation and auth) is due Oct 31, Sprint 2 v.02 (Nov 1–7, core features) is due Nov 7, and Sprint 3 v.03 (Nov 8–12, completion, docs and delivery) is due Nov 12.
 
 ![The three sprint milestones with their due dates](milestones.png)
+
+*The milestones on Oct 30, 2026 at 9:55 pm ET: Sprint 1 is 8 of 8 closed.*
 
 **Issues.** There are 26 issues: 8 in Sprint 1, 10 in Sprint 2 and 8 in Sprint 3. Every issue has an action-oriented title, an acceptance-criteria checklist in its body, a type label (`feature`, `chore`, `docs` or `test`), a priority label and a milestone. Each of the eight user stories in [`docs/user-stories.md`](../user-stories.md) (US-1 to US-8) is covered by one or more issues, and the story is named in the issue title, for example "#4 User registration and login with JWT (US-4)". Issues [#1](https://github.com/blouyakis/cs6983-project-2/issues/1) to [#5](https://github.com/blouyakis/cs6983-project-2/issues/5) are the five planned for Sprint 1, and all five are closed with their acceptance criteria checked.
 
