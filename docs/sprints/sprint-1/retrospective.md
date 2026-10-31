@@ -70,5 +70,5 @@ Sprint 2 ([milestone](https://github.com/blouyakis/cs6983-project-2/milestone/2)
 
 ## 6. Open items
 
-- The communication log link is not in the README yet ([#47](https://github.com/blouyakis/cs6983-project-2/issues/47)).
+- The contribution log (`docs/contributions.md`) is not started.
 - The Sprint 2 planning notes are not written yet.

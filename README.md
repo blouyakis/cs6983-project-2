@@ -172,8 +172,7 @@ Vercel builds a preview for each pull request and deploys `main` to production. 
 - **Commits:** Conventional Commits with the issue number, e.g. `feat(settle): suggest fewest payments (#19)`
 - **Pull requests:** `Closes #<issue>` and how it was tested; one partner approval and green CI; merged with a merge commit
 - **Sprints:** three sprints tracked as GitHub milestones (`Sprint 1 v.01`, `Sprint 2 v.02`, `Sprint 3 v.03`)
-- **Standups and meetings:** logged in the communication log (link to come, [#47](https://github.com/blouyakis/cs6983-project-2/issues/47))
-- **Contributions:** logged in the [contribution log](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?usp=sharing)
+- **Standups and meetings:** logged in the [communication log](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?gid=229896090#gid=229896090)
 - **Planning and retrospectives:** in `docs/sprints/`, starting with the [Sprint 1 retrospective](./docs/sprints/sprint-1/retrospective.md)
 
 Full conventions are in [`AGENTS.md`](./AGENTS.md).
@@ -198,8 +197,8 @@ Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `
 | Architecture and schema | [`docs/architecture.md`](./docs/architecture.md) |
 | API spec | [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
 | Sprint planning and retrospectives | [`docs/sprints/sprint-1/retrospective.md`](./docs/sprints/sprint-1/retrospective.md) |
-| Communication log | Link to come ([#47](https://github.com/blouyakis/cs6983-project-2/issues/47)) |
-| Contribution log | [Google Sheet](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?usp=sharing) |
+| Communication log | [Google Sheet](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?gid=229896090#gid=229896090) |
+| Contribution log | Not started (`docs/contributions.md`) |
 | HW3 before/after test of `AGENTS.md` | [`docs/sprints/issue-4-comparison.md`](./docs/sprints/issue-4-comparison.md) |
 
 ## Contributors
