@@ -79,7 +79,7 @@ Diagrams of the system, its layers, and a request are in [`docs/architecture.md`
 ├── README.md
 ├── LICENSE
 ├── .env.example
-├── .nvmrc                 # Node 24
+├── .nvmrc                 # Node 26
 ├── e2e/                   # Playwright
 ├── src/app/               # App Router. A placeholder home page only.
 ├── src/lib/db/            # the only Supabase client
@@ -107,7 +107,7 @@ These steps run the placeholder app. The database is not connected yet.
 
 ### Prerequisites
 
-- Node.js 24 and npm. If you use nvm, `nvm use` reads `.nvmrc`.
+- Node.js 26 and npm. If you use nvm, `nvm use` reads `.nvmrc`.
 - Docker, for local Supabase and `npm run test:db`
 
 ### Run locally
