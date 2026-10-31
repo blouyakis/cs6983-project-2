@@ -137,7 +137,7 @@ _Why: Money bugs hide here: lost cents, rounding drift, and the wrong person edi
    - Current members can read and write.
    - Former members can only **read** data created **before** their `left_at`.
    - Everyone else gets `403`. A personal space is visible only to its owner and cannot have invitations.
-7. **Editing:** only the payer can edit or delete an expense, and only while it is unsettled. The payer can't be changed; to fix a wrong payer, delete the expense and add it again. Settled expenses are locked. Unchecking a list item deletes its expense, so the same rules apply.
+7. **Editing:** only the payer can edit or delete an expense, and only while it is unsettled. The payer can't be changed; to fix a wrong payer, delete the expense and add it again. Settled expenses are locked: editing or deleting one is `409`, and anyone but the payer gets `403`. Unchecking a list item deletes its expense, so only the member who checked it off can uncheck it (`403` for anyone else), and a settled expense makes it `409`. A done item with no expense just reopens, and unchecking an item that is already open is `409`.
 8. **Leaving:** a member can leave only with a zero balance. A group with one member keeps working; when the last member leaves, set `archived_at` and make it read-only.
 9. **Payments** are records of money sent outside the app. The app never moves money.
 10. **Settle-up periods:** a settle-up works on the balances at the moment it starts. Expenses and direct payments added while it is open belong to the next period. Any current member can cancel it while every payment in it is still suggested; once one is marked paid, it can only close.
@@ -208,7 +208,7 @@ Non-negotiable values, check them before opening a PR: bcrypt cost **12** · ses
 
 ## Changelog
 
-- 2026-10-31, Ziye: let the member who checked off a list item uncheck it in user flow 2 and Section 6.7, which deletes its expense and reopens the item while the expense is unsettled. An item checked off by mistake needed an undo, and it follows the same rules as deleting the expense.
+- 2026-10-31, Ziye: let the member who checked off a list item uncheck it in user flow 2 and Section 6.7, which deletes its expense and reopens the item while the expense is unsettled. An item checked off by mistake needed an undo, and it follows the same rules as deleting the expense. Section 6.7 also states the `403` and `409` codes, an item with no expense, and an item that is already open, because before this they were only in architecture.md, and an agent reads this file first.
 - 2026-10-30, Barbara: updated the folder structure in Section 2 to what exists after Sprint 1 (#47): `proxy.ts`, `components/`, `lib/auth`, `http`, `services`, `validation`, `supabase/seed.sql` and `docs/sprints/`. Only `docs/decisions/` and `lib/domain` are still planned. The old tree said the scaffold page was the only page and marked those paths as planned, so an agent would have recreated files that already exist.
 - 2026-10-30, Barbara: moved the stack from Node 24 to Node 26 in Section 1, `.nvmrc`, `engines` and `@types/node`, because Node 26 became the LTS release on 2026-10-28 and Node 24 entered maintenance on 2026-10-20. Vercel supports 26.x, and the tests, build and Playwright flows pass on it.
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->

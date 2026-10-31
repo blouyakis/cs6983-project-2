@@ -241,7 +241,7 @@ erDiagram
 - `status` is `open` or `done`. While `open`, `completed_by`, `completed_at` and `expense_id` are null. When `done`, `completed_by` and `completed_at` are set.
 - `estimated_cents` and `quantity` are optional and must be positive when present.
 - `expense_id` is null when the item was done with no cost. It must be an expense of the same group, and an expense belongs to one item at most. If that expense is deleted on its own, only `expense_id` becomes null and the item stays done.
-- Unchecking a done item reopens it: one transaction deletes its expense and sets `status` back to `open` with `completed_by`, `completed_at` and `expense_id` null. Only the member who checked it off can uncheck it, and only while the expense is unsettled.
+- Unchecking a done item reopens it: one transaction deletes its expense, if it has one, and sets `status` back to `open` with `completed_by`, `completed_at` and `expense_id` null. Only the member who checked it off (`completed_by`) can uncheck it; anyone else gets `403`. If its expense is settled, unchecking is `409`. A done item with no expense (checked off with no cost, or its expense was deleted on its own) has nothing to lock, so it just reopens. Unchecking an item that is already open is `409`, like checking off a done item.
 
 **`expenses`**: one cost, personal or shared.
 
