@@ -15,13 +15,13 @@
 
 **Board.** The project board uses the Board layout with five columns: Backlog, Sprint ToDo, In Progress, In Review and Done. The board is public. Issues move from Sprint ToDo through In Progress and In Review to Done, and a pull request linked to an issue shows on its card.
 
-![The LifeBoard project board with its five columns](hw3/project-board.png)
+![The LifeBoard project board with its five columns](project-board.png)
 
 **Milestones.** Sprint 1 v.01 (Oct 26–31, foundation and auth) is due Oct 31, Sprint 2 v.02 (Nov 1–7, core features) is due Nov 7, and Sprint 3 v.03 (Nov 8–12, completion, docs and delivery) is due Nov 12.
 
-![The three sprint milestones with their due dates](hw3/milestones.png)
+![The three sprint milestones with their due dates](milestones.png)
 
-**Issues.** There are 26 issues: 8 in Sprint 1, 10 in Sprint 2 and 8 in Sprint 3. Every issue has an action-oriented title, an acceptance-criteria checklist in its body, a type label (`feature`, `chore`, `docs` or `test`), a priority label and a milestone. Each of the eight user stories in [`docs/user-stories.md`](user-stories.md) (US-1 to US-8) is covered by one or more issues, and the story is named in the issue title, for example "#4 User registration and login with JWT (US-4)". Issues [#1](https://github.com/blouyakis/cs6983-project-2/issues/1) to [#5](https://github.com/blouyakis/cs6983-project-2/issues/5) are the five planned for Sprint 1, and all five are closed with their acceptance criteria checked.
+**Issues.** There are 26 issues: 8 in Sprint 1, 10 in Sprint 2 and 8 in Sprint 3. Every issue has an action-oriented title, an acceptance-criteria checklist in its body, a type label (`feature`, `chore`, `docs` or `test`), a priority label and a milestone. Each of the eight user stories in [`docs/user-stories.md`](../user-stories.md) (US-1 to US-8) is covered by one or more issues, and the story is named in the issue title, for example "#4 User registration and login with JWT (US-4)". Issues [#1](https://github.com/blouyakis/cs6983-project-2/issues/1) to [#5](https://github.com/blouyakis/cs6983-project-2/issues/5) are the five planned for Sprint 1, and all five are closed with their acceptance criteria checked.
 
 ## 2. Rules file
 
@@ -33,8 +33,8 @@
 | Architecture overview: folder structure, key patterns | §2 |
 | Naming conventions and coding standards | §3 |
 | Testing strategy: frameworks, order, coverage goals | §4 |
-| Link to the PRD, and user flows to follow | §5 links [`docs/PRD.md`](PRD.md) and [`docs/user-stories.md`](user-stories.md), and gives eight user flows. They are also the Playwright scenarios |
-| Mockup descriptions and key UI components with expected behavior | §5 links [`DESIGN.md`](../DESIGN.md) and the mockups in [`docs/design/`](design/) (summary below) |
+| Link to the PRD, and user flows to follow | §5 links [`docs/PRD.md`](../PRD.md) and [`docs/user-stories.md`](../user-stories.md), and gives eight user flows. They are also the Playwright scenarios |
+| Mockup descriptions and key UI components with expected behavior | §5 links [`DESIGN.md`](../../DESIGN.md) and the mockups in [`docs/design/`](../design/) (summary below) |
 | Branch names, commit format, PR workflow, how to reference issues | §7 |
 | Do's and don'ts, preferred libraries, security and accessibility | §8 |
 | Rules that must always hold (money, access, settle-up) | §6 |
@@ -322,7 +322,7 @@ it("holds only the user id and expires after 24 hours", async () => { … });
 
 **Caveat.** Edits 1–3 address failures from a run that had no rules file at all, so this test cannot show they would have changed Run B, which already had 0 deviations. Their purpose is to make the rules survive a partial read: an agent that skims §8 now sees the security numbers in one line.
 
-**Changes after the test.** Two later changes also went through a pull request with a Changelog line. We moved the stack from Node 24 to Node 26 ([#45](https://github.com/blouyakis/cs6983-project-2/issues/45), PR [#46](https://github.com/blouyakis/cs6983-project-2/pull/46)), because Node 26 became the LTS release on 2026-10-28. We also updated the folder structure in §2 to match the repository after Sprint 1 ([#47](https://github.com/blouyakis/cs6983-project-2/issues/47)), because it still marked files as planned that already existed. The Sprint 1 retrospective, [`docs/sprints/sprint-1/retrospective.md`](sprints/sprint-1/retrospective.md), lists what we will change in our process next.
+**Changes after the test.** Two later changes also went through a pull request with a Changelog line. We moved the stack from Node 24 to Node 26 ([#45](https://github.com/blouyakis/cs6983-project-2/issues/45), PR [#46](https://github.com/blouyakis/cs6983-project-2/pull/46)), because Node 26 became the LTS release on 2026-10-28. We also updated the folder structure in §2 to match the repository after Sprint 1 ([#47](https://github.com/blouyakis/cs6983-project-2/issues/47)), because it still marked files as planned that already existed. The Sprint 1 retrospective, [`docs/sprints/sprint-1/retrospective.md`](../sprints/sprint-1/retrospective.md), lists what we will change in our process next.
 
 ## 4. Reflection
 
