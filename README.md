@@ -198,17 +198,17 @@ Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `
 | API spec | [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
 | Sprint planning and retrospectives | [`docs/sprints/sprint-1/retrospective.md`](./docs/sprints/sprint-1/retrospective.md) |
 | Communication log | [Google Sheet](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?gid=229896090#gid=229896090) |
-| Contribution log | Not started (`docs/contributions.md`) |
+| Contribution log | [Contributors](#contributors) section below |
 | HW3 before/after test of `AGENTS.md` | [`docs/sprints/issue-4-comparison.md`](./docs/sprints/issue-4-comparison.md) |
 
 ## Contributors
 
 | Partner | Primary areas |
 |---|---|
-| Barbara Louyakis | Accounts and login ([#4](https://github.com/blouyakis/cs6983-project-2/issues/4)), route protection and group access ([#5](https://github.com/blouyakis/cs6983-project-2/issues/5)), the DESIGN.md components and mockups, `AGENTS.md` and `CLAUDE.md` and the HW3 before/after test, the Node 26 move ([#45](https://github.com/blouyakis/cs6983-project-2/issues/45)) |
-| Ziye Huang | Project scaffold ([#1](https://github.com/blouyakis/cs6983-project-2/issues/1)), CI/CD ([#2](https://github.com/blouyakis/cs6983-project-2/issues/2)), database schema, migrations, seed data and database tests ([#3](https://github.com/blouyakis/cs6983-project-2/issues/3)), the architecture document, the first draft of the planning docs |
+| Barbara Louyakis | **Project management:** the GitHub project board, the three milestones and issues [#1](<https://github.com/blouyakis/cs6983-project-2/issues/1>) to [#18](<https://github.com/blouyakis/cs6983-project-2/issues/18>), branch protection and the Vercel connection. **Design:** the LifeBoard and Sunny Ledger mockups and the `DESIGN.md` colors and components. **Features:** accounts and login ([#4](<https://github.com/blouyakis/cs6983-project-2/issues/4>)), route protection and group access ([#5](<https://github.com/blouyakis/cs6983-project-2/issues/5>)), and the Node 26 move ([#45](<https://github.com/blouyakis/cs6983-project-2/issues/45>)). **AI harness:** `CLAUDE.md`, maintaining `AGENTS.md`, the HW3 before/after test ([`docs/sprints/issue-4-comparison.md`](./docs/sprints/issue-4-comparison.md)), and the Sprint 1 retrospective. |
+| Ziye Huang | **Planning:** the PRD, user stories US-5 to US-8, the project proposal, issues [#19](<https://github.com/blouyakis/cs6983-project-2/issues/19>) to [#23](<https://github.com/blouyakis/cs6983-project-2/issues/23>), and the first drafts of `AGENTS.md` and `DESIGN.md`. **Engineering foundation:** the Next.js scaffold ([#1](<https://github.com/blouyakis/cs6983-project-2/issues/1>)), CI/CD with GitHub Actions ([#2](<https://github.com/blouyakis/cs6983-project-2/issues/2>)), and the database ([#3](<https://github.com/blouyakis/cs6983-project-2/issues/3>)): the architecture document, all eight tables as SQL migrations, `register_user` and `create_expense`, the 12-member cap, the seed data, and the database tests with their CI job. |
 
-Both partners commit, review, and maintain `AGENTS.md`.
+Both partners commit, review each other's pull requests, and maintain `AGENTS.md`. Of the 20 pull requests merged in Sprint 1, 17 have the other partner's approval. Day-to-day coordination is in the [communication log](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?gid=229896090#gid=229896090).
 
 ## License
 

@@ -54,7 +54,7 @@ Pull request reviews: 17 of the 20 merged pull requests have an approval from th
 - **Acceptance criteria were not ticked when issues closed.** #3, #4, #5 and #45 were closed with empty checkboxes and ticked afterwards, during the end-of-sprint review.
 - **Documentation went stale.** The README still described the empty scaffold, and the AGENTS.md folder tree marked files as planned after they existed. #47 fixes both.
 - **A few process slips.** Commit `d7514a6` has a literal `(#N)` instead of an issue number, #42 is titled "Feature/4 auth", and some early documentation commits have no issue number. Merged history can't be changed, so only the habit can.
-- **`db-test` is not a required status check on `main`.** The ruleset requires six checks, and the README lists seven. A pull request with failing database tests could be merged.
+- **`db-test` was not a required status check on `main`.** The ruleset required six checks while the README listed seven, so a pull request with failing database tests could have been merged. It was added on 2026-10-30.
 
 ## 5. What to change in Sprint 2
 
@@ -62,7 +62,7 @@ Sprint 2 ([milestone](https://github.com/blouyakis/cs6983-project-2/milestone/2)
 
 1. **Tick the acceptance criteria in the pull request that closes the issue**, and list them in the PR body so the reviewer can check each one.
 2. **Update the README status and AGENTS.md folder tree in the feature PR that changes them**, instead of at the end of the sprint.
-3. **Add `db-test` to the required checks** in the `main` ruleset (a repository admin setting).
+3. **Keep the required checks in step with CI.** `db-test` was added to the `main` ruleset on 2026-10-30, so all seven jobs are now required. Add any new CI job to the ruleset in the same change.
 4. **One issue, one branch, one pull request where possible.** Split an issue first if it needs several. Avoid stacking branches on each other.
 5. **Pull request titles follow the commit convention** with the issue number, for example `feat(groups): create groups (#6)`.
 6. **Plan the sprint on the board.** Move the Sprint 2 issues from Backlog to Sprint ToDo, and check the load: ten issues, including settle-up (#19), is a lot for one week. Consider moving some to Sprint 3.
@@ -70,5 +70,4 @@ Sprint 2 ([milestone](https://github.com/blouyakis/cs6983-project-2/milestone/2)
 
 ## 6. Open items
 
-- The contribution log (`docs/contributions.md`) is not started.
 - The Sprint 2 planning notes are not written yet.
