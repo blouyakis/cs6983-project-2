@@ -231,6 +231,16 @@ paths:
       responses:
         "400":
           $ref: "#/components/responses/Error"
+  /api/groups/{groupId}/list-items/{itemId}/reopen:
+    post:
+      summary: Uncheck an item and delete its expense
+      description: Issue #12. Only the member who checked the item off. A settled expense is 409; anyone else gets 403.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/ItemId"
+      responses:
+        "409":
+          $ref: "#/components/responses/Error"
   /api/groups/{groupId}/expenses:
     get:
       summary: List expenses (with filters)

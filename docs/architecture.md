@@ -87,7 +87,7 @@ sequenceDiagram
   R-->>B: 200 JSON
 ```
 
-Writes that touch several tables (registering an account with its personal space; an expense with its shares; closing a settlement) run in a single Postgres function called through `rpc`, so a half-finished write, such as an account without its personal space or an expense without its shares, can never exist.
+Writes that touch several tables (registering an account with its personal space; an expense with its shares; checking off or unchecking a list item; closing a settlement) run in a single Postgres function called through `rpc`, so a half-finished write, such as an account without its personal space or an expense without its shares, can never exist.
 
 ## 4. Authentication and access control
 
@@ -240,7 +240,8 @@ erDiagram
 
 - `status` is `open` or `done`. While `open`, `completed_by`, `completed_at` and `expense_id` are null. When `done`, `completed_by` and `completed_at` are set.
 - `estimated_cents` and `quantity` are optional and must be positive when present.
-- `expense_id` is null when the item was done with no cost. It must be an expense of the same group, and an expense belongs to one item at most. If that expense is deleted, only `expense_id` becomes null and the item stays done.
+- `expense_id` is null when the item was done with no cost. It must be an expense of the same group, and an expense belongs to one item at most. If that expense is deleted on its own, only `expense_id` becomes null and the item stays done.
+- Unchecking a done item reopens it: one transaction deletes its expense and sets `status` back to `open` with `completed_by`, `completed_at` and `expense_id` null. Only the member who checked it off can uncheck it, and only while the expense is unsettled.
 
 **`expenses`**: one cost, personal or shared.
 
@@ -312,7 +313,7 @@ The earlier draft had only `pending` and `confirmed`. That could not tell "the a
 | Balances over unsettled expenses and confirmed payments | `lib/domain/balances.ts`, fed by `lib/db` queries for the current period |
 | Fewest payments, exact bitmask search, at most 12 members | `lib/domain/settle-up.ts`; member cap trigger |
 | One access check | `lib/services/access.ts` (`requireGroupAccess`) |
-| Only the payer edits, only while unsettled | Expense service; `409` once `settlement_id` is set |
+| Only the payer edits, only while unsettled | Expense service; `409` once `settlement_id` is set. Unchecking a list item uses the same check, because it deletes the expense |
 | Leave only with a zero balance; archive on last leave | Membership service, in one transaction |
 
 **Balance of member _m_ for the current period** (expenses and payments whose `settlement_id` is null or points to the open settlement):

@@ -63,6 +63,7 @@ Acceptance criteria:
 - Any group member can add an item to the group’s shared list (e.g., groceries, toilet paper, internet bill), with an optional quantity and note.
 - All members see the same list, including who added each item and its status (needed / bought).
 - When I check off an item as bought, I enter the actual price and select which members share it (default: all members).
+- If I checked off an item by mistake, I can uncheck it until it is settled, which puts it back on the list and removes its expense.
 - I can also add a shared cost directly after it happens (e.g., this month’s electricity bill, an unplanned purchase, or a roommate dinner cost), without putting it on the list first.
 - Either way, the cost is recorded as a group expense with me as the payer, split among the selected members.
 - For bought items, all members can see who bought them, how much they cost, and when.
