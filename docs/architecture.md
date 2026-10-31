@@ -135,6 +135,8 @@ erDiagram
   users ||--o{ expense_shares : owes
   expenses |o--o| list_items : "created by checking off"
   users ||--o{ payments : "sends / receives"
+  users ||--o{ list_items : "adds / checks off"
+  users ||--o{ settlements : starts
   settlements |o--o{ expenses : closes
   settlements |o--o{ payments : includes
 
