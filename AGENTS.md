@@ -47,6 +47,7 @@ This is the **target structure**. Paths marked `(planned)` do not exist yet; cre
 ```text
 .
 ├── AGENTS.md
+├── CLAUDE.md
 ├── README.md
 ├── DESIGN.md
 ├── .env.example
@@ -58,16 +59,17 @@ This is the **target structure**. Paths marked `(planned)` do not exist yet; cre
 │   ├── research/ design/
 │   ├── decisions/           # (planned)
 │   ├── api/openapi.yaml
-│   └── sprints/sprint-1/    # (planned)
+│   └── sprints/             # sprint-1/ retrospective, issue-4-comparison.md
 ├── supabase/
 │   ├── migrations/
+│   ├── seed.sql             # demo data for local development
 │   └── tests/               # database tests (npm run test:db)
 ├── e2e/
 └── src/
-    ├── proxy.ts             # (planned)
-    ├── app/                 # (auth), (app), api — only the scaffold page exists so far
-    ├── components/          # (planned) ui/ and feature folders
-    └── lib/                 # db; (planned) domain, services, auth, validation, http
+    ├── proxy.ts
+    ├── app/                 # (auth), (app), api
+    ├── components/          # ui/ and feature folders
+    └── lib/                 # auth, db, http, services, validation; (planned) domain
 ```
 
 ### Key patterns
@@ -206,6 +208,7 @@ Non-negotiable values, check them before opening a PR: bcrypt cost **12** · ses
 
 ## Changelog
 
+- 2026-10-30, Barbara: updated the folder structure in Section 2 to what exists after Sprint 1 (#47): `proxy.ts`, `components/`, `lib/auth`, `http`, `services`, `validation`, `supabase/seed.sql` and `docs/sprints/`. Only `docs/decisions/` and `lib/domain` are still planned. The old tree said the scaffold page was the only page and marked those paths as planned, so an agent would have recreated files that already exist.
 - 2026-10-30, Barbara: moved the stack from Node 24 to Node 26 in Section 1, `.nvmrc`, `engines` and `@types/node`, because Node 26 became the LTS release on 2026-10-28 and Node 24 entered maintenance on 2026-10-20. Vercel supports 26.x, and the tests, build and Playwright flows pass on it.
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->
 
