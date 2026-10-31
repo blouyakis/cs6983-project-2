@@ -199,7 +199,8 @@ Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `
 | Sprint planning and retrospectives | [`docs/sprints/sprint-1/retrospective.md`](./docs/sprints/sprint-1/retrospective.md) |
 | Communication log | [Google Sheet](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?gid=229896090#gid=229896090) |
 | Contribution log | [Contributors](#contributors) section below |
-| HW3 before/after test of `AGENTS.md` | [`docs/sprints/issue-4-comparison.md`](./docs/sprints/issue-4-comparison.md) |
+| HW3 submission (Scrum setup, rules file, before/after test, reflection) | [`docs/hw3-submission.md`](./docs/hw3-submission.md) |
+| HW3 before/after test of `AGENTS.md`, in full | [`docs/sprints/issue-4-comparison.md`](./docs/sprints/issue-4-comparison.md) |
 
 ## Contributors
 

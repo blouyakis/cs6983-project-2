@@ -84,7 +84,7 @@ src/app/auth-form.tsx  src/app/auth-nav.tsx  src/app/login/page.tsx  src/app/reg
 | §7 Workflow | commits `feat(auth): … (#4)`; `TODO(#n)` | no commits, no issue references | — |
 | Schema | `users.name` is `NOT NULL` | `name` optional, silently defaulted to the email's local part | `register/route.ts` |
 
-Count: **14 rule deviations, 5 of them security rules**, in ~710 lines.
+Count: **14 AGENTS.md rule deviations (5 of them security rules) plus 1 schema deviation**, in ~710 lines.
 
 ## 3. Run B — WITH rules (what was actually produced)
 
@@ -132,7 +132,7 @@ cf6e488 test(e2e): cover register, login, logout and expired sessions (#4)
 ```
 Nine test → code pairs plus one refactor commit. One slip: `e492056` is labelled `test` but also carries `src/app/(app)/page.tsx`, so that pair is not cleanly separated.
 
-**Rule check — the same 14 rows as Run A**
+**Rule check — the same 15 rows as Run A**
 
 | Area | AGENTS.md says | Run B did | Evidence |
 |---|---|---|---|
@@ -154,7 +154,7 @@ Nine test → code pairs plus one refactor commit. One slip: `e492056` is labell
 
 Also present without being asked: `import "server-only"` on every server module, a constant-time dummy-hash compare for unknown emails (Run A had this too), the exact login message from §8 ("Email or password is incorrect."), and a `next=` redirect back to the page the user wanted.
 
-Count: **0 of 14 rule deviations** (one process slip in commit `e492056`).
+Count: **0 of 15 deviations** (one process slip in commit `e492056`).
 
 ## 4. Comparison
 
@@ -170,7 +170,7 @@ Count: **0 of 14 rule deviations** (one process slip in commit `e492056`).
 
 | Metric | Without rules | With rules |
 |---|---|---|
-| AGENTS.md deviations (14 checked) | 14 | 0 |
+| Deviations (14 AGENTS.md rules + 1 schema rule) | 15 | 0 |
 | §8 security rules met | 4 / 9 | 9 / 9 |
 | Vitest cases (branch total) | 16 | 83 |
 | Playwright E2E cases | 0 | 6 |
