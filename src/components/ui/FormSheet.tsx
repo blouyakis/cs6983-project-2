@@ -5,7 +5,9 @@ import {
   useId,
   useRef,
   type FormEvent,
+  type KeyboardEvent,
   type ReactNode,
+  type SyntheticEvent,
 } from "react";
 import { PrimaryButton } from "./PrimaryButton";
 
@@ -33,6 +35,7 @@ export function FormSheet({
   children,
 }: FormSheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
 
   useEffect(() => {
@@ -41,10 +44,16 @@ export function FormSheet({
       return;
     }
     if (open && !dialog.open) {
+      openerRef.current =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
       dialog.showModal();
       dialog.querySelector<HTMLElement>(FIELDS)?.focus();
     } else if (!open && dialog.open) {
       dialog.close();
+      openerRef.current?.focus();
+      openerRef.current = null;
     }
   }, [open]);
 
@@ -53,10 +62,26 @@ export function FormSheet({
     onSubmit(new FormData(event.currentTarget));
   }
 
+  // The parent owns `open`, so Escape asks it to close instead of letting the
+  // browser close the dialog behind React's back.
+  function handleKeyDown(event: KeyboardEvent<HTMLDialogElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+    }
+  }
+
+  function handleCancel(event: SyntheticEvent<HTMLDialogElement>) {
+    event.preventDefault();
+    onClose();
+  }
+
   return (
     <dialog
       ref={dialogRef}
       aria-labelledby={titleId}
+      onKeyDown={handleKeyDown}
+      onCancel={handleCancel}
       className="m-0 h-full max-h-none w-full max-w-none bg-surface p-0 text-ink backdrop:bg-ink/40 md:m-auto md:h-auto md:max-h-[85vh] md:max-w-lg md:rounded-2xl md:border-4 md:border-ink"
     >
       {open ? (
