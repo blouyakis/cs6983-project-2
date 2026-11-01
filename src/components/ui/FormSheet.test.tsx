@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { FormSheet } from "./FormSheet";
 import { TextField } from "./TextField";
@@ -95,5 +96,75 @@ describe("FormSheet", () => {
     expect(form).not.toBeNull();
     fireEvent.submit(form as HTMLFormElement);
     expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  describe("closing", () => {
+    it("calls onClose when Escape is pressed", () => {
+      const { onClose } = renderSheet();
+      fireEvent.keyDown(screen.getByLabelText("Name"), { key: "Escape" });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("calls onClose instead of letting the browser close it on cancel", () => {
+      const { onClose } = renderSheet();
+      const cancel = new Event("cancel", { cancelable: true });
+      fireEvent(screen.getByRole("dialog"), cancel);
+      expect(cancel.defaultPrevented).toBe(true);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(["Cancel", "Close"])("calls onClose when %s is pressed", (name) => {
+      const { onClose, onSubmit } = renderSheet();
+      fireEvent.click(screen.getByRole("button", { name }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    function Opener() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            New group
+          </button>
+          <FormSheet
+            open={open}
+            title="New group"
+            primaryLabel="Create group"
+            onSubmit={() => setOpen(false)}
+            onClose={() => setOpen(false)}
+          >
+            <TextField label="Name" name="name" />
+          </FormSheet>
+        </>
+      );
+    }
+
+    it.each([
+      [
+        "Escape",
+        (field: HTMLElement) => fireEvent.keyDown(field, { key: "Escape" }),
+      ],
+      [
+        "Cancel",
+        () => fireEvent.click(screen.getByRole("button", { name: "Cancel" })),
+      ],
+      [
+        "Close",
+        () => fireEvent.click(screen.getByRole("button", { name: "Close" })),
+      ],
+    ])("returns focus to the opener after %s", (_name, close) => {
+      render(<Opener />);
+      const opener = screen.getByRole("button", { name: "New group" });
+      opener.focus();
+      fireEvent.click(opener);
+      const field = screen.getByLabelText("Name");
+      expect(field).toHaveFocus();
+
+      close(field);
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(opener).toHaveFocus();
+    });
   });
 });
