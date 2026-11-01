@@ -1,4 +1,5 @@
 import { ValidationError } from "@/lib/http/errors";
+import { formatCents } from "./money";
 
 // Splitting an expense among its sharers (AGENTS.md Sections 6.1 to 6.3).
 // Every amount is in integer cents, and the shares always add up exactly to
@@ -86,4 +87,48 @@ export function splitByWeights(
 // Custom amounts filled in from the weights otherwise (#8).
 export function hasEqualWeights(sharers: readonly Sharer[]): boolean {
   return sharers.every((sharer) => sharer.weight === sharers[0].weight);
+}
+
+// Checks shares the payer typed in (AGENTS.md Section 6.3) and returns them in
+// the order of sharedBy. They have no leftover, since every cent is entered.
+export function checkCustomShares(
+  amountCents: number,
+  payerId: string,
+  sharedBy: readonly string[],
+  amountsCents: Readonly<Record<string, number>>,
+): Share[] {
+  checkAmount(amountCents);
+  checkSharedBy(payerId, sharedBy);
+
+  const entered = Object.entries(amountsCents);
+  if (!entered.every(([, cents]) => isWholeCents(cents))) {
+    rejectField(
+      "amountsCents",
+      "Each share must be $0.00 or more, in whole cents.",
+    );
+  }
+  if (!sharedBy.every((userId) => Object.hasOwn(amountsCents, userId))) {
+    rejectField(
+      "amountsCents",
+      "Enter a share for everyone sharing this cost.",
+    );
+  }
+  if (entered.length !== sharedBy.length) {
+    rejectField(
+      "amountsCents",
+      "Only people sharing this cost can have a share.",
+    );
+  }
+
+  const total = entered.reduce((sum, [, cents]) => sum + cents, 0);
+  if (total !== amountCents) {
+    rejectField(
+      "amountsCents",
+      `The shares add up to ${formatCents(total)}, not ${formatCents(amountCents)}.`,
+    );
+  }
+  return sharedBy.map((userId) => ({
+    userId,
+    shareCents: amountsCents[userId],
+  }));
 }
