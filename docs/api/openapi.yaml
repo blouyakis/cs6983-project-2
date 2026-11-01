@@ -388,33 +388,40 @@ components:
         `sharedBy`. An even split gives any leftover cent to the payer;
         custom amounts must add up to the expense amount.
       oneOf:
-        - type: object
-          required: [mode, sharedBy]
-          properties:
-            mode:
-              type: string
-              enum: [even]
-            sharedBy:
-              $ref: "#/components/schemas/SharedBy"
-        - type: object
-          required: [mode, sharedBy, amountsCents]
-          properties:
-            mode:
-              type: string
-              enum: [custom]
-            sharedBy:
-              $ref: "#/components/schemas/SharedBy"
-            amountsCents:
-              type: object
-              description: Each sharer's share in cents, keyed by user id.
-              additionalProperties:
-                type: integer
-                minimum: 0
-              example:
-                6f1c2d4e-1111-4222-8333-944455556666: 601
-                0b7e8a10-2222-4333-8444-a55566667777: 400
+        - $ref: "#/components/schemas/SplitEven"
+        - $ref: "#/components/schemas/SplitCustom"
       discriminator:
         propertyName: mode
+        mapping:
+          even: "#/components/schemas/SplitEven"
+          custom: "#/components/schemas/SplitCustom"
+    SplitEven:
+      type: object
+      required: [mode, sharedBy]
+      properties:
+        mode:
+          type: string
+          enum: [even]
+        sharedBy:
+          $ref: "#/components/schemas/SharedBy"
+    SplitCustom:
+      type: object
+      required: [mode, sharedBy, amountsCents]
+      properties:
+        mode:
+          type: string
+          enum: [custom]
+        sharedBy:
+          $ref: "#/components/schemas/SharedBy"
+        amountsCents:
+          type: object
+          description: Each sharer's share in cents, keyed by user id.
+          additionalProperties:
+            type: integer
+            minimum: 0
+          example:
+            6f1c2d4e-1111-4222-8333-944455556666: 601
+            0b7e8a10-2222-4333-8444-a55566667777: 400
     SharedBy:
       type: array
       description: The user ids of the members who share the expense, each once.
