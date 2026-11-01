@@ -118,7 +118,7 @@ export function FormSheet({
       aria-labelledby={titleId}
       onKeyDown={handleKeyDown}
       onCancel={handleCancel}
-      className="m-0 h-full max-h-none w-full max-w-none bg-surface p-0 text-ink backdrop:bg-ink/40 md:m-auto md:h-auto md:max-h-[85vh] md:max-w-lg md:rounded-2xl md:border-4 md:border-ink"
+      className="m-0 h-full max-h-none w-full max-w-none bg-surface p-0 text-ink backdrop:bg-ink/40 md:m-auto md:h-fit md:max-h-[85vh] md:max-w-lg md:rounded-2xl md:border-4 md:border-ink"
     >
       {open ? (
         <form onSubmit={handleSubmit} className="flex h-full flex-col">
@@ -138,7 +138,10 @@ export function FormSheet({
           <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
             {children}
           </div>
-          <p aria-live="polite" className="px-4 text-sm font-semibold text-owe">
+          <p
+            aria-live="polite"
+            className="px-4 text-sm font-semibold text-owe not-empty:pb-3"
+          >
             {error}
           </p>
           <footer className="flex justify-end gap-3 border-t-2 border-dashed border-divider px-4 py-3">
