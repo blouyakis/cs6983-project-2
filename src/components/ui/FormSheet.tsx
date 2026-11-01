@@ -23,6 +23,14 @@ type FormSheetProps = {
 };
 
 const FIELDS = "input:not([type=hidden]), select, textarea";
+const FOCUSABLE = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled]):not([type=hidden])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(", ");
 
 // Holds every form (DESIGN.md "Components"). Full screen on a phone, a dialog
 // on desktop. showModal() puts it on top and makes the page behind it inert.
@@ -68,6 +76,28 @@ export function FormSheet({
     if (event.key === "Escape") {
       event.preventDefault();
       onClose();
+    } else if (event.key === "Tab") {
+      keepTabInside(event);
+    }
+  }
+
+  // A modal dialog keeps focus off the page, but Chrome still lets Tab leave
+  // for the address bar. Wrap at both ends instead (AGENTS.md Section 8).
+  function keepTabInside(event: KeyboardEvent<HTMLDialogElement>) {
+    const focusable = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>(FOCUSABLE),
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!first || !last) {
+      return;
+    }
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
     }
   }
 
