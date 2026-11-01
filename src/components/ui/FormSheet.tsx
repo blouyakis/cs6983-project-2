@@ -121,7 +121,10 @@ export function FormSheet({
       className="m-0 h-full max-h-none w-full max-w-none bg-surface p-0 text-ink backdrop:bg-ink/40 md:m-auto md:h-fit md:max-h-[85vh] md:max-w-lg md:rounded-2xl md:border-4 md:border-ink"
     >
       {open ? (
-        <form onSubmit={handleSubmit} className="flex h-full flex-col">
+        <form
+          onSubmit={handleSubmit}
+          className="flex h-full flex-col md:h-auto"
+        >
           <header className="flex items-center gap-3 border-b-2 border-dashed border-divider px-4 py-3">
             <button
               type="button"
