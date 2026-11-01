@@ -98,6 +98,42 @@ describe("FormSheet", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
+  describe("keeping focus inside", () => {
+    // In order: Close, Name, Note, Cancel, Create group.
+    it("moves Tab from the last element to the first", () => {
+      renderSheet();
+      const last = screen.getByRole("button", { name: "Create group" });
+      last.focus();
+      const notPrevented = fireEvent.keyDown(last, { key: "Tab" });
+      expect(notPrevented).toBe(false);
+      expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
+    });
+
+    it("moves Shift+Tab from the first element to the last", () => {
+      renderSheet();
+      const first = screen.getByRole("button", { name: "Close" });
+      first.focus();
+      const notPrevented = fireEvent.keyDown(first, {
+        key: "Tab",
+        shiftKey: true,
+      });
+      expect(notPrevented).toBe(false);
+      expect(
+        screen.getByRole("button", { name: "Create group" }),
+      ).toHaveFocus();
+    });
+
+    it("leaves Tab between the other elements to the browser", () => {
+      renderSheet();
+      const field = screen.getByLabelText("Name");
+      expect(fireEvent.keyDown(field, { key: "Tab" })).toBe(true);
+      expect(fireEvent.keyDown(field, { key: "Tab", shiftKey: true })).toBe(
+        true,
+      );
+      expect(field).toHaveFocus();
+    });
+  });
+
   describe("closing", () => {
     it("calls onClose when Escape is pressed", () => {
       const { onClose } = renderSheet();
