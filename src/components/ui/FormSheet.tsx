@@ -40,6 +40,8 @@ export function FormSheet({
   primaryLabel,
   onSubmit,
   onClose,
+  submitting = false,
+  error,
   children,
 }: FormSheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -67,6 +69,10 @@ export function FormSheet({
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // Enter still submits while the button is disabled, so check here too.
+    if (submitting) {
+      return;
+    }
     onSubmit(new FormData(event.currentTarget));
   }
 
@@ -132,6 +138,9 @@ export function FormSheet({
           <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
             {children}
           </div>
+          <p aria-live="polite" className="px-4 text-sm font-semibold text-owe">
+            {error}
+          </p>
           <footer className="flex justify-end gap-3 border-t-2 border-dashed border-divider px-4 py-3">
             <button
               type="button"
@@ -140,7 +149,9 @@ export function FormSheet({
             >
               Cancel
             </button>
-            <PrimaryButton type="submit">{primaryLabel}</PrimaryButton>
+            <PrimaryButton type="submit" disabled={submitting}>
+              {primaryLabel}
+            </PrimaryButton>
           </footer>
         </form>
       ) : null}
