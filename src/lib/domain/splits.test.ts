@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { ValidationError } from "@/lib/http/errors";
-import { hasEqualWeights, splitByWeights } from "./splits";
+import { checkCustomShares, hasEqualWeights, splitByWeights } from "./splits";
 
 const payer = "payer";
 const sam = "sam";
@@ -193,5 +193,95 @@ describe("hasEqualWeights", () => {
   it("is true for one sharer or none", () => {
     expect(hasEqualWeights([{ userId: payer, weight: 2 }])).toBe(true);
     expect(hasEqualWeights([])).toBe(true);
+  });
+});
+
+describe("checkCustomShares", () => {
+  it("accepts amounts that add up, in the order of sharedBy", () => {
+    expect(
+      checkCustomShares(1000, payer, [payer, sam], { sam: 400, payer: 600 }),
+    ).toEqual([
+      { userId: payer, shareCents: 600 },
+      { userId: sam, shareCents: 400 },
+    ]);
+  });
+
+  it("accepts 0 for the payer, for a cost paid only for others", () => {
+    expect(
+      checkCustomShares(1001, payer, [payer, sam, jo], {
+        payer: 0,
+        sam: 501,
+        jo: 500,
+      }),
+    ).toEqual([
+      { userId: payer, shareCents: 0 },
+      { userId: sam, shareCents: 501 },
+      { userId: jo, shareCents: 500 },
+    ]);
+  });
+
+  it("rejects amounts that don't add up, saying both totals", () => {
+    expect(
+      fieldErrorsOf(() =>
+        checkCustomShares(1000, payer, [payer, sam], { payer: 600, sam: 399 }),
+      ),
+    ).toEqual({ amountsCents: "The shares add up to $9.99, not $10.00." });
+  });
+
+  it.each([
+    ["a fraction of a cent", 600.5],
+    ["a negative amount", -1],
+    ["not a number", Number.NaN],
+  ])("rejects %s", (_, payerShare) => {
+    expect(
+      fieldErrorsOf(() =>
+        checkCustomShares(1000, payer, [payer, sam], {
+          payer: payerShare,
+          sam: 400,
+        }),
+      ),
+    ).toEqual({
+      amountsCents: "Each share must be $0.00 or more, in whole cents.",
+    });
+  });
+
+  it("rejects a sharer with no amount", () => {
+    expect(
+      fieldErrorsOf(() =>
+        checkCustomShares(1000, payer, [payer, sam], { payer: 1000 }),
+      ),
+    ).toEqual({
+      amountsCents: "Enter a share for everyone sharing this cost.",
+    });
+  });
+
+  it("rejects an amount for someone who isn't sharing", () => {
+    expect(
+      fieldErrorsOf(() =>
+        checkCustomShares(1000, payer, [payer, sam], {
+          payer: 600,
+          sam: 400,
+          jo: 0,
+        }),
+      ),
+    ).toEqual({
+      amountsCents: "Only people sharing this cost can have a share.",
+    });
+  });
+
+  it("rejects sharers that leave out the payer", () => {
+    expect(
+      fieldErrorsOf(() =>
+        checkCustomShares(1000, payer, [sam, jo], { sam: 500, jo: 500 }),
+      ),
+    ).toEqual({
+      sharedBy: "The payer must be one of the people sharing this cost.",
+    });
+  });
+
+  it("rejects a bad total amount before looking at the shares", () => {
+    expect(
+      fieldErrorsOf(() => checkCustomShares(-5, payer, [payer], { payer: -5 })),
+    ).toEqual({ amountCents: "Enter an amount of $0.00 or more." });
   });
 });
