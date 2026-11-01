@@ -48,12 +48,12 @@ Some mockups show a balance as a signed amount in color, such as −$31.00 on th
 
 ## Components
 
-These are the planned component names. None exist yet. Every amount goes through `MoneyText`, and every form follows `FormSheet`.
+Built components are in `src/components/ui/`, so reuse them before making a new one. So far that is `FormSheet` (#56); the rest are planned names. Every amount goes through `MoneyText`, and every form follows `FormSheet`.
 
 ### Shared
 
 - **MoneyText** formats cents as dollars with `Intl.NumberFormat` and writes the meaning in words: "you owe", "Sam is owed", "Jo owes". Short forms such as "owe $31.00" on a group card still use words.
-- **FormSheet** holds every form. On a phone it fills the screen, with a close or back button at the top left and Cancel and the one primary button pinned to the bottom. On desktop it opens as a dialog. It moves focus to the first field, traps focus, and closes with Escape or Cancel. Field errors appear under the field and are announced with `aria-live="polite"`.
+- **FormSheet** holds every form. On a phone it fills the screen, with a close or back button at the top left and Cancel and the one primary button pinned to the bottom. On desktop it opens as a dialog. It moves focus to the first field, keeps Tab inside it, closes with Escape, Cancel or the close button (named "Close"), and then returns focus to the control that opened it. Field errors appear under the field and are announced with `aria-live="polite"`; a form-level error, such as a message from the server, is announced the same way above the buttons. While the form is submitting, the primary button is disabled.
 - **ConfirmDialog** asks before an action that can't be undone with one click, such as unchecking a done item or deleting an expense. It is a small dialog, not a form, so it doesn't use `FormSheet`. It has one sentence saying what will happen, such as "Uncheck Milk? This deletes its $5.00 expense.", a Cancel button, and one button that names the action, such as Uncheck and delete. Cancel has focus when it opens. It traps focus, closes with Escape or Cancel, and returns focus to the control that opened it.
 - **Avatar** is a round circle with the member's initial. Fills cycle through `avatar-1`, `avatar-2` and `avatar-3`.
 - **Badge** is small uppercase text in `owe` on `tag`, such as READ ONLY, CLOSED or LOGGED AS PERSONAL EXPENSE. A balance badge in a member list uses `tag` for "owes $31" and a light green for "is owed $42".
