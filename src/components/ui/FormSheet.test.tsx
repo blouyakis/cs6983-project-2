@@ -98,6 +98,51 @@ describe("FormSheet", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
+  describe("errors and submitting", () => {
+    it("announces a form-level error in a polite live region", () => {
+      renderSheet({ error: "You already have a group with that name." });
+      const error = screen.getByText(
+        "You already have a group with that name.",
+      );
+      expect(error).toHaveAttribute("aria-live", "polite");
+      expect(screen.getByRole("dialog")).toContainElement(error);
+    });
+
+    it("has the live region in place before there is an error", () => {
+      // A screen reader only announces text added to a region it already
+      // knows, so the region must exist before the error arrives.
+      renderSheet();
+      const regions = screen
+        .getByRole("dialog")
+        .querySelectorAll(":scope > form > [aria-live='polite']");
+      expect(regions).toHaveLength(1);
+      expect(regions[0]).toBeEmptyDOMElement();
+    });
+
+    it("disables the primary button while submitting", () => {
+      renderSheet({ submitting: true });
+      expect(
+        screen.getByRole("button", { name: "Create group" }),
+      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+    });
+
+    it("ignores a second submit, such as Enter, while submitting", () => {
+      const { onSubmit } = renderSheet({ submitting: true });
+      const form = screen.getByLabelText("Name").closest("form");
+      fireEvent.submit(form as HTMLFormElement);
+      expect(onSubmit).not.toHaveBeenCalled();
+    });
+
+    it("skips a disabled primary button when wrapping backwards", () => {
+      renderSheet({ submitting: true });
+      const first = screen.getByRole("button", { name: "Close" });
+      first.focus();
+      fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
+      expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+    });
+  });
+
   describe("keeping focus inside", () => {
     // In order: Close, Name, Note, Cancel, Create group.
     it("moves Tab from the last element to the first", () => {
