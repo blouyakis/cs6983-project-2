@@ -146,7 +146,9 @@ describe("splitByWeights", () => {
         fieldErrorsOf(() =>
           splitByWeights(amountCents, payer, [{ userId: payer, weight: 1 }]),
         ),
-      ).toEqual({ amountCents: "Enter an amount of $0.00 or more." });
+      ).toEqual({
+        amountCents: "Enter an amount of $0.00 or more, in whole cents.",
+      });
     },
   );
 
@@ -282,6 +284,8 @@ describe("checkCustomShares", () => {
   it("rejects a bad total amount before looking at the shares", () => {
     expect(
       fieldErrorsOf(() => checkCustomShares(-5, payer, [payer], { payer: -5 })),
-    ).toEqual({ amountCents: "Enter an amount of $0.00 or more." });
+    ).toEqual({
+      amountCents: "Enter an amount of $0.00 or more, in whole cents.",
+    });
   });
 });
