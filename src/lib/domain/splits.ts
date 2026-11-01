@@ -10,6 +10,18 @@ export type Share = { userId: string; shareCents: number };
 
 const CHECK_FIELDS = "Check the highlighted fields.";
 
+// Shared with splitSchema in lib/validation, so a rule broken in the request
+// and the same rule broken here read the same to the user.
+export const splitMessages = {
+  amount: "Enter an amount of $0.00 or more.",
+  noSharers: "Choose at least one person to share this cost.",
+  repeatedSharer: "Each person can share this cost only once.",
+  payerNotSharing: "The payer must be one of the people sharing this cost.",
+  shareNotWholeCents: "Each share must be $0.00 or more, in whole cents.",
+  missingShare: "Enter a share for everyone sharing this cost.",
+  extraShare: "Only people sharing this cost can have a share.",
+} as const;
+
 function rejectField(field: string, message: string): never {
   throw new ValidationError(CHECK_FIELDS, { [field]: message });
 }
@@ -20,23 +32,20 @@ function isWholeCents(value: number): boolean {
 
 function checkAmount(amountCents: number): void {
   if (!isWholeCents(amountCents)) {
-    rejectField("amountCents", "Enter an amount of $0.00 or more.");
+    rejectField("amountCents", splitMessages.amount);
   }
 }
 
 function checkSharedBy(payerId: string, sharedBy: readonly string[]): void {
   if (sharedBy.length === 0) {
-    rejectField("sharedBy", "Choose at least one person to share this cost.");
+    rejectField("sharedBy", splitMessages.noSharers);
   }
   if (new Set(sharedBy).size !== sharedBy.length) {
-    rejectField("sharedBy", "Each person can share this cost only once.");
+    rejectField("sharedBy", splitMessages.repeatedSharer);
   }
   // The payer always shares, so leftover cents always have a place to go.
   if (!sharedBy.includes(payerId)) {
-    rejectField(
-      "sharedBy",
-      "The payer must be one of the people sharing this cost.",
-    );
+    rejectField("sharedBy", splitMessages.payerNotSharing);
   }
 }
 
@@ -102,22 +111,13 @@ export function checkCustomShares(
 
   const entered = Object.entries(amountsCents);
   if (!entered.every(([, cents]) => isWholeCents(cents))) {
-    rejectField(
-      "amountsCents",
-      "Each share must be $0.00 or more, in whole cents.",
-    );
+    rejectField("amountsCents", splitMessages.shareNotWholeCents);
   }
   if (!sharedBy.every((userId) => Object.hasOwn(amountsCents, userId))) {
-    rejectField(
-      "amountsCents",
-      "Enter a share for everyone sharing this cost.",
-    );
+    rejectField("amountsCents", splitMessages.missingShare);
   }
   if (entered.length !== sharedBy.length) {
-    rejectField(
-      "amountsCents",
-      "Only people sharing this cost can have a share.",
-    );
+    rejectField("amountsCents", splitMessages.extraShare);
   }
 
   const total = entered.reduce((sum, [, cents]) => sum + cents, 0);
