@@ -13,7 +13,7 @@ const CHECK_FIELDS = "Check the highlighted fields.";
 // Shared with splitSchema in lib/validation, so a rule broken in the request
 // and the same rule broken here read the same to the user.
 export const splitMessages = {
-  amount: "Enter an amount of $0.00 or more.",
+  amount: "Enter an amount of $0.00 or more, in whole cents.",
   noSharers: "Choose at least one person to share this cost.",
   repeatedSharer: "Each person can share this cost only once.",
   payerNotSharing: "The payer must be one of the people sharing this cost.",
