@@ -188,7 +188,7 @@ paths:
   /api/groups/{groupId}/list-items:
     get:
       summary: List items
-      description: Issues #11, #12.
+      description: Issues #11, #12. Each done item says whether its expense is settled, so the client can disable unchecking it.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
@@ -224,12 +224,28 @@ paths:
   /api/groups/{groupId}/list-items/{itemId}/complete:
     post:
       summary: Check off an item and create the expense
-      description: Issues #12, #13.
+      description: Issues #12, #13. An item that is already done is 409.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ItemId"
       responses:
         "400":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/groups/{groupId}/list-items/{itemId}/reopen:
+    post:
+      summary: Uncheck an item and delete its expense
+      description: Issue #12. Only the member who checked the item off; anyone else gets 403. A settled expense is 409. A done item with no expense just reopens. An item that is already open is 409.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/ItemId"
+      responses:
+        "403":
+          $ref: "#/components/responses/Error"
+        "409":
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/expenses:
     get:
