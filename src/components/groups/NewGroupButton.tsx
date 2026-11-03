@@ -30,6 +30,10 @@ export function NewGroupButton() {
       name: data.get("name"),
     });
     if (result.ok) {
+      // Close first: Next keeps this page mounted after navigating, and a
+      // modal left open would make the new group's page inert.
+      setSubmitting(false);
+      close();
       router.push(`/groups/${result.data.group.id}`);
       return;
     }
