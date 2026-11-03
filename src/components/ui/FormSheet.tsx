@@ -170,7 +170,7 @@ export function FormSheet({
           <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
             {children}
           </div>
-          {/* A live region is only announced when its text changes, so clear
+          {/* A live region is only announced when its text changes, so hide
               the error while submitting. Then the same error coming back is
               announced again. The region itself stays, so it is never new. */}
           <p
