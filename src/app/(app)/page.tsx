@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { SignedInAs } from "@/components/auth/SignedInAs";
@@ -12,6 +13,10 @@ export default function OverviewPage() {
       <Suspense fallback={<p className="text-muted">Loading…</p>}>
         <SignedInAs />
       </Suspense>
+      {/* TODO(#53): remove this link once AppSidebar and the tab bar exist. */}
+      <Link href="/groups" className="font-semibold underline">
+        <span aria-hidden="true">👥 </span>Groups
+      </Link>
       {/* TODO(#23): show the personal space and groups here. */}
     </main>
   );
