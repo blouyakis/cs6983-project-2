@@ -31,4 +31,19 @@ describe("describeSplit", () => {
       expect(parts.reduce((sum, part) => sum + part, 0)).toBe(100);
     }
   });
+
+  it("never shows 0% for a member with a weight", () => {
+    // 100:1 among 12 rounds one of the 1s down to 0 by largest remainder
+    // alone, which would say that member pays nothing.
+    const weights = [100, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+
+    const parts = describeSplit(weights)
+      .replace(" default", "")
+      .split("/")
+      .map(Number);
+
+    expect(parts).not.toContain(0);
+    expect(parts.reduce((sum, part) => sum + part, 0)).toBe(100);
+    expect(describeSplit(weights)).toBe("89/1/1/1/1/1/1/1/1/1/1/1 default");
+  });
 });
