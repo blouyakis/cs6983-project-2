@@ -617,7 +617,10 @@ components:
             it get 403.
         members:
           type: array
-          description: Current members, in the order they joined.
+          description: |
+            Current members, in the order they joined. For a former member,
+            the members as they were when they left, themselves included,
+            and not people who joined later.
           items:
             $ref: "#/components/schemas/Member"
     GroupSummary:
