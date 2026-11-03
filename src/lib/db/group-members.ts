@@ -78,14 +78,6 @@ function toMember(row: MemberRow): Member {
   };
 }
 
-// Current members only, in the order they joined.
-function toCurrentMembers(rows: MemberRow[]): Member[] {
-  return rows
-    .filter((row) => row.left_at === null)
-    .sort((a, b) => a.joined_at.localeCompare(b.joined_at))
-    .map(toMember);
-}
-
 // The trigger from #40 and the primary key on (group_id, user_id) both reject
 // a join; the service shows either as a 409.
 function toJoinError(error: { code: string; message: string }): Error {
@@ -121,9 +113,10 @@ export async function findMembership(
   };
 }
 
-// The one query for a group's current members, in the order they joined. Both
-// public lists below map these rows, so "who is a current member" is decided
-// in one place for the member list and for splitting an expense.
+// The one query for a group's current members, in the order they joined. Every
+// list of members in this file reads it, so "who is a current member" is
+// decided in one place for the Groups page, the member list and splitting an
+// expense.
 async function getCurrentMemberRows(
   groupId: string,
   failure: string,
@@ -163,33 +156,28 @@ export async function listCurrentMembers(groupId: string): Promise<Member[]> {
   return rows.map(toMember);
 }
 
-type MembershipWithMembersRow = {
-  joined_at: string;
-  left_at: string | null;
-  groups: GroupRow & { group_members: MemberRow[] };
-};
-
 // Every group the user is or was in, each with its current members. A group
-// the user left keeps its row, with leftAt set.
+// the user left keeps its row, with leftAt set. Each group's members come from
+// listCurrentMembers, one query per group, so they match everywhere else.
 export async function listMemberships(
   userId: string,
 ): Promise<(Membership & { members: Member[] })[]> {
   const { data, error } = await getDb()
     .from("group_members")
-    .select(
-      `joined_at, left_at, groups!inner(${GROUP_COLUMNS}, group_members(${MEMBER_COLUMNS}))`,
-    )
+    .select(MEMBERSHIP_COLUMNS)
     .eq("user_id", userId)
     .order("joined_at");
   if (error) {
     throw new Error(`Could not load groups: ${error.message}`);
   }
-  return (data as unknown as MembershipWithMembersRow[]).map((row) => ({
-    joinedAt: row.joined_at,
-    leftAt: row.left_at,
-    group: toGroup(row.groups),
-    members: toCurrentMembers(row.groups.group_members),
-  }));
+  return Promise.all(
+    (data as unknown as MembershipRow[]).map(async (row) => ({
+      joinedAt: row.joined_at,
+      leftAt: row.left_at,
+      group: toGroup(row.groups),
+      members: await listCurrentMembers(row.groups.id),
+    })),
+  );
 }
 
 // A new member starts at weight 1, an even split (#6).
