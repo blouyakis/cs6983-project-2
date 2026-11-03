@@ -107,7 +107,7 @@ The ER diagram and table definitions are in [`docs/architecture.md`](./docs/arch
 
 ## Getting started
 
-These steps run the app against a local Supabase database.
+These steps run the app against a local Supabase database. Use Chrome or Firefox for local development (#58).
 
 ### Prerequisites
 
