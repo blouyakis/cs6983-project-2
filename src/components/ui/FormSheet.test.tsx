@@ -65,6 +65,23 @@ describe("FormSheet", () => {
     expect(screen.getByLabelText("Name")).toHaveFocus();
   });
 
+  // Such as the payer on an edit form, which can't be changed (AGENTS.md 6.7).
+  it("skips a disabled first field when it moves focus", () => {
+    render(
+      <FormSheet
+        open
+        title="Edit expense"
+        primaryLabel="Save"
+        onSubmit={vi.fn()}
+        onClose={vi.fn()}
+      >
+        <TextField label="Paid by" name="payer" defaultValue="Sam" disabled />
+        <TextField label="Name" name="name" defaultValue="Groceries" />
+      </FormSheet>,
+    );
+    expect(screen.getByLabelText("Name")).toHaveFocus();
+  });
+
   it("names the icon-only close button Close", () => {
     renderSheet();
     expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
