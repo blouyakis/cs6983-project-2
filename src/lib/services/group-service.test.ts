@@ -89,6 +89,7 @@ describe("getGroup", () => {
       isPersonal: false,
       archivedAt: null,
       createdAt: "2026-10-01T09:00:00+00:00",
+      readOnly: false,
       members: [ana, sam],
     });
     expect(access.requireGroupAccess).toHaveBeenCalledWith(
@@ -105,6 +106,23 @@ describe("getGroup", () => {
     await expect(getGroup(userId, groupId)).rejects.toBeInstanceOf(
       ForbiddenError,
     );
+  });
+
+  it("is read-only for a former member", async () => {
+    access.requireGroupAccess.mockResolvedValue({
+      group: group(),
+      readUntil: "2026-10-20T09:00:00+00:00",
+    });
+    members.listCurrentMembers.mockResolvedValue([sam]);
+
+    expect((await getGroup(userId, groupId)).readOnly).toBe(true);
+  });
+
+  it("is read-only once the group is archived", async () => {
+    grantAccess({ archivedAt: "2026-10-20T09:00:00+00:00" });
+    members.listCurrentMembers.mockResolvedValue([]);
+
+    expect((await getGroup(userId, groupId)).readOnly).toBe(true);
   });
 });
 
