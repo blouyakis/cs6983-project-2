@@ -22,6 +22,7 @@ type MembershipRow = {
 };
 
 type MemberRow = {
+  group_id: string;
   user_id: string;
   default_share_weight: number;
   joined_at: string;
@@ -46,7 +47,7 @@ export type Membership = {
   leftAt: string | null;
 };
 
-// A current member of a group, as other members see them.
+// A member of a group, as other members see them.
 export type Member = {
   userId: string;
   name: string;
@@ -57,7 +58,7 @@ const GROUP_COLUMNS =
   "id, name, is_personal, created_by, archived_at, created_at";
 const MEMBERSHIP_COLUMNS = `joined_at, left_at, groups!inner(${GROUP_COLUMNS})`;
 const MEMBER_COLUMNS =
-  "user_id, default_share_weight, joined_at, left_at, users!inner(name)";
+  "group_id, user_id, default_share_weight, joined_at, left_at, users!inner(name)";
 
 function toGroup(row: GroupRow): Group {
   return {
@@ -113,19 +114,31 @@ export async function findMembership(
   };
 }
 
-// The one query for a group's current members, in the order they joined. Every
-// list of members in this file reads it, so "who is a current member" is
-// decided in one place for the Groups page, the member list and splitting an
-// expense.
-async function getCurrentMemberRows(
-  groupId: string,
+// Who counts as a member at a moment: at null means now, so a current member.
+// For a former member's view, `at` is their left_at, and the members are the
+// ones who had joined by then and hadn't left before it, themselves included.
+// This is the only place in lib/db that decides membership, so the Groups
+// page, the member list and splitting an expense always agree.
+function isMemberAt(row: MemberRow, at: string | null): boolean {
+  if (at === null) {
+    return row.left_at === null;
+  }
+  const moment = Date.parse(at);
+  return (
+    Date.parse(row.joined_at) <= moment &&
+    (row.left_at === null || Date.parse(row.left_at) >= moment)
+  );
+}
+
+// Every member row of the given groups, oldest first, in one query.
+async function getMemberRows(
+  groupIds: readonly string[],
   failure: string,
 ): Promise<MemberRow[]> {
   const { data, error } = await getDb()
     .from("group_members")
     .select(MEMBER_COLUMNS)
-    .eq("group_id", groupId)
-    .is("left_at", null)
+    .in("group_id", groupIds)
     .order("joined_at");
   if (error) {
     throw new Error(`${failure}: ${error.message}`);
@@ -142,23 +155,29 @@ function toSharer(row: MemberRow): Sharer {
 export async function listCurrentMemberWeights(
   groupId: string,
 ): Promise<Sharer[]> {
-  const rows = await getCurrentMemberRows(
-    groupId,
-    "Could not load share weights",
-  );
-  return rows.map(toSharer);
+  const rows = await getMemberRows([groupId], "Could not load share weights");
+  return rows.filter((row) => isMemberAt(row, null)).map(toSharer);
 }
 
-// The group's current members with their names, for the member list and for
-// SplitEditor, which fills in custom amounts from defaultShareWeight (#8).
-export async function listCurrentMembers(groupId: string): Promise<Member[]> {
-  const rows = await getCurrentMemberRows(groupId, "Could not load members");
-  return rows.map(toMember);
+// The group's members at a moment, in the order they joined: the current
+// members when `at` is null, or the members when a former member left
+// (AGENTS.md 6.6). SplitEditor fills in custom amounts from
+// defaultShareWeight (#8).
+export async function listMembersAt(
+  groupId: string,
+  at: string | null,
+): Promise<Member[]> {
+  const rows = await getMemberRows([groupId], "Could not load members");
+  return rows.filter((row) => isMemberAt(row, at)).map(toMember);
 }
 
-// Every group the user is or was in, each with its current members. A group
-// the user left keeps its row, with leftAt set. Each group's members come from
-// listCurrentMembers, one query per group, so they match everywhere else.
+export function listCurrentMembers(groupId: string): Promise<Member[]> {
+  return listMembersAt(groupId, null);
+}
+
+// Every group the user is or was in, each with its members: the current ones,
+// or for a group the user left, the ones as they were when they left. Two
+// queries however many groups there are.
 export async function listMemberships(
   userId: string,
 ): Promise<(Membership & { members: Member[] })[]> {
@@ -170,14 +189,25 @@ export async function listMemberships(
   if (error) {
     throw new Error(`Could not load groups: ${error.message}`);
   }
-  return Promise.all(
-    (data as unknown as MembershipRow[]).map(async (row) => ({
-      joinedAt: row.joined_at,
-      leftAt: row.left_at,
-      group: toGroup(row.groups),
-      members: await listCurrentMembers(row.groups.id),
-    })),
+  const memberships = data as unknown as MembershipRow[];
+  if (memberships.length === 0) {
+    return [];
+  }
+  const rows = await getMemberRows(
+    memberships.map((row) => row.groups.id),
+    "Could not load members",
   );
+  return memberships.map((row) => ({
+    joinedAt: row.joined_at,
+    leftAt: row.left_at,
+    group: toGroup(row.groups),
+    members: rows
+      .filter(
+        (member) =>
+          member.group_id === row.groups.id && isMemberAt(member, row.left_at),
+      )
+      .map(toMember),
+  }));
 }
 
 // A new member starts at weight 1, an even split (#6).

@@ -3,6 +3,7 @@ import {
   addMember,
   findMembership,
   listCurrentMembers,
+  listMembersAt,
   listMemberships,
   rejoinMember,
   type Group,
@@ -62,7 +63,9 @@ export async function getGroup(
     groupId,
     "read",
   );
-  return toDetails(group, readUntil, await listCurrentMembers(groupId));
+  // A former member sees the members as they were when they left (AGENTS.md
+  // 6.6), not people who joined later.
+  return toDetails(group, readUntil, await listMembersAt(groupId, readUntil));
 }
 
 export async function createGroup(
