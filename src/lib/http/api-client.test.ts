@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { patchJson, postJson } from "./api-client";
 
+const login = vi.hoisted(() => ({ goToLogin: vi.fn() }));
+vi.mock("./go-to-login", () => login);
+
 function respond(status: number, body?: unknown) {
   return vi.fn().mockResolvedValue(
     new Response(body === undefined ? null : JSON.stringify(body), {
@@ -11,6 +14,7 @@ function respond(status: number, body?: unknown) {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  login.goToLogin.mockReset();
 });
 
 describe("postJson", () => {
@@ -80,5 +84,55 @@ describe("patchJson", () => {
       "/api/groups/g1",
       expect.objectContaining({ method: "PATCH" }),
     );
+  });
+});
+
+// AGENTS.md Section 8: an expired session gets 401 and the user is sent to
+// login, instead of a form showing "Please log in to continue." as its error.
+describe("an expired session", () => {
+  const unauthorized = {
+    error: { code: "UNAUTHORIZED", message: "Please log in to continue." },
+  };
+
+  it("sends the user to login when an API request gets 401", async () => {
+    vi.stubGlobal("fetch", respond(401, unauthorized));
+
+    await postJson("/api/groups", { name: "Flat" });
+
+    expect(login.goToLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it("does the same for a PATCH", async () => {
+    vi.stubGlobal("fetch", respond(401, unauthorized));
+
+    await patchJson("/api/groups/g1", { name: "Dorm" });
+
+    expect(login.goToLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a 401 from login itself to the login form", async () => {
+    const wrong = {
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Email or password is incorrect.",
+      },
+    };
+    vi.stubGlobal("fetch", respond(401, wrong));
+
+    const result = await postJson("/api/auth/login", {});
+
+    expect(login.goToLogin).not.toHaveBeenCalled();
+    expect(result).toEqual({ ok: false, error: wrong.error });
+  });
+
+  it("does not send the user anywhere for other errors", async () => {
+    vi.stubGlobal(
+      "fetch",
+      respond(403, { error: { code: "FORBIDDEN", message: "No." } }),
+    );
+
+    await postJson("/api/groups/g1/invitations", {});
+
+    expect(login.goToLogin).not.toHaveBeenCalled();
   });
 });
