@@ -1,7 +1,10 @@
 // How GroupCard writes a group's default ratio (DESIGN.md): "even split" when
 // every member has the same weight, otherwise whole percents in the members'
 // order, such as "60/40 default" for weights 3 and 2. The percents are rounded
-// by largest remainder, so they always add up to 100.
+// by largest remainder, so they always add up to 100. Weights are at least 1,
+// so nobody is shown as 0%: a part that rounds to 0 becomes 1, taken from the
+// largest part. A group has at most 12 members, so the largest part is always
+// more than 1.
 export function describeSplit(weights: readonly number[]): string {
   if (weights.every((weight) => weight === weights[0])) {
     return "even split";
@@ -17,5 +20,11 @@ export function describeSplit(weights: readonly number[]): string {
     .forEach(({ index }) => {
       percents[index] += 1;
     });
+  percents.forEach((percent, index) => {
+    if (percent === 0) {
+      percents[index] = 1;
+      percents[percents.indexOf(Math.max(...percents))] -= 1;
+    }
+  });
   return `${percents.join("/")} default`;
 }
