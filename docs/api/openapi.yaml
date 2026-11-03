@@ -592,7 +592,7 @@ components:
           format: date-time
     Group:
       type: object
-      required: [id, name, isPersonal, archivedAt, createdAt, members]
+      required: [id, name, isPersonal, archivedAt, createdAt, readOnly, members]
       properties:
         id:
           type: string
@@ -609,6 +609,11 @@ components:
         createdAt:
           type: string
           format: date-time
+        readOnly:
+          type: boolean
+          description: |
+            True when the user left the group or it is archived. Writes to
+            it get 403.
         members:
           type: array
           description: Current members, in the order they joined.
@@ -618,16 +623,13 @@ components:
       allOf:
         - $ref: "#/components/schemas/Group"
         - type: object
-          required: [leftAt, readOnly]
+          required: [leftAt]
           properties:
             leftAt:
               type: string
               format: date-time
               nullable: true
               description: When the user left, or null if they are a current member.
-            readOnly:
-              type: boolean
-              description: True when the user left or the group is archived.
     Member:
       type: object
       required: [userId, name, defaultShareWeight]
