@@ -116,6 +116,8 @@ export async function inviteMember(
   } else {
     await addMember(groupId, invitee.id);
   }
+  // TODO(#63): return the weight the database gave them, and whether the
+  // group's split was reset, so the invite form can say so.
   return { userId: invitee.id, name: invitee.name, defaultShareWeight: 1 };
 }
 

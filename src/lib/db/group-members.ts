@@ -181,6 +181,8 @@ export async function listMemberships(
 }
 
 // A new member starts at weight 1, an even split (#6).
+// TODO(#63): give the newcomer the shared weight when every weight is equal,
+// or reset the group to 1 when they differ, in one SQL function with the join.
 export async function addMember(
   groupId: string,
   userId: string,
@@ -195,6 +197,7 @@ export async function addMember(
 
 // A former member who is invited again joins from now, at weight 1. They keep
 // one row, so joined_at becomes the time of this join.
+// TODO(#63): follow the same weight rule as addMember.
 export async function rejoinMember(
   groupId: string,
   userId: string,
