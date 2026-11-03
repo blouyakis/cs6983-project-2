@@ -148,6 +148,38 @@ describe("FormSheet", () => {
       expect(regions[0]).toBeEmptyDOMElement();
     });
 
+    // A live region is only announced when its text changes, so the same
+    // error coming back from a second submit must be cleared in between.
+    it("clears the error while submitting so the same error is announced again", () => {
+      const message = "Sam is already a member.";
+      function sheet(submitting: boolean) {
+        return (
+          <FormSheet
+            open
+            title="Invite a member"
+            primaryLabel="Invite"
+            onSubmit={vi.fn()}
+            onClose={vi.fn()}
+            submitting={submitting}
+            error={message}
+          >
+            <TextField label="Email" name="email" />
+          </FormSheet>
+        );
+      }
+      const { rerender } = render(sheet(false));
+      const region = screen
+        .getByRole("dialog")
+        .querySelector(":scope > form > [aria-live='polite']");
+      expect(region).toHaveTextContent(message);
+
+      rerender(sheet(true));
+      expect(region).toBeEmptyDOMElement();
+
+      rerender(sheet(false));
+      expect(region).toHaveTextContent(message);
+    });
+
     it("disables the primary button while submitting", () => {
       renderSheet({ submitting: true });
       expect(
