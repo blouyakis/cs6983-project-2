@@ -85,9 +85,14 @@ export function FormSheet({
   }
 
   // The parent owns `open`, so Escape asks it to close instead of letting the
-  // browser close the dialog behind React's back.
+  // browser close the dialog behind React's back. Leave Escape alone while an
+  // input method is composing, or once a nested widget has used it to close
+  // itself, so one Escape closes one layer.
   function handleKeyDown(event: KeyboardEvent<HTMLDialogElement>) {
     if (event.key === "Escape") {
+      if (event.nativeEvent.isComposing || event.defaultPrevented) {
+        return;
+      }
       event.preventDefault();
       onClose();
     } else if (event.key === "Tab") {
