@@ -50,21 +50,24 @@ test("create a group, invite a member by email, and both see it", async ({
   ).toBeVisible();
   await expect(ana.page.getByText("Ana (you)")).toBeVisible();
 
-  await ana.page.getByLabel("Email").fill("nobody@example.com");
-  await ana.page.getByRole("button", { name: "Invite" }).click();
+  // Next keeps the register page mounted but hidden after navigating, with
+  // its own Email field, so look inside the invite form.
+  const invite = ana.page.getByRole("form", { name: "Invite a member" });
+  await invite.getByLabel("Email").fill("nobody@example.com");
+  await invite.getByRole("button", { name: "Invite" }).click();
   await expect(
     ana.page.getByText("No LifeBoard account uses that email."),
   ).toBeVisible();
 
-  await ana.page.getByLabel("Email").fill(sam.email.toUpperCase());
-  await ana.page.getByRole("button", { name: "Invite" }).click();
+  await invite.getByLabel("Email").fill(sam.email.toUpperCase());
+  await invite.getByRole("button", { name: "Invite" }).click();
   await expect(ana.page.getByText("Sam joined the group.")).toBeVisible();
   await expect(
     ana.page.getByRole("listitem").filter({ hasText: "Sam" }),
   ).toBeVisible();
 
-  await ana.page.getByLabel("Email").fill(sam.email);
-  await ana.page.getByRole("button", { name: "Invite" }).click();
+  await invite.getByLabel("Email").fill(sam.email);
+  await invite.getByRole("button", { name: "Invite" }).click();
   await expect(
     ana.page.getByText("They are already in this group."),
   ).toBeVisible();

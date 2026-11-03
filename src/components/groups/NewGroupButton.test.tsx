@@ -69,6 +69,21 @@ describe("NewGroupButton", () => {
     });
   });
 
+  // Next keeps the Groups page mounted after navigating, so a modal left open
+  // would make the new group's page inert.
+  it("closes the form once the group is created", async () => {
+    mocks.postJson.mockResolvedValue({
+      ok: true,
+      data: { group: { id: "g1", name: "🏠 Flat" } },
+    });
+
+    createGroup("🏠 Flat");
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  });
+
   it("shows a name error next to the field", async () => {
     mocks.postJson.mockResolvedValue({
       ok: false,
