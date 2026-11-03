@@ -433,7 +433,11 @@ components:
       example: 1001
     SharedBy:
       type: array
-      description: The user ids of the members who share the expense, each once.
+      description: |
+        The user ids of the members who share the expense, each once. Ids
+        are compared in any case and stored in lowercase, here and as the
+        keys of `amountsCents`, so the same id twice in different case is
+        a 400.
       minItems: 1
       uniqueItems: true
       items:
