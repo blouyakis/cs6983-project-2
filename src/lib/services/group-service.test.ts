@@ -22,6 +22,7 @@ const members = vi.hoisted(() => ({
   addMember: vi.fn(),
   findMembership: vi.fn(),
   listCurrentMembers: vi.fn(),
+  listMembersAt: vi.fn(),
   listMemberships: vi.fn(),
   rejoinMember: vi.fn(),
 }));
@@ -81,7 +82,7 @@ beforeEach(() => {
 describe("getGroup", () => {
   it("returns the group and its current members after checking read access", async () => {
     grantAccess();
-    members.listCurrentMembers.mockResolvedValue([ana, sam]);
+    members.listMembersAt.mockResolvedValue([ana, sam]);
 
     expect(await getGroup(userId, groupId)).toEqual({
       id: groupId,
@@ -97,7 +98,7 @@ describe("getGroup", () => {
       groupId,
       "read",
     );
-    expect(members.listCurrentMembers).toHaveBeenCalledWith(groupId);
+    expect(members.listMembersAt).toHaveBeenCalledWith(groupId, null);
   });
 
   it("passes on the 403 from the access check", async () => {
@@ -113,14 +114,30 @@ describe("getGroup", () => {
       group: group(),
       readUntil: "2026-10-20T09:00:00+00:00",
     });
-    members.listCurrentMembers.mockResolvedValue([sam]);
+    members.listMembersAt.mockResolvedValue([sam]);
 
     expect((await getGroup(userId, groupId)).readOnly).toBe(true);
   });
 
+  // AGENTS.md 6.6: a former member reads nothing created after they left,
+  // so the member list stops at that moment too.
+  it("shows a former member the members as they were when they left", async () => {
+    access.requireGroupAccess.mockResolvedValue({
+      group: group(),
+      readUntil: "2026-10-20T09:00:00+00:00",
+    });
+    members.listMembersAt.mockResolvedValue([ana, sam]);
+
+    expect((await getGroup(userId, groupId)).members).toEqual([ana, sam]);
+    expect(members.listMembersAt).toHaveBeenCalledWith(
+      groupId,
+      "2026-10-20T09:00:00+00:00",
+    );
+  });
+
   it("is read-only once the group is archived", async () => {
     grantAccess({ archivedAt: "2026-10-20T09:00:00+00:00" });
-    members.listCurrentMembers.mockResolvedValue([]);
+    members.listMembersAt.mockResolvedValue([]);
 
     expect((await getGroup(userId, groupId)).readOnly).toBe(true);
   });
@@ -130,7 +147,7 @@ describe("createGroup", () => {
   it("creates the group with the session user as creator and returns it", async () => {
     groups.createGroup.mockResolvedValue(groupId);
     grantAccess({ name: "🏠 Flat" });
-    members.listCurrentMembers.mockResolvedValue([ana]);
+    members.listMembersAt.mockResolvedValue([ana]);
 
     const created = await createGroup(userId, { name: "🏠 Flat" });
 
@@ -301,6 +318,10 @@ describe("inviteMember", () => {
 });
 
 describe("updateGroup", () => {
+  beforeEach(() => {
+    members.listMembersAt.mockResolvedValue([ana]);
+  });
+
   it("renames the group after checking write access", async () => {
     grantAccess();
     members.listCurrentMembers.mockResolvedValue([ana]);

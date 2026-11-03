@@ -5,6 +5,7 @@ import {
   addMember,
   listCurrentMembers,
   listCurrentMemberWeights,
+  listMembersAt,
   listMemberships,
   rejoinMember,
 } from "@/lib/db/group-members";
@@ -96,7 +97,52 @@ describe("listCurrentMembers", () => {
   });
 });
 
+describe("listMembersAt", () => {
+  it("lists the members as they were at a moment, for a former member", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(3);
+    const [ana, ben, cat] = memberIds;
+    await leave(groupId, cat);
+    const catLeftAt = (await membershipRow(groupId, cat)).left_at as string;
+    // After Cat left: Dan joins and Ben leaves.
+    const dan = await createUser();
+    await addMember(groupId, dan);
+    await leave(groupId, ben);
+
+    const members = await listMembersAt(groupId, catLeftAt);
+
+    expect(members.map((member) => member.userId).sort()).toEqual(
+      [ana, ben, cat].sort(),
+    );
+  });
+
+  it("lists the current members when there is no moment", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(2);
+    await leave(groupId, memberIds[1]);
+
+    const members = await listMembersAt(groupId, null);
+
+    expect(members.map((member) => member.userId)).toEqual([memberIds[0]]);
+  });
+});
+
 describe("listMemberships", () => {
+  it("shows a group the user left with its members as they were when they left", async () => {
+    const userId = await createUser();
+    const groupId = await createGroup("Cape weekend", userId);
+    const ben = await createUser();
+    await addMember(groupId, ben);
+    await leave(groupId, userId);
+    const later = await createUser();
+    await addMember(groupId, later);
+
+    const memberships = await listMemberships(userId);
+
+    const left = memberships.find((m) => m.group.id === groupId);
+    expect(left?.members.map((member) => member.userId).sort()).toEqual(
+      [userId, ben].sort(),
+    );
+  });
+
   it("lists every group the user is or was in, each with its current members", async () => {
     const userId = await createUser();
     await nameUser(userId, "Ana");
@@ -117,9 +163,11 @@ describe("listMemberships", () => {
     });
     expect(byId.get(current)?.members).toHaveLength(2);
     expect(byId.get(left)?.leftAt).not.toBeNull();
-    expect(byId.get(left)?.members).toEqual([
-      { userId: other, name: "Ben", defaultShareWeight: 1 },
-    ]);
+    expect(byId.get(left)?.members).toEqual(
+      expect.arrayContaining([
+        { userId: other, name: "Ben", defaultShareWeight: 1 },
+      ]),
+    );
   });
 });
 

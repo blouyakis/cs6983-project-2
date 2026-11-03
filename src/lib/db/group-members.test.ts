@@ -9,7 +9,7 @@ let result: Result;
 
 function queryBuilder() {
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "is", "order"]) {
+  for (const method of ["select", "eq", "in", "is", "order"]) {
     builder[method] = (...args: unknown[]) => {
       calls.push({ method, args });
       return builder;
@@ -93,12 +93,20 @@ describe("findMembership", () => {
 });
 
 describe("listCurrentMemberWeights", () => {
+  function memberRow(id: string, weight: number, leftAt: string | null) {
+    return {
+      group_id: groupId,
+      user_id: id,
+      default_share_weight: weight,
+      joined_at: "2026-10-01T09:00:00+00:00",
+      left_at: leftAt,
+      users: { name: id },
+    };
+  }
+
   it("maps each current member's weight to camelCase", async () => {
     result = {
-      data: [
-        { user_id: userId, default_share_weight: 3 },
-        { user_id: "sam-id", default_share_weight: 2 },
-      ],
+      data: [memberRow(userId, 3, null), memberRow("sam-id", 2, null)],
       error: null,
     };
 
@@ -108,20 +116,29 @@ describe("listCurrentMemberWeights", () => {
     ]);
   });
 
-  it("reads only current members of the group, oldest first", async () => {
+  it("leaves out former members", async () => {
+    result = {
+      data: [
+        memberRow(userId, 3, null),
+        memberRow("gone-id", 2, "2026-10-20T09:00:00+00:00"),
+      ],
+      error: null,
+    };
+
+    expect(await listCurrentMemberWeights(groupId)).toEqual([
+      { userId, weight: 3 },
+    ]);
+  });
+
+  it("reads the group's member rows oldest first", async () => {
     result = { data: [], error: null };
     await listCurrentMemberWeights(groupId);
 
     expect(calls).toContainEqual({ method: "from", args: ["group_members"] });
-    // The same query as listCurrentMembers, which also needs the names.
     expect(calls).toContainEqual({
-      method: "select",
-      args: [
-        "user_id, default_share_weight, joined_at, left_at, users!inner(name)",
-      ],
+      method: "in",
+      args: ["group_id", [groupId]],
     });
-    expect(calls).toContainEqual({ method: "eq", args: ["group_id", groupId] });
-    expect(calls).toContainEqual({ method: "is", args: ["left_at", null] });
     expect(calls).toContainEqual({ method: "order", args: ["joined_at"] });
   });
 
