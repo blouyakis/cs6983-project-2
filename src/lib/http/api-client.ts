@@ -1,4 +1,5 @@
 import type { FieldErrors } from "./errors";
+import { goToLogin } from "./go-to-login";
 
 export type ApiError = {
   code: string;
@@ -39,6 +40,11 @@ async function sendJson<T>(
   }
   if (response.ok) {
     return { ok: true, data: parsed as T };
+  }
+  // An expired session (AGENTS.md Section 8). A 401 from /api/auth is a wrong
+  // password, which the login form shows itself.
+  if (response.status === 401 && !url.startsWith("/api/auth/")) {
+    goToLogin();
   }
   const error = (parsed as { error?: ApiError } | undefined)?.error;
   return { ok: false, error: error ?? NETWORK_ERROR };
