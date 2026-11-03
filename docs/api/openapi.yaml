@@ -9,7 +9,8 @@ info:
 
     Status codes: 400 invalid input, 401 not logged in or token expired,
     403 logged in but not allowed, 404 not found, 409 conflict (duplicate
-    email, editing a settled expense, leaving with a balance).
+    email, inviting someone already in the group, a group that already has
+    12 members, editing a settled expense, leaving with a balance).
 
     Error body: { "error": { "code": "FORBIDDEN", "message": "You are not a member of this group." } }
 security:
