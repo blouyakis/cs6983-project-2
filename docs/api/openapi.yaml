@@ -386,7 +386,8 @@ components:
         the request body that adds, checks off or edits an expense, and a
         400 keys each error by one of them. The payer is always one of
         `sharedBy`. An even split gives any leftover cent to the payer;
-        custom amounts must add up to the expense amount.
+        custom amounts must add up to the expense amount. The expense amount
+        and each custom amount are `AmountCents`.
       oneOf:
         - $ref: "#/components/schemas/SplitEven"
         - $ref: "#/components/schemas/SplitCustom"
@@ -417,11 +418,19 @@ components:
           type: object
           description: Each sharer's share in cents, keyed by user id.
           additionalProperties:
-            type: integer
-            minimum: 0
+            $ref: "#/components/schemas/AmountCents"
           example:
             6f1c2d4e-1111-4222-8333-944455556666: 601
             0b7e8a10-2222-4333-8444-a55566667777: 400
+    AmountCents:
+      type: integer
+      description: |
+        An amount in whole cents. The maximum is the most a Postgres
+        `integer` holds (`MAX_CENTS` in `src/lib/domain/splits.ts`), so a
+        bigger amount is a 400 on its field rather than a database error.
+      minimum: 0
+      maximum: 2147483647
+      example: 1001
     SharedBy:
       type: array
       description: The user ids of the members who share the expense, each once.
