@@ -48,7 +48,7 @@ Some mockups show a balance as a signed amount in color, such as −$31.00 on th
 
 ## Components
 
-Built components are in `src/components/ui/`, so reuse them before making a new one. So far that is `FormSheet` (#56); the rest are planned names. Every amount goes through `MoneyText`, and every form follows `FormSheet`.
+Built components are in `src/components/ui/`, so reuse them before making a new one. So far those are `FormSheet` (#56), `PrimaryButton` and `TextField` (#4); the rest are planned names. Every amount goes through `MoneyText`, and every form follows `FormSheet`.
 
 ### Shared
 
