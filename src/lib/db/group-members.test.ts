@@ -113,9 +113,12 @@ describe("listCurrentMemberWeights", () => {
     await listCurrentMemberWeights(groupId);
 
     expect(calls).toContainEqual({ method: "from", args: ["group_members"] });
+    // The same query as listCurrentMembers, which also needs the names.
     expect(calls).toContainEqual({
       method: "select",
-      args: ["user_id, default_share_weight"],
+      args: [
+        "user_id, default_share_weight, joined_at, left_at, users!inner(name)",
+      ],
     });
     expect(calls).toContainEqual({ method: "eq", args: ["group_id", groupId] });
     expect(calls).toContainEqual({ method: "is", args: ["left_at", null] });

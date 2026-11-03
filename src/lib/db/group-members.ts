@@ -121,31 +121,13 @@ export async function findMembership(
   };
 }
 
-type WeightRow = { user_id: string; default_share_weight: number };
-
-// Each current member's default share weight, which a new expense in the group
-// is split by unless the payer enters custom amounts (#8).
-export async function listCurrentMemberWeights(
+// The one query for a group's current members, in the order they joined. Both
+// public lists below map these rows, so "who is a current member" is decided
+// in one place for the member list and for splitting an expense.
+async function getCurrentMemberRows(
   groupId: string,
-): Promise<Sharer[]> {
-  const { data, error } = await getDb()
-    .from("group_members")
-    .select("user_id, default_share_weight")
-    .eq("group_id", groupId)
-    .is("left_at", null)
-    .order("joined_at");
-  if (error) {
-    throw new Error(`Could not load share weights: ${error.message}`);
-  }
-  return (data as WeightRow[]).map((row) => ({
-    userId: row.user_id,
-    weight: row.default_share_weight,
-  }));
-}
-
-// The group's current members with their names, for the member list and for
-// SplitEditor, which fills in custom amounts from defaultShareWeight (#8).
-export async function listCurrentMembers(groupId: string): Promise<Member[]> {
+  failure: string,
+): Promise<MemberRow[]> {
   const { data, error } = await getDb()
     .from("group_members")
     .select(MEMBER_COLUMNS)
@@ -153,9 +135,32 @@ export async function listCurrentMembers(groupId: string): Promise<Member[]> {
     .is("left_at", null)
     .order("joined_at");
   if (error) {
-    throw new Error(`Could not load members: ${error.message}`);
+    throw new Error(`${failure}: ${error.message}`);
   }
-  return (data as unknown as MemberRow[]).map(toMember);
+  return data as unknown as MemberRow[];
+}
+
+function toSharer(row: MemberRow): Sharer {
+  return { userId: row.user_id, weight: row.default_share_weight };
+}
+
+// Each current member's default share weight, which a new expense in the group
+// is split by unless the payer enters custom amounts (#8).
+export async function listCurrentMemberWeights(
+  groupId: string,
+): Promise<Sharer[]> {
+  const rows = await getCurrentMemberRows(
+    groupId,
+    "Could not load share weights",
+  );
+  return rows.map(toSharer);
+}
+
+// The group's current members with their names, for the member list and for
+// SplitEditor, which fills in custom amounts from defaultShareWeight (#8).
+export async function listCurrentMembers(groupId: string): Promise<Member[]> {
+  const rows = await getCurrentMemberRows(groupId, "Could not load members");
+  return rows.map(toMember);
 }
 
 type MembershipWithMembersRow = {
