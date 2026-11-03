@@ -215,6 +215,44 @@ describe("FormSheet", () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
+    // Escape while typing with an input method cancels the text being
+    // composed, not the form.
+    it("does not call onClose on Escape while an input method is composing", () => {
+      const { onClose } = renderSheet();
+      fireEvent.keyDown(screen.getByLabelText("Name"), {
+        key: "Escape",
+        isComposing: true,
+      });
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    // Such as a suggestion list that closes itself on Escape: one Escape
+    // closes one layer.
+    it("does not call onClose on Escape a nested widget already handled", () => {
+      const onClose = vi.fn();
+      render(
+        <FormSheet
+          open
+          title="Invite a member"
+          primaryLabel="Invite"
+          onSubmit={vi.fn()}
+          onClose={onClose}
+        >
+          <TextField
+            label="Email"
+            name="email"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+              }
+            }}
+          />
+        </FormSheet>,
+      );
+      fireEvent.keyDown(screen.getByLabelText("Email"), { key: "Escape" });
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
     it("calls onClose instead of letting the browser close it on cancel", () => {
       const { onClose } = renderSheet();
       const cancel = new Event("cancel", { cancelable: true });
