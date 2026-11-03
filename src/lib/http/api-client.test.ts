@@ -2,13 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { patchJson, postJson } from "./api-client";
 
 function respond(status: number, body?: unknown) {
-  return vi
-    .fn()
-    .mockResolvedValue(
-      new Response(body === undefined ? null : JSON.stringify(body), {
-        status,
-      }),
-    );
+  return vi.fn().mockResolvedValue(
+    new Response(body === undefined ? null : JSON.stringify(body), {
+      status,
+    }),
+  );
 }
 
 afterEach(() => {
