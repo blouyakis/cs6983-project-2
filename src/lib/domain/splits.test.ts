@@ -139,7 +139,15 @@ describe("splitByWeights", () => {
     ).toEqual({ sharedBy: "Each person can share this cost only once." });
   });
 
-  it.each([-1, 10.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1])(
+  // amount_cents and share_cents are Postgres integer, so this is the most a
+  // row can hold. Anything above it must be a 400, not a database error.
+  it("accepts an amount of exactly 2,147,483,647 cents", () => {
+    expect(
+      splitByWeights(2_147_483_647, payer, [{ userId: payer, weight: 1 }]),
+    ).toEqual([{ userId: payer, shareCents: 2_147_483_647 }]);
+  });
+
+  it.each([-1, 10.5, Number.NaN, 2_147_483_648, Number.MAX_SAFE_INTEGER + 1])(
     "rejects an amount of %s",
     (amountCents) => {
       expect(
@@ -147,7 +155,8 @@ describe("splitByWeights", () => {
           splitByWeights(amountCents, payer, [{ userId: payer, weight: 1 }]),
         ),
       ).toEqual({
-        amountCents: "Enter an amount of $0.00 or more, in whole cents.",
+        amountCents:
+          "Enter an amount from $0.00 to $21,474,836.47, in whole cents.",
       });
     },
   );
@@ -162,11 +171,13 @@ describe("splitByWeights", () => {
     },
   );
 
+  // Weights come from the database, so even a legal amount times large
+  // enough weights can leave the safe integers.
   it("refuses an amount and weights too large to split exactly", () => {
     const run = () =>
-      splitByWeights(Number.MAX_SAFE_INTEGER, payer, [
-        { userId: payer, weight: 3 },
-        { userId: sam, weight: 2 },
+      splitByWeights(2_147_483_647, payer, [
+        { userId: payer, weight: 2 ** 22 },
+        { userId: sam, weight: 2 ** 22 },
       ]);
     expect(run).toThrow("too large to split exactly");
     expect(run).not.toThrow(ValidationError);
@@ -230,10 +241,23 @@ describe("checkCustomShares", () => {
     ).toEqual({ amountsCents: "The shares add up to $9.99, not $10.00." });
   });
 
+  it("accepts shares of a 2,147,483,647-cent amount", () => {
+    expect(
+      checkCustomShares(2_147_483_647, payer, [payer, sam], {
+        payer: 2_147_483_646,
+        sam: 1,
+      }),
+    ).toEqual([
+      { userId: payer, shareCents: 2_147_483_646 },
+      { userId: sam, shareCents: 1 },
+    ]);
+  });
+
   it.each([
     ["a fraction of a cent", 600.5],
     ["a negative amount", -1],
     ["not a number", Number.NaN],
+    ["more than a share can hold", 2_147_483_648],
   ])("rejects %s", (_, payerShare) => {
     expect(
       fieldErrorsOf(() =>
@@ -243,7 +267,8 @@ describe("checkCustomShares", () => {
         }),
       ),
     ).toEqual({
-      amountsCents: "Each share must be $0.00 or more, in whole cents.",
+      amountsCents:
+        "Each share must be from $0.00 to $21,474,836.47, in whole cents.",
     });
   });
 
@@ -285,7 +310,8 @@ describe("checkCustomShares", () => {
     expect(
       fieldErrorsOf(() => checkCustomShares(-5, payer, [payer], { payer: -5 })),
     ).toEqual({
-      amountCents: "Enter an amount of $0.00 or more, in whole cents.",
+      amountCents:
+        "Enter an amount from $0.00 to $21,474,836.47, in whole cents.",
     });
   });
 });

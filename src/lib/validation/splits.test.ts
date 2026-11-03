@@ -86,7 +86,8 @@ describe("splitSchema", () => {
         amountsCents: { [payer]: share },
       }),
     ).toEqual({
-      amountsCents: "Each share must be $0.00 or more, in whole cents.",
+      amountsCents:
+        "Each share must be from $0.00 to $21,474,836.47, in whole cents.",
     });
   });
 
