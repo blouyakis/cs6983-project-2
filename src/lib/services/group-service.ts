@@ -27,22 +27,28 @@ import type {
 } from "@/lib/validation/group";
 import { requireGroupAccess } from "./access";
 
-export type GroupDetails = Omit<Group, "createdBy"> & { members: Member[] };
-
-// A row of the Groups page. A group the user left, or that was archived, is
-// read-only (AGENTS.md Sections 6.6 and 6.8).
-export type GroupSummary = GroupDetails & {
-  leftAt: string | null;
+// readOnly is true when the user left the group or it was archived (AGENTS.md
+// Sections 6.6 and 6.8), so pages can leave out forms that would get a 403.
+export type GroupDetails = Omit<Group, "createdBy"> & {
   readOnly: boolean;
+  members: Member[];
 };
 
-function toDetails(group: Group, members: Member[]): GroupDetails {
+// A row of the Groups page, which also says when the user left.
+export type GroupSummary = GroupDetails & { leftAt: string | null };
+
+function toDetails(
+  group: Group,
+  leftAt: string | null,
+  members: Member[],
+): GroupDetails {
   return {
     id: group.id,
     name: group.name,
     isPersonal: group.isPersonal,
     archivedAt: group.archivedAt,
     createdAt: group.createdAt,
+    readOnly: leftAt !== null || group.archivedAt !== null,
     members,
   };
 }
@@ -51,8 +57,12 @@ export async function getGroup(
   userId: string,
   groupId: string,
 ): Promise<GroupDetails> {
-  const { group } = await requireGroupAccess(userId, groupId, "read");
-  return toDetails(group, await listCurrentMembers(groupId));
+  const { group, readUntil } = await requireGroupAccess(
+    userId,
+    groupId,
+    "read",
+  );
+  return toDetails(group, readUntil, await listCurrentMembers(groupId));
 }
 
 export async function createGroup(
@@ -76,9 +86,8 @@ export async function listGroups(userId: string): Promise<GroupSummary[]> {
   const memberships = await listMemberships(userId);
   return memberships
     .map(({ group, leftAt, members }) => ({
-      ...toDetails(group, members),
+      ...toDetails(group, leftAt, members),
       leftAt,
-      readOnly: leftAt !== null || group.archivedAt !== null,
     }))
     .sort((a, b) => rank(a) - rank(b));
 }
