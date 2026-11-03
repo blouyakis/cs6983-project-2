@@ -60,8 +60,12 @@ export function FormSheet({
           : null;
       dialog.showModal();
       dialog.querySelector<HTMLElement>(FIELDS)?.focus();
-    } else if (!open && dialog.open) {
-      dialog.close();
+    } else if (!open) {
+      // The browser may have closed the dialog already (see handleClose), so
+      // close only if needed, but return focus either way.
+      if (dialog.open) {
+        dialog.close();
+      }
       openerRef.current?.focus();
       openerRef.current = null;
     }
@@ -112,12 +116,22 @@ export function FormSheet({
     onClose();
   }
 
+  // Chrome can close a modal dialog on a second Escape without a cancelable
+  // cancel event. Tell the parent, so `open` doesn't stay true. When the
+  // parent closed it, `open` is already false and there is nothing to say.
+  function handleClose() {
+    if (open) {
+      onClose();
+    }
+  }
+
   return (
     <dialog
       ref={dialogRef}
       aria-labelledby={titleId}
       onKeyDown={handleKeyDown}
       onCancel={handleCancel}
+      onClose={handleClose}
       className="m-0 h-full max-h-none w-full max-w-none bg-surface p-0 text-ink backdrop:bg-ink/40 md:m-auto md:h-fit md:max-h-[85vh] md:max-w-lg md:rounded-2xl md:border-4 md:border-ink"
     >
       {open ? (
