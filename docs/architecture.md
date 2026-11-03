@@ -229,11 +229,14 @@ erDiagram
 
 - `is_personal` marks a user's personal space. Each user has exactly one, created at registration: `register_user(p_email, p_password_hash, p_name)` inserts the user (email trimmed and lowercase), the personal space and the owner's membership in one transaction and returns the user id. A partial unique index on `(created_by) where is_personal` enforces it.
 - `archived_at` is set when the last member leaves; the group is then read-only.
+- A shared group is created by `create_group(p_name, p_created_by)`, which inserts the group and the creator's membership at weight 1 in one transaction and returns the group id. A group has no emoji column: its tile shows the first character of `name` (#6).
 
 **`group_members`**: who is or was in a group. Primary key `(group_id, user_id)`.
 
-- `default_share_weight` is a positive integer. A 60/40 group stores 3 and 2. Even groups store 1 for everyone. The server's even mode ignores them and gives every sharer weight 1. They reach a new expense through `SplitEditor`, which opens on Custom amounts filled in from these weights when they differ (DESIGN.md), so the payer can keep or change them.
+- `default_share_weight` is an integer from 1 to 100 (`group_members_weight_at_most_100`), so `amount_cents × total weight` stays a safe integer when the largest amount is split among 12 members. Every new member starts at 1. A 60/40 group stores 3 and 2. Even groups store 1 for everyone. The server's even mode ignores them and gives every sharer weight 1. They reach a new expense through `SplitEditor`, which opens on Custom amounts filled in from these weights when they differ (DESIGN.md), so the payer can keep or change them. `set_member_weights(p_group_id, p_weights)` sets a whole ratio in one transaction, where `p_weights` is a JSON array of `{"user_id", "weight"}`; a listed user who isn't a current member fails with `P0002`. The service first checks that the list names every current member once.
 - `left_at` is set when a member leaves; the row stays so history and read access still work.
+- A former member who is invited again keeps their one row: `left_at` becomes null, `joined_at` becomes the time they rejoined, and their weight goes back to 1 (#6). Only `left_at` decides access, so a rejoined member reads everything again.
+- A current member is a row with `left_at` null. `lib/db/group-members.ts` reads current members through one query, `getCurrentMemberRows`, for the member list, the Groups page and splitting an expense, so they always agree.
 - A trigger rejects a join or rejoin that would make a 13th current member (`MAX_GROUP_MEMBERS = 12`). It locks the group row, so two joins cannot race for the last place.
 
 **`list_items`**: things to do or buy.
