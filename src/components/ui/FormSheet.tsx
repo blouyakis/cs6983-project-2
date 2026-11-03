@@ -22,7 +22,11 @@ type FormSheetProps = {
   children: ReactNode;
 };
 
-const FIELDS = "input:not([type=hidden]), select, textarea";
+const FIELDS = [
+  "input:not([type=hidden]):not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+].join(", ");
 const FOCUSABLE = [
   "a[href]",
   "button:not([disabled])",
