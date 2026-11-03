@@ -10,14 +10,20 @@ export type Share = { userId: string; shareCents: number };
 
 const CHECK_FIELDS = "Check the highlighted fields.";
 
+// expenses.amount_cents and expense_shares.share_cents are Postgres integer,
+// so this is the most either can hold. Checking it here makes a bigger amount
+// a 400 on its field instead of a database error.
+export const MAX_CENTS = 2_147_483_647;
+const range = `from ${formatCents(0)} to ${formatCents(MAX_CENTS)}`;
+
 // Shared with splitSchema in lib/validation, so a rule broken in the request
 // and the same rule broken here read the same to the user.
 export const splitMessages = {
-  amount: "Enter an amount of $0.00 or more, in whole cents.",
+  amount: `Enter an amount ${range}, in whole cents.`,
   noSharers: "Choose at least one person to share this cost.",
   repeatedSharer: "Each person can share this cost only once.",
   payerNotSharing: "The payer must be one of the people sharing this cost.",
-  shareNotWholeCents: "Each share must be $0.00 or more, in whole cents.",
+  shareNotWholeCents: `Each share must be ${range}, in whole cents.`,
   missingShare: "Enter a share for everyone sharing this cost.",
   extraShare: "Only people sharing this cost can have a share.",
 } as const;
@@ -27,7 +33,7 @@ function rejectField(field: string, message: string): never {
 }
 
 function isWholeCents(value: number): boolean {
-  return Number.isSafeInteger(value) && value >= 0;
+  return Number.isSafeInteger(value) && value >= 0 && value <= MAX_CENTS;
 }
 
 function checkAmount(amountCents: number): void {
