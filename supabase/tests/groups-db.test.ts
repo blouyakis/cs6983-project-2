@@ -9,8 +9,8 @@ import {
   listMemberships,
   rejoinMember,
 } from "@/lib/db/group-members";
-import { createGroup, renameGroup, setMemberWeights } from "@/lib/db/groups";
-import { ConflictError } from "@/lib/http/errors";
+import { createGroup, updateGroup } from "@/lib/db/groups";
+import { ConflictError, ValidationError } from "@/lib/http/errors";
 import { cleanUp, createGroupWithMembers, createUser, db } from "./fixtures";
 
 afterAll(cleanUp);
@@ -58,11 +58,11 @@ describe("createGroup", () => {
   });
 });
 
-describe("renameGroup", () => {
-  it("changes the group's name", async () => {
+describe("updateGroup", () => {
+  it("renames the group", async () => {
     const { groupId } = await createGroupWithMembers(1);
 
-    await renameGroup(groupId, "Dorm 4B");
+    await updateGroup(groupId, { name: "Dorm 4B" });
 
     const group = await db
       .from("groups")
@@ -70,6 +70,20 @@ describe("renameGroup", () => {
       .eq("id", groupId)
       .single();
     expect(group.data?.name).toBe("Dorm 4B");
+  });
+
+  it("turns weights that don't list every current member into a ValidationError", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(2);
+
+    await expect(
+      updateGroup(groupId, {
+        memberWeights: [{ userId: memberIds[0], weight: 3 }],
+      }),
+    ).rejects.toEqual(
+      new ValidationError("Check the highlighted fields.", {
+        memberWeights: "List a weight for every current member.",
+      }),
+    );
   });
 });
 
@@ -80,10 +94,12 @@ describe("listCurrentMembers", () => {
     await nameUser(ana, "Ana");
     await nameUser(ben, "Ben");
     await leave(groupId, cat);
-    await setMemberWeights(groupId, [
-      { userId: ana, weight: 3 },
-      { userId: ben, weight: 2 },
-    ]);
+    await updateGroup(groupId, {
+      memberWeights: [
+        { userId: ana, weight: 3 },
+        { userId: ben, weight: 2 },
+      ],
+    });
 
     const members = await listCurrentMembers(groupId);
 
@@ -206,10 +222,12 @@ describe("rejoinMember", () => {
   it("makes a former member current again, from now, at weight 1", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(2);
     const [, ben] = memberIds;
-    await setMemberWeights(groupId, [
-      { userId: memberIds[0], weight: 3 },
-      { userId: ben, weight: 2 },
-    ]);
+    await updateGroup(groupId, {
+      memberWeights: [
+        { userId: memberIds[0], weight: 3 },
+        { userId: ben, weight: 2 },
+      ],
+    });
     await leave(groupId, ben);
     const before = await membershipRow(groupId, ben);
 

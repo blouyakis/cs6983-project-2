@@ -30,8 +30,7 @@ vi.mock("@/lib/db/group-members", () => members);
 
 const groups = vi.hoisted(() => ({
   createGroup: vi.fn(),
-  renameGroup: vi.fn(),
-  setMemberWeights: vi.fn(),
+  updateGroup: vi.fn(),
 }));
 vi.mock("@/lib/db/groups", () => groups);
 
@@ -319,12 +318,11 @@ describe("inviteMember", () => {
 
 describe("updateGroup", () => {
   beforeEach(() => {
-    members.listMembersAt.mockResolvedValue([ana]);
+    members.listCurrentMembers.mockResolvedValue([ana, sam]);
   });
 
   it("renames the group after checking write access", async () => {
     grantAccess();
-    members.listCurrentMembers.mockResolvedValue([ana]);
 
     await updateGroup(userId, groupId, { name: "Dorm 4B" });
 
@@ -333,13 +331,13 @@ describe("updateGroup", () => {
       groupId,
       "write",
     );
-    expect(groups.renameGroup).toHaveBeenCalledWith(groupId, "Dorm 4B");
-    expect(groups.setMemberWeights).not.toHaveBeenCalled();
+    expect(groups.updateGroup).toHaveBeenCalledWith(groupId, {
+      name: "Dorm 4B",
+    });
   });
 
-  it("sets weights that list exactly the current members, in any order", async () => {
+  it("passes new weights to the database, which checks them in one transaction", async () => {
     grantAccess();
-    members.listCurrentMembers.mockResolvedValue([ana, sam]);
     const memberWeights = [
       { userId: samId, weight: 2 },
       { userId, weight: 3 },
@@ -347,57 +345,38 @@ describe("updateGroup", () => {
 
     await updateGroup(userId, groupId, { memberWeights });
 
-    expect(groups.setMemberWeights).toHaveBeenCalledWith(
-      groupId,
+    expect(groups.updateGroup).toHaveBeenCalledWith(groupId, {
       memberWeights,
-    );
-    expect(groups.renameGroup).not.toHaveBeenCalled();
+    });
   });
 
-  it("returns the group as it is after the change", async () => {
+  it("returns the group with its new name and members, checking access only once", async () => {
     grantAccess();
-    members.listCurrentMembers.mockResolvedValue([ana]);
 
     const updated = await updateGroup(userId, groupId, { name: "Dorm 4B" });
 
-    expect(updated).toMatchObject({ id: groupId, members: [ana] });
+    expect(updated).toMatchObject({
+      id: groupId,
+      name: "Dorm 4B",
+      readOnly: false,
+      members: [ana, sam],
+    });
+    expect(access.requireGroupAccess).toHaveBeenCalledTimes(1);
+    expect(members.listCurrentMembers).toHaveBeenCalledTimes(1);
   });
 
-  it.each([
-    ["leaves out a current member", [{ userId, weight: 3 }]],
-    [
-      "lists someone who is not a current member",
-      [
-        { userId, weight: 3 },
-        { userId: samId, weight: 2 },
-        { userId: "8b3e4f60-1111-4222-8333-944455556666", weight: 1 },
-      ],
-    ],
-  ])("rejects weights that %s with 400", async (_, memberWeights) => {
+  it("passes on the 400 for weights that don't list every current member", async () => {
     grantAccess();
-    members.listCurrentMembers.mockResolvedValue([ana, sam]);
-
-    await expect(
-      updateGroup(userId, groupId, { memberWeights }),
-    ).rejects.toEqual(
-      new ValidationError("Check the highlighted fields.", {
-        memberWeights: "List a weight for every current member.",
-      }),
-    );
-    expect(groups.setMemberWeights).not.toHaveBeenCalled();
-  });
-
-  it("writes nothing when the weights are wrong, even with a valid name", async () => {
-    grantAccess();
-    members.listCurrentMembers.mockResolvedValue([ana, sam]);
+    const invalid = new ValidationError("Check the highlighted fields.", {
+      memberWeights: "List a weight for every current member.",
+    });
+    groups.updateGroup.mockRejectedValue(invalid);
 
     await expect(
       updateGroup(userId, groupId, {
-        name: "Dorm 4B",
         memberWeights: [{ userId, weight: 3 }],
       }),
-    ).rejects.toBeInstanceOf(ValidationError);
-    expect(groups.renameGroup).not.toHaveBeenCalled();
+    ).rejects.toBe(invalid);
   });
 
   it("passes on the 403 for a former member or an archived group", async () => {
@@ -406,6 +385,6 @@ describe("updateGroup", () => {
     await expect(
       updateGroup(userId, groupId, { name: "Dorm 4B" }),
     ).rejects.toBeInstanceOf(ForbiddenError);
-    expect(groups.renameGroup).not.toHaveBeenCalled();
+    expect(groups.updateGroup).not.toHaveBeenCalled();
   });
 });
