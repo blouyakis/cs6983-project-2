@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { FormSheet } from "./FormSheet";
@@ -246,6 +246,51 @@ describe("FormSheet", () => {
 
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       expect(opener).toHaveFocus();
+    });
+
+    // Chrome can close a modal dialog on a second Escape without firing a
+    // cancelable cancel event, so the dialog closes behind React's back.
+    function closeLikeTheBrowser() {
+      act(() => {
+        (screen.getByRole("dialog") as HTMLDialogElement).close();
+      });
+    }
+
+    it("calls onClose when the browser closes it without a cancel event", () => {
+      const { onClose } = renderSheet();
+      closeLikeTheBrowser();
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not call onClose when the parent closes it", () => {
+      const { onClose, rerender } = renderSheet();
+      rerender(
+        <FormSheet
+          open={false}
+          title="New group"
+          primaryLabel="Create group"
+          onSubmit={vi.fn()}
+          onClose={onClose}
+        >
+          <TextField label="Name" name="name" />
+        </FormSheet>,
+      );
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("returns focus to the opener and opens again after the browser closes it", () => {
+      render(<Opener />);
+      const opener = screen.getByRole("button", { name: "New group" });
+      opener.focus();
+      fireEvent.click(opener);
+
+      closeLikeTheBrowser();
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(opener).toHaveFocus();
+      fireEvent.click(opener);
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.getByLabelText("Name")).toHaveFocus();
     });
   });
 });
