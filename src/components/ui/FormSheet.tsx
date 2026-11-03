@@ -146,7 +146,8 @@ export function FormSheet({
       {open ? (
         // Keep md:h-auto: it is the Safari fix, not a leftover. On desktop the
         // dialog is h-fit, and a full-height form inside it makes Safari
-        // collapse the dialog to its borders, so no form appears.
+        // collapse the dialog to its borders, so no form appears. WebKit bug
+        // 289876: https://bugs.webkit.org/show_bug.cgi?id=289876
         // The 85vh cap is on the form, not the dialog, so a tall form scrolls
         // its fields between a header and footer that stay in view.
         <form
