@@ -70,6 +70,42 @@ describe("splitSchema", () => {
     ).toEqual({ sharedBy: "Each person can share this cost only once." });
   });
 
+  // z.uuid accepts uppercase, but Postgres uuid ignores case, so one person
+  // in two cases would get two shares and break the expense_shares key.
+  it("rejects the same person twice in different case", () => {
+    expect(
+      fieldErrorsFor(splitSchema, {
+        mode: "even",
+        sharedBy: [payer, payer.toUpperCase()],
+      }),
+    ).toEqual({ sharedBy: "Each person can share this cost only once." });
+  });
+
+  it("returns user ids in lowercase", () => {
+    expect(
+      parseInput(splitSchema, {
+        mode: "custom",
+        sharedBy: [payer.toUpperCase(), sam],
+        amountsCents: { [payer.toUpperCase()]: 600, [sam]: 400 },
+      }),
+    ).toEqual({
+      mode: "custom",
+      sharedBy: [payer, sam],
+      amountsCents: { [payer]: 600, [sam]: 400 },
+    });
+  });
+
+  // Lowercasing the keys alone would merge these and silently keep one.
+  it("rejects two amounts for the same person in different case", () => {
+    expect(
+      fieldErrorsFor(splitSchema, {
+        mode: "custom",
+        sharedBy: [payer, sam],
+        amountsCents: { [payer]: 600, [payer.toUpperCase()]: 0, [sam]: 400 },
+      }),
+    ).toEqual({ amountsCents: "Each person can have only one share." });
+  });
+
   it("rejects custom amounts with no amounts", () => {
     expect(
       fieldErrorsFor(splitSchema, { mode: "custom", sharedBy: [payer] }),
