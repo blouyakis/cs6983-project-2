@@ -1,7 +1,15 @@
 import "server-only";
+import { ValidationError } from "@/lib/http/errors";
 import { getDb } from "./client";
 
+const INVALID_PARAMETER_VALUE = "22023";
+
 export type MemberWeight = { userId: string; weight: number };
+
+export type GroupChanges = {
+  name?: string;
+  memberWeights?: readonly MemberWeight[];
+};
 
 // The group and its creator's membership are written in one transaction by
 // create_group. Returns the new group's id.
@@ -19,33 +27,28 @@ export async function createGroup(
   return data as string;
 }
 
-export async function renameGroup(
+// Renames the group, sets its default ratio, or both, in one transaction.
+// update_group checks there that the weights list exactly the current
+// members, so nothing is written if they don't.
+export async function updateGroup(
   groupId: string,
-  name: string,
+  changes: GroupChanges,
 ): Promise<void> {
-  const { error } = await getDb()
-    .from("groups")
-    .update({ name })
-    .eq("id", groupId);
-  if (error) {
-    throw new Error(`Could not rename the group: ${error.message}`);
-  }
-}
-
-// The whole ratio in one call, so it is never half written. The service has
-// already checked that weights lists exactly the current members.
-export async function setMemberWeights(
-  groupId: string,
-  weights: readonly MemberWeight[],
-): Promise<void> {
-  const { error } = await getDb().rpc("set_member_weights", {
+  const { error } = await getDb().rpc("update_group", {
     p_group_id: groupId,
-    p_weights: weights.map((entry) => ({
-      user_id: entry.userId,
-      weight: entry.weight,
-    })),
+    p_name: changes.name ?? null,
+    p_weights:
+      changes.memberWeights?.map((entry) => ({
+        user_id: entry.userId,
+        weight: entry.weight,
+      })) ?? null,
   });
+  if (error?.code === INVALID_PARAMETER_VALUE) {
+    throw new ValidationError("Check the highlighted fields.", {
+      memberWeights: "List a weight for every current member.",
+    });
+  }
   if (error) {
-    throw new Error(`Could not set the share weights: ${error.message}`);
+    throw new Error(`Could not update the group: ${error.message}`);
   }
 }

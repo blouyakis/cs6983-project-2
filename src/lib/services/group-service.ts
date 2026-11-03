@@ -11,15 +11,13 @@ import {
 } from "@/lib/db/group-members";
 import {
   createGroup as insertGroup,
-  renameGroup,
-  setMemberWeights,
+  updateGroup as writeGroupChanges,
 } from "@/lib/db/groups";
 import { findUserByEmail } from "@/lib/db/users";
 import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
-  ValidationError,
 } from "@/lib/http/errors";
 import type {
   CreateGroupInput,
@@ -124,36 +122,18 @@ export async function inviteMember(
   return { userId: invitee.id, name: invitee.name, defaultShareWeight: 1 };
 }
 
-function listsExactly(
-  weights: readonly { userId: string }[],
-  members: readonly Member[],
-): boolean {
-  const current = new Set(members.map((member) => member.userId));
-  return (
-    weights.length === current.size &&
-    weights.every((entry) => current.has(entry.userId))
-  );
-}
-
-// Renames the group, sets its default ratio, or both. Weights are checked
-// before anything is written, so a bad ratio doesn't leave a half-done update.
+// Renames the group, sets its default ratio, or both. The database checks that
+// the weights list exactly the current members in the same transaction that
+// writes them, so a bad ratio changes nothing, and a 400 comes back from there.
 export async function updateGroup(
   userId: string,
   groupId: string,
   input: UpdateGroupInput,
 ): Promise<GroupDetails> {
-  await requireGroupAccess(userId, groupId, "write");
-  if (input.memberWeights) {
-    const members = await listCurrentMembers(groupId);
-    if (!listsExactly(input.memberWeights, members)) {
-      throw new ValidationError("Check the highlighted fields.", {
-        memberWeights: "List a weight for every current member.",
-      });
-    }
-    await setMemberWeights(groupId, input.memberWeights);
-  }
-  if (input.name !== undefined) {
-    await renameGroup(groupId, input.name);
-  }
-  return getGroup(userId, groupId);
+  const { group } = await requireGroupAccess(userId, groupId, "write");
+  await writeGroupChanges(groupId, input);
+  // Write access means a current member of an active group, so readUntil is
+  // null and the access check doesn't need to run again.
+  const members = await listCurrentMembers(groupId);
+  return toDetails({ ...group, name: input.name ?? group.name }, null, members);
 }
