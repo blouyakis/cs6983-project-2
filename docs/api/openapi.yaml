@@ -379,6 +379,70 @@ components:
       schema:
         type: string
   schemas:
+    Split:
+      description: |
+        Issue #8. How an expense is split, from `splitSchema` in
+        `src/lib/validation/splits.ts`. These fields sit at the top level of
+        the request body that adds, checks off or edits an expense, and a
+        400 keys each error by one of them. The payer is always one of
+        `sharedBy`. An even split gives any leftover cent to the payer;
+        custom amounts must add up to the expense amount. The expense amount
+        and each custom amount are `AmountCents`.
+      oneOf:
+        - $ref: "#/components/schemas/SplitEven"
+        - $ref: "#/components/schemas/SplitCustom"
+      discriminator:
+        propertyName: mode
+        mapping:
+          even: "#/components/schemas/SplitEven"
+          custom: "#/components/schemas/SplitCustom"
+    SplitEven:
+      type: object
+      required: [mode, sharedBy]
+      properties:
+        mode:
+          type: string
+          enum: [even]
+        sharedBy:
+          $ref: "#/components/schemas/SharedBy"
+    SplitCustom:
+      type: object
+      required: [mode, sharedBy, amountsCents]
+      properties:
+        mode:
+          type: string
+          enum: [custom]
+        sharedBy:
+          $ref: "#/components/schemas/SharedBy"
+        amountsCents:
+          type: object
+          description: Each sharer's share in cents, keyed by user id.
+          additionalProperties:
+            $ref: "#/components/schemas/AmountCents"
+          example:
+            6f1c2d4e-1111-4222-8333-944455556666: 601
+            0b7e8a10-2222-4333-8444-a55566667777: 400
+    AmountCents:
+      type: integer
+      description: |
+        An amount in whole cents. The maximum is the most a Postgres
+        `integer` holds (`MAX_CENTS` in `src/lib/domain/splits.ts`), so a
+        bigger amount is a 400 on its field rather than a database error.
+      minimum: 0
+      maximum: 2147483647
+      example: 1001
+    SharedBy:
+      type: array
+      description: |
+        The user ids of the members who share the expense, each once. Ids
+        are compared in any case and stored in lowercase, here and as the
+        keys of `amountsCents`, so the same id twice in different case is
+        a 400.
+      minItems: 1
+      uniqueItems: true
+      items:
+        type: string
+        format: uuid
     RegisterRequest:
       type: object
       required: [name, email, password]

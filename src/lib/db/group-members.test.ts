@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { findMembership } from "./group-members";
+import { findMembership, listCurrentMemberWeights } from "./group-members";
 
 type Result = { data: unknown; error: { message: string } | null };
 
@@ -9,7 +9,7 @@ let result: Result;
 
 function queryBuilder() {
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "eq"]) {
+  for (const method of ["select", "eq", "is", "order"]) {
     builder[method] = (...args: unknown[]) => {
       calls.push({ method, args });
       return builder;
@@ -19,6 +19,8 @@ function queryBuilder() {
     calls.push({ method: "maybeSingle", args: [] });
     return result;
   };
+  // A list query is awaited directly, without maybeSingle.
+  builder.then = (resolve: (value: Result) => unknown) => resolve(result);
   return builder;
 }
 
@@ -86,6 +88,45 @@ describe("findMembership", () => {
 
     await expect(findMembership(userId, groupId)).rejects.toThrow(
       "Could not load group membership: boom",
+    );
+  });
+});
+
+describe("listCurrentMemberWeights", () => {
+  it("maps each current member's weight to camelCase", async () => {
+    result = {
+      data: [
+        { user_id: userId, default_share_weight: 3 },
+        { user_id: "sam-id", default_share_weight: 2 },
+      ],
+      error: null,
+    };
+
+    expect(await listCurrentMemberWeights(groupId)).toEqual([
+      { userId, weight: 3 },
+      { userId: "sam-id", weight: 2 },
+    ]);
+  });
+
+  it("reads only current members of the group, oldest first", async () => {
+    result = { data: [], error: null };
+    await listCurrentMemberWeights(groupId);
+
+    expect(calls).toContainEqual({ method: "from", args: ["group_members"] });
+    expect(calls).toContainEqual({
+      method: "select",
+      args: ["user_id, default_share_weight"],
+    });
+    expect(calls).toContainEqual({ method: "eq", args: ["group_id", groupId] });
+    expect(calls).toContainEqual({ method: "is", args: ["left_at", null] });
+    expect(calls).toContainEqual({ method: "order", args: ["joined_at"] });
+  });
+
+  it("throws when the lookup fails", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(listCurrentMemberWeights(groupId)).rejects.toThrow(
+      "Could not load share weights: boom",
     );
   });
 });

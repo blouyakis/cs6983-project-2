@@ -1,4 +1,5 @@
 import "server-only";
+import type { Sharer } from "@/lib/domain/splits";
 import { getDb } from "./client";
 
 type GroupRow = {
@@ -64,4 +65,26 @@ export async function findMembership(
       createdAt: data.groups.created_at,
     },
   };
+}
+
+type WeightRow = { user_id: string; default_share_weight: number };
+
+// Each current member's default share weight, which a new expense in the group
+// is split by unless the payer enters custom amounts (#8).
+export async function listCurrentMemberWeights(
+  groupId: string,
+): Promise<Sharer[]> {
+  const { data, error } = await getDb()
+    .from("group_members")
+    .select("user_id, default_share_weight")
+    .eq("group_id", groupId)
+    .is("left_at", null)
+    .order("joined_at");
+  if (error) {
+    throw new Error(`Could not load share weights: ${error.message}`);
+  }
+  return (data as WeightRow[]).map((row) => ({
+    userId: row.user_id,
+    weight: row.default_share_weight,
+  }));
 }

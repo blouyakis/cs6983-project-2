@@ -69,7 +69,7 @@ This is the **target structure**. Paths marked `(planned)` do not exist yet; cre
     ├── proxy.ts
     ├── app/                 # (auth), (app), api
     ├── components/          # ui/ and feature folders
-    └── lib/                 # auth, db, http, services, validation; (planned) domain
+    └── lib/                 # auth, db, domain, http, services, validation
 ```
 
 ### Key patterns
@@ -129,8 +129,8 @@ These are also the Playwright scenarios.
 _Why: Money bugs hide here: lost cents, rounding drift, and the wrong person editing or seeing data. These rules hold in every feature, not just the one that added them._
 
 1. **Money is integer cents.** Never use floating point for money. Convert to dollars only when displaying.
-2. **Even splits:** divide in cents; any leftover cents go to the **payer’s** share. Shares must always add up exactly to the expense total.
-3. **Custom splits** must add up to the total, or the request is rejected. A group’s default split ratio applies to new expenses and can be overridden per expense.
+2. **Even splits:** divide in cents; any leftover cents go to the **payer’s** share. Shares must always add up exactly to the expense total. The payer is always one of the sharers, so the leftover always has a place to go. To record a cost paid only for others, the payer uses custom amounts with 0 for themselves: $10.01 for Sam and Jo is payer 0, Sam 501, Jo 500.
+3. **Custom splits** must add up to the total, or the request is rejected. A group’s default split ratio applies to new expenses and can be overridden per expense. The ratio reaches an expense through `SplitEditor`, which opens on Custom amounts filled in from the group’s weights; the server’s even mode is always 1:1.
 4. **Balances:** a member’s balance is (what they paid for others) minus (what others paid for them), adjusted by confirmed payments, over unsettled expenses only.
 5. **Settle-up suggestions** must use the **fewest possible payments**, found with an exact subset (bitmask) search, not a greedy match. Groups are capped at `MAX_GROUP_MEMBERS = 12` so this stays fast. Outside an open settle-up, suggestions are recalculated after every confirmed direct payment.
 6. **Access** (one helper, `requireGroupAccess`, used everywhere):
@@ -208,7 +208,9 @@ Non-negotiable values, check them before opening a PR: bcrypt cost **12** · ses
 
 ## Changelog
 
+- 2026-11-02, Ziye: said in Section 6.3 that a group's ratio reaches an expense through `SplitEditor` opening on Custom amounts, and that the server's even mode is always 1:1 (#8). The old sentence read as if the server applied the ratio, so an API client or an agent could expect `mode: "even"` in a 60/40 group to split 60/40, when it splits 50/50.
 - 2026-10-31, Ziye: let the member who checked off a list item uncheck it in user flow 2 and Section 6.7, which deletes its expense and reopens the item while the expense is unsettled. An item checked off by mistake needed an undo, and it follows the same rules as deleting the expense. Section 6.7 also states the `403` and `409` codes, an item with no expense, and an item that is already open, because before this they were only in architecture.md, and an agent reads this file first.
+- 2026-10-31, Ziye: said in Section 6.2 that the payer is always a sharer, with the example of a cost paid only for others, and removed `(planned)` from `lib/domain` in Section 2 (#8). Without the first, an even split of a cost the payer doesn't share has nowhere to put the leftover cent; the second is because `lib/domain/splits.ts` now exists.
 - 2026-10-30, Barbara: updated the folder structure in Section 2 to what exists after Sprint 1 (#47): `proxy.ts`, `components/`, `lib/auth`, `http`, `services`, `validation`, `supabase/seed.sql` and `docs/sprints/`. Only `docs/decisions/` and `lib/domain` are still planned. The old tree said the scaffold page was the only page and marked those paths as planned, so an agent would have recreated files that already exist.
 - 2026-10-30, Barbara: moved the stack from Node 24 to Node 26 in Section 1, `.nvmrc`, `engines` and `@types/node`, because Node 26 became the LTS release on 2026-10-28 and Node 24 entered maintenance on 2026-10-20. Vercel supports 26.x, and the tests, build and Playwright flows pass on it.
 <!-- Add one line per change: date, who, what, and why. This history is part of the HW3 refinement deliverable. -->

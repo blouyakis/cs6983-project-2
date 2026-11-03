@@ -80,7 +80,7 @@ sequenceDiagram
   R->>S: completeItem(userId, groupId, itemId, input)
   S->>DB: load membership
   S->>S: requireGroupAccess(write) (else 403)
-  S->>D: splitEvenly(1234, sharers, payerId)
+  S->>D: splitByWeights(1234, payerId, sharers)
   D-->>S: shares that add up to 1234
   S->>DB: one transaction: insert expense, insert shares, mark item done
   S-->>R: completed item and expense
@@ -232,7 +232,7 @@ erDiagram
 
 **`group_members`**: who is or was in a group. Primary key `(group_id, user_id)`.
 
-- `default_share_weight` is a positive integer. A 60/40 group stores 3 and 2. New expenses split by these weights unless the payer overrides them. Even groups store 1 for everyone.
+- `default_share_weight` is a positive integer. A 60/40 group stores 3 and 2. Even groups store 1 for everyone. The server's even mode ignores them and gives every sharer weight 1. They reach a new expense through `SplitEditor`, which opens on Custom amounts filled in from these weights when they differ (DESIGN.md), so the payer can keep or change them.
 - `left_at` is set when a member leaves; the row stays so history and read access still work.
 - A trigger rejects a join or rejoin that would make a 13th current member (`MAX_GROUP_MEMBERS = 12`). It locks the group row, so two joins cannot race for the last place.
 
