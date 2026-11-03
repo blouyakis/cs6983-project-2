@@ -60,6 +60,18 @@ describe("FormSheet", () => {
     expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
   });
 
+  // jsdom doesn't make the page inert, so only check that showModal() is what
+  // opens it. Playwright checks the inert page in a real browser.
+  it("opens as a modal so the page behind it is inert", () => {
+    const showModal = vi.spyOn(HTMLDialogElement.prototype, "showModal");
+    try {
+      renderSheet();
+      expect(showModal).toHaveBeenCalledTimes(1);
+    } finally {
+      showModal.mockRestore();
+    }
+  });
+
   it("moves focus to the first field when it opens", () => {
     renderSheet();
     expect(screen.getByLabelText("Name")).toHaveFocus();
