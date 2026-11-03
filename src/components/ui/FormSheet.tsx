@@ -141,15 +141,17 @@ export function FormSheet({
       onKeyDown={handleKeyDown}
       onCancel={handleCancel}
       onClose={handleClose}
-      className="m-0 h-full max-h-none w-full max-w-none bg-surface p-0 text-ink backdrop:bg-ink/40 md:m-auto md:h-fit md:max-h-[85vh] md:max-w-lg md:rounded-2xl md:border-4 md:border-ink"
+      className="m-0 h-full max-h-none w-full max-w-none bg-surface p-0 text-ink backdrop:bg-ink/40 md:m-auto md:h-fit md:max-w-lg md:rounded-2xl md:border-4 md:border-ink"
     >
       {open ? (
         // Keep md:h-auto: it is the Safari fix, not a leftover. On desktop the
         // dialog is h-fit, and a full-height form inside it makes Safari
         // collapse the dialog to its borders, so no form appears.
+        // The 85vh cap is on the form, not the dialog, so a tall form scrolls
+        // its fields between a header and footer that stay in view.
         <form
           onSubmit={handleSubmit}
-          className="flex h-full flex-col md:h-auto"
+          className="flex h-full flex-col md:h-auto md:max-h-[85vh]"
         >
           <header className="flex items-center gap-3 border-b-2 border-dashed border-divider px-4 py-3">
             <button
