@@ -121,6 +121,9 @@ export function FormSheet({
       className="m-0 h-full max-h-none w-full max-w-none bg-surface p-0 text-ink backdrop:bg-ink/40 md:m-auto md:h-fit md:max-h-[85vh] md:max-w-lg md:rounded-2xl md:border-4 md:border-ink"
     >
       {open ? (
+        // Keep md:h-auto: it is the Safari fix, not a leftover. On desktop the
+        // dialog is h-fit, and a full-height form inside it makes Safari
+        // collapse the dialog to its borders, so no form appears.
         <form
           onSubmit={handleSubmit}
           className="flex h-full flex-col md:h-auto"
