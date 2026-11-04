@@ -1,3 +1,4 @@
+import { notFound, redirect } from "next/navigation";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ConflictError,
@@ -65,5 +66,21 @@ describe("toErrorResponse", () => {
       error: { code: "INTERNAL_ERROR", message: "Something went wrong." },
     });
     expect(JSON.stringify(body)).not.toContain("leaked");
+  });
+
+  // Next stops rendering by throwing these, and they must reach Next (#62).
+  it.each([
+    ["notFound()", () => notFound()],
+    ["redirect()", () => redirect("/login")],
+  ])("rethrows the error Next uses for %s", (_name, signal) => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    let thrown: unknown;
+    try {
+      signal();
+    } catch (error) {
+      thrown = error;
+    }
+    expect(() => toErrorResponse(thrown)).toThrow(thrown as Error);
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 });
