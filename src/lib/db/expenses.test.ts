@@ -129,6 +129,10 @@ const expense = {
 };
 
 describe("listExpenses", () => {
+  beforeEach(() => {
+    result = { data: [], error: null };
+  });
+
   it("maps the rows and their shares to camelCase", async () => {
     result = { data: [row], error: null };
 
@@ -190,6 +194,10 @@ describe("listExpenses", () => {
 });
 
 describe("findExpense", () => {
+  beforeEach(() => {
+    result = { data: null, error: null };
+  });
+
   it("returns the expense with its shares", async () => {
     result = { data: row, error: null };
 
