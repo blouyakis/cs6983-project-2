@@ -46,6 +46,9 @@ type Fields = {
   amountText: string;
   spentOn: string;
   split: SplitState;
+  // The members the split was made for. When they change, the split is made
+  // again (see membersKey).
+  splitKey: string;
 };
 
 // The user's calendar day, not UTC's, since that is the day they mean.
@@ -56,6 +59,15 @@ function today(): string {
   return `${now.getFullYear()}-${month}-${day}`;
 }
 
+// The page refreshes after someone is invited, and a group's ratio can change,
+// so the members a split was made for can differ from the ones the form has
+// now. A split made for other members would leave a new member out.
+function membersKey(members: readonly Member[]): string {
+  return JSON.stringify(
+    members.map((member) => [member.userId, member.defaultShareWeight]),
+  );
+}
+
 function blank(groups: EntryGroup[], defaultGroupId?: string): Fields {
   const group = groups.find((g) => g.id === defaultGroupId) ?? groups[0];
   return {
@@ -64,6 +76,7 @@ function blank(groups: EntryGroup[], defaultGroupId?: string): Fields {
     amountText: "",
     spentOn: today(),
     split: initialSplitState(group?.members ?? []),
+    splitKey: membersKey(group?.members ?? []),
   };
 }
 
@@ -89,6 +102,11 @@ export function EntryForm({
     return null;
   }
   const amountCents = parseDollars(fields.amountText);
+  const currentKey = membersKey(group.members);
+  const split =
+    fields.splitKey === currentKey
+      ? fields.split
+      : initialSplitState(group.members);
 
   function close() {
     setFields(blank(groups, defaultGroupId));
@@ -111,7 +129,11 @@ export function EntryForm({
     const chosen = groups.find((g) => g.id === groupId);
     if (chosen) {
       edit(
-        { groupId, split: initialSplitState(chosen.members) },
+        {
+          groupId,
+          split: initialSplitState(chosen.members),
+          splitKey: membersKey(chosen.members),
+        },
         "sharedBy",
         "amountsCents",
         "mode",
@@ -125,7 +147,7 @@ export function EntryForm({
     const resolved =
       group.isPersonal || amountCents === null
         ? null
-        : resolveSplit(fields.split, group.members, currentUserId, amountCents);
+        : resolveSplit(split, group.members, currentUserId, amountCents);
     const splitFields =
       group.isPersonal || !resolved || "fieldErrors" in resolved
         ? only
@@ -228,7 +250,7 @@ export function EntryForm({
           members={group.members}
           payerId={currentUserId}
           amountCents={amountCents}
-          state={fields.split}
+          state={split}
           onChange={(split) =>
             edit({ split }, "sharedBy", "amountsCents", "mode")
           }
