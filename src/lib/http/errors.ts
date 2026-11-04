@@ -45,8 +45,9 @@ export class ConflictError extends AppError {
 }
 
 export function toErrorResponse(error: unknown): Response {
-  // Next stops a render or a prerender by throwing (cookies() at build time,
-  // notFound(), redirect()). Those must reach Next, not become a 500 (#62).
+  // Next stops a render or a prerender by throwing (a Request-time API such as
+  // request.cookies on a NextRequest at build time, notFound(), redirect()).
+  // Those must reach Next, not become a 500 (#62).
   unstable_rethrow(error);
   if (error instanceof AppError) {
     return Response.json(
