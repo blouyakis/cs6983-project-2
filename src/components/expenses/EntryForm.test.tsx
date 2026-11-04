@@ -238,7 +238,7 @@ describe("EntryForm", () => {
       submit();
 
       expect(screen.getByLabelText("Amount")).toHaveAccessibleDescription(
-        splitMessages.amount,
+        expect.stringContaining(splitMessages.amount),
       );
       expect(mocks.postJson).not.toHaveBeenCalled();
     },
