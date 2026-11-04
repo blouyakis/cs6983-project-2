@@ -251,8 +251,13 @@ export function EntryForm({
           payerId={currentUserId}
           amountCents={amountCents}
           state={split}
-          onChange={(split) =>
-            edit({ split }, "sharedBy", "amountsCents", "mode")
+          onChange={(next) =>
+            edit(
+              { split: next, splitKey: currentKey },
+              "sharedBy",
+              "amountsCents",
+              "mode",
+            )
           }
           error={errors.sharedBy ?? errors.amountsCents ?? errors.mode}
         />
