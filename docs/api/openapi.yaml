@@ -9,7 +9,8 @@ info:
 
     Status codes: 400 invalid input, 401 not logged in or token expired,
     403 logged in but not allowed, 404 not found, 409 conflict (duplicate
-    email, editing a settled expense, leaving with a balance).
+    email, inviting someone already in the group, a group that already has
+    12 members, editing a settled expense, leaving with a balance).
 
     Error body: { "error": { "code": "FORBIDDEN", "message": "You are not a member of this group." } }
 security:
@@ -124,22 +125,53 @@ paths:
   /api/groups:
     get:
       summary: List my groups
-      description: Issue #6.
+      description: |
+        Issue #6. Every group the user is or was in: the personal space
+        first, then groups they can write to, then read-only ones (left or
+        archived). Each lists its current members.
       responses:
+        "200":
+          description: The user's groups.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupListResponse"
         "401":
           $ref: "#/components/responses/Error"
     post:
       summary: Create a group
-      description: Issue #6.
+      description: |
+        Issue #6. The session user becomes its first member, at share
+        weight 1.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGroupRequest"
       responses:
+        "201":
+          description: The new group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupResponse"
         "400":
+          description: 'Invalid input, for example `{ "name": "Enter a group name." }`.'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}:
     get:
       summary: Group details
       description: |
         Issues #5, #6, #8. Current and former members can read it; anyone
-        else, and a group that does not exist, gets 403.
+        else, and a group that does not exist, gets 403. `members` lists
+        the current members with their default share weights, which
+        `SplitEditor` fills custom amounts from.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
@@ -161,21 +193,90 @@ paths:
           $ref: "#/components/responses/Error"
     patch:
       summary: Rename a group or set its default split ratio
-      description: Issues #6, #8.
+      description: |
+        Issues #6, #8. Send `name`, `memberWeights`, or both. The weights
+        must list every current member exactly once. They are the default
+        for new expenses only; existing expenses keep their shares. Former
+        members and archived groups get 403.
       parameters:
         - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGroupRequest"
       responses:
+        "200":
+          description: The group after the change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupResponse"
         "400":
+          description: |
+            Invalid input, such as a weight of 0, or weights that leave out
+            or add a member: `{ "memberWeights": "List a weight for every
+            current member." }`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/invitations:
     post:
       summary: Invite by email
-      description: Issue #6.
+      description: |
+        Issue #6. Any current member can invite someone who already has an
+        account. The invitee joins right away at share weight 1; there is
+        no accept step. A former member rejoins from now.
       parameters:
         - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteRequest"
       responses:
+        "201":
+          description: The new member.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberResponse"
         "400":
+          description: 'Invalid input, for example `{ "email": "Enter a valid email address." }`.'
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
           $ref: "#/components/responses/Error"
+        "403":
+          description: |
+            A former member, an archived group, a personal space ("A
+            personal space can't have other members."), or a user outside the
+            group.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "`No LifeBoard account uses that email.`"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: "`They are already in this group.` or `A group can have at most 12 members.`"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/groups/{groupId}/leave:
     post:
       summary: Leave a group
@@ -492,13 +593,14 @@ components:
           format: date-time
     Group:
       type: object
-      required: [id, name, isPersonal, archivedAt, createdAt]
+      required: [id, name, isPersonal, archivedAt, createdAt, readOnly, members]
       properties:
         id:
           type: string
           format: uuid
         name:
           type: string
+          example: 🏠 Flat
         isPersonal:
           type: boolean
         archivedAt:
@@ -508,12 +610,109 @@ components:
         createdAt:
           type: string
           format: date-time
+        readOnly:
+          type: boolean
+          description: |
+            True when the user left the group or it is archived. Writes to
+            it get 403.
+        members:
+          type: array
+          description: |
+            Current members, in the order they joined. For a former member,
+            the members as they were when they left, themselves included,
+            and not people who joined later.
+          items:
+            $ref: "#/components/schemas/Member"
+    GroupSummary:
+      allOf:
+        - $ref: "#/components/schemas/Group"
+        - type: object
+          required: [leftAt]
+          properties:
+            leftAt:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the user left, or null if they are a current member.
+    Member:
+      type: object
+      required: [userId, name, defaultShareWeight]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        defaultShareWeight:
+          $ref: "#/components/schemas/ShareWeight"
+    ShareWeight:
+      type: integer
+      description: |
+        A member's part of the group's default ratio. 60/40 is stored as 3
+        and 2; an even group is 1 for everyone. Capped at 100 so splitting
+        the largest amount stays exact.
+      minimum: 1
+      maximum: 100
     GroupResponse:
       type: object
       required: [group]
       properties:
         group:
           $ref: "#/components/schemas/Group"
+    GroupListResponse:
+      type: object
+      required: [groups]
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupSummary"
+    MemberResponse:
+      type: object
+      required: [member]
+      properties:
+        member:
+          $ref: "#/components/schemas/Member"
+    GroupName:
+      type: string
+      description: Trimmed. An emoji at the start becomes the group's tile.
+      minLength: 1
+      maxLength: 60
+      example: 🏠 Flat
+    CreateGroupRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          $ref: "#/components/schemas/GroupName"
+    UpdateGroupRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name:
+          $ref: "#/components/schemas/GroupName"
+        memberWeights:
+          type: array
+          description: Every current member once. User ids are compared in any case.
+          minItems: 1
+          items:
+            type: object
+            required: [userId, weight]
+            properties:
+              userId:
+                type: string
+                format: uuid
+              weight:
+                $ref: "#/components/schemas/ShareWeight"
+    InviteRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Matched case-insensitively.
+          example: sam@example.com
     UserResponse:
       type: object
       required: [user]

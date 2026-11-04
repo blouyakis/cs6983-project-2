@@ -3,9 +3,9 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { signSession } from "@/lib/auth/session";
 import { ForbiddenError } from "@/lib/http/errors";
-import { GET } from "./route";
+import { GET, PATCH } from "./route";
 
-const service = vi.hoisted(() => ({ getGroup: vi.fn() }));
+const service = vi.hoisted(() => ({ getGroup: vi.fn(), updateGroup: vi.fn() }));
 vi.mock("@/lib/services/group-service", () => service);
 
 const userId = "6f1c2d4e-1111-4222-8333-944455556666";
@@ -84,5 +84,78 @@ describe("GET /api/groups/{groupId}", () => {
     expect(response.status).toBe(400);
     expect((await response.json()).error.code).toBe("VALIDATION_ERROR");
     expect(service.getGroup).not.toHaveBeenCalled();
+  });
+});
+
+async function patch(body: unknown, id = groupId, signedIn = true) {
+  const cookie = signedIn ? `session=${await signSession(userId)}` : undefined;
+  const request = new NextRequest(`http://localhost/api/groups/${id}`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      ...(cookie ? { cookie } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  return PATCH(request, { params: Promise.resolve({ groupId: id }) });
+}
+
+describe("PATCH /api/groups/{groupId}", () => {
+  it("renames the group and returns it", async () => {
+    const renamed = { ...flat, name: "Dorm 4B", members: [] };
+    service.updateGroup.mockResolvedValue(renamed);
+
+    const response = await patch({ name: " Dorm 4B " });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ group: renamed });
+    expect(service.updateGroup).toHaveBeenCalledWith(userId, groupId, {
+      name: "Dorm 4B",
+    });
+  });
+
+  it("passes new weights to the service", async () => {
+    service.updateGroup.mockResolvedValue({ ...flat, members: [] });
+    const memberWeights = [{ userId, weight: 3 }];
+
+    await patch({ memberWeights });
+
+    expect(service.updateGroup).toHaveBeenCalledWith(userId, groupId, {
+      memberWeights,
+    });
+  });
+
+  it("returns 400 for a weight of 0, without asking the service", async () => {
+    const response = await patch({ memberWeights: [{ userId, weight: 0 }] });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.fields).toEqual({
+      memberWeights: "Each weight must be a whole number from 1 to 100.",
+    });
+    expect(service.updateGroup).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 for a former member or an archived group", async () => {
+    service.updateGroup.mockRejectedValue(
+      new ForbiddenError("This group is archived and read-only."),
+    );
+
+    const response = await patch({ name: "Dorm 4B" });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("returns 400 for an id that is not a UUID", async () => {
+    const response = await patch({ name: "Dorm 4B" }, "nope");
+
+    expect(response.status).toBe(400);
+    expect(service.updateGroup).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 without a session", async () => {
+    const response = await patch({ name: "Dorm 4B" }, groupId, false);
+
+    expect(response.status).toBe(401);
+    expect(service.updateGroup).not.toHaveBeenCalled();
   });
 });

@@ -20,7 +20,7 @@ colors:
 
 Warm and playful. The page is `canvas` cream. The desktop sidebar and the phone tab bar are `sidebar` yellow. Cards are `surface` with a thick `ink` border, and dashed `divider` lines separate their rows. Highlighted cards and primary buttons sit on a solid offset shadow.
 
-Each group has an emoji in a yellow tile, not a color. Members have round initial avatars in the three avatar colors.
+Each group has a yellow tile, not a color. The tile shows the first character of the group's name, so a name that starts with an emoji ("🏠 Flat") shows that emoji, and any other name shows its first letter. There is no separate emoji field. Members have round avatars with the first character of their name, in the three avatar colors. Both take the character with `firstCharacter` in `lib/domain/first-character.ts`, which keeps an emoji such as 👨‍👩‍👧 whole.
 
 Owing is `owe` maroon and being owed is `action` green, always written in words. Green is also the color of the primary button. `ink` fills the selected chip, toggle option and group. Badges such as READ ONLY and CLOSED use `owe` text on `tag`.
 
@@ -48,7 +48,7 @@ Some mockups show a balance as a signed amount in color, such as −$31.00 on th
 
 ## Components
 
-Built components are in `src/components/ui/`, so reuse them before making a new one. So far those are `FormSheet` (#56), `PrimaryButton` and `TextField` (#4); the rest are planned names. Every amount goes through `MoneyText`, and every form follows `FormSheet`.
+Built components are in `src/components/ui/`, so reuse them before making a new one. So far those are `Avatar` and `Badge` (#6), `FormSheet` (#56), `PrimaryButton` and `TextField` (#4); the rest are planned names. The group components from #6 (`GroupCard`, `ArchivedGroupCard`, `PersonalSpaceCard`, `MemberList`, `InviteForm`) are in `src/components/groups/`. Every amount goes through `MoneyText`, and every form follows `FormSheet`.
 
 ### Shared
 
@@ -104,7 +104,7 @@ Built components are in `src/components/ui/`, so reuse them before making a new 
 ## Do's and Don'ts
 
 - Do reuse the components above before making a new row, amount or form.
-- Do mark each group with its emoji, not a color.
+- Do mark each group with its tile, not a color.
 - Do give every icon-only button an accessible name, such as "Settle up Dorm 4B" or "Edit Paper towels". Emoji next to text are decorative and hidden from screen readers.
 - Don't show owing or being owed by color alone.
 - Don't put more than one filled button in a form. Cancel stays an outline.

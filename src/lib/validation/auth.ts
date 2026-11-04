@@ -6,7 +6,8 @@ const MAX_PASSWORD_BYTES = 72;
 
 const emailMessage = "Enter a valid email address.";
 
-const email = z
+// Shared by every form that takes an email, such as inviting a member (#6).
+export const emailSchema = z
   .string({ error: emailMessage })
   .trim()
   .toLowerCase()
@@ -18,7 +19,7 @@ export const registerSchema = z.object({
     .trim()
     .min(1, { error: "Enter your name." })
     .max(100, { error: "Name must be at most 100 characters." }),
-  email,
+  email: emailSchema,
   password: z
     .string({ error: "Enter a password." })
     .min(MIN_PASSWORD_LENGTH, {
@@ -32,7 +33,7 @@ export const registerSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  email,
+  email: emailSchema,
   password: z
     .string({ error: "Enter your password." })
     .min(1, { error: "Enter your password." }),

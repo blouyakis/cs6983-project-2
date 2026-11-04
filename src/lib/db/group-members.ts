@@ -1,6 +1,10 @@
 import "server-only";
 import type { Sharer } from "@/lib/domain/splits";
+import { ConflictError } from "@/lib/http/errors";
 import { getDb } from "./client";
+
+const UNIQUE_VIOLATION = "23505";
+const CHECK_VIOLATION = "23514";
 
 type GroupRow = {
   id: string;
@@ -15,6 +19,15 @@ type MembershipRow = {
   joined_at: string;
   left_at: string | null;
   groups: GroupRow;
+};
+
+type MemberRow = {
+  group_id: string;
+  user_id: string;
+  default_share_weight: number;
+  joined_at: string;
+  left_at: string | null;
+  users: { name: string };
 };
 
 export type Group = {
@@ -34,8 +47,49 @@ export type Membership = {
   leftAt: string | null;
 };
 
-const MEMBERSHIP_COLUMNS =
-  "joined_at, left_at, groups!inner(id, name, is_personal, created_by, archived_at, created_at)";
+// A member of a group, as other members see them.
+export type Member = {
+  userId: string;
+  name: string;
+  defaultShareWeight: number;
+};
+
+const GROUP_COLUMNS =
+  "id, name, is_personal, created_by, archived_at, created_at";
+const MEMBERSHIP_COLUMNS = `joined_at, left_at, groups!inner(${GROUP_COLUMNS})`;
+const MEMBER_COLUMNS =
+  "group_id, user_id, default_share_weight, joined_at, left_at, users!inner(name)";
+
+function toGroup(row: GroupRow): Group {
+  return {
+    id: row.id,
+    name: row.name,
+    isPersonal: row.is_personal,
+    createdBy: row.created_by,
+    archivedAt: row.archived_at,
+    createdAt: row.created_at,
+  };
+}
+
+function toMember(row: MemberRow): Member {
+  return {
+    userId: row.user_id,
+    name: row.users.name,
+    defaultShareWeight: row.default_share_weight,
+  };
+}
+
+// The trigger from #40 and the primary key on (group_id, user_id) both reject
+// a join; the service shows either as a 409.
+function toJoinError(error: { code: string; message: string }): Error {
+  if (error.code === CHECK_VIOLATION && error.message.includes("at most 12")) {
+    return new ConflictError("A group can have at most 12 members.");
+  }
+  if (error.code === UNIQUE_VIOLATION) {
+    return new ConflictError("They are already in this group.");
+  }
+  return new Error(`Could not add the member: ${error.message}`);
+}
 
 export async function findMembership(
   userId: string,
@@ -56,35 +110,139 @@ export async function findMembership(
   return {
     joinedAt: data.joined_at,
     leftAt: data.left_at,
-    group: {
-      id: data.groups.id,
-      name: data.groups.name,
-      isPersonal: data.groups.is_personal,
-      createdBy: data.groups.created_by,
-      archivedAt: data.groups.archived_at,
-      createdAt: data.groups.created_at,
-    },
+    group: toGroup(data.groups),
   };
 }
 
-type WeightRow = { user_id: string; default_share_weight: number };
+// Who counts as a member at a moment: at null means now, so a current member.
+// For a former member's view, `at` is their left_at, and the members are the
+// ones who had joined by then and hadn't left before it, themselves included.
+// This is the only place in lib/db that decides membership, so the Groups
+// page, the member list and splitting an expense always agree.
+function isMemberAt(row: MemberRow, at: string | null): boolean {
+  if (at === null) {
+    return row.left_at === null;
+  }
+  const moment = Date.parse(at);
+  return (
+    Date.parse(row.joined_at) <= moment &&
+    (row.left_at === null || Date.parse(row.left_at) >= moment)
+  );
+}
+
+// Every member row of the given groups, oldest first, in one query.
+async function getMemberRows(
+  groupIds: readonly string[],
+  failure: string,
+): Promise<MemberRow[]> {
+  const { data, error } = await getDb()
+    .from("group_members")
+    .select(MEMBER_COLUMNS)
+    .in("group_id", groupIds)
+    .order("joined_at");
+  if (error) {
+    throw new Error(`${failure}: ${error.message}`);
+  }
+  return data as unknown as MemberRow[];
+}
+
+function toSharer(row: MemberRow): Sharer {
+  return { userId: row.user_id, weight: row.default_share_weight };
+}
 
 // Each current member's default share weight, which a new expense in the group
 // is split by unless the payer enters custom amounts (#8).
 export async function listCurrentMemberWeights(
   groupId: string,
 ): Promise<Sharer[]> {
+  const rows = await getMemberRows([groupId], "Could not load share weights");
+  return rows.filter((row) => isMemberAt(row, null)).map(toSharer);
+}
+
+// The group's members at a moment, in the order they joined: the current
+// members when `at` is null, or the members when a former member left
+// (AGENTS.md 6.6). SplitEditor fills in custom amounts from
+// defaultShareWeight (#8).
+export async function listMembersAt(
+  groupId: string,
+  at: string | null,
+): Promise<Member[]> {
+  const rows = await getMemberRows([groupId], "Could not load members");
+  return rows.filter((row) => isMemberAt(row, at)).map(toMember);
+}
+
+export function listCurrentMembers(groupId: string): Promise<Member[]> {
+  return listMembersAt(groupId, null);
+}
+
+// Every group the user is or was in, each with its members: the current ones,
+// or for a group the user left, the ones as they were when they left. Two
+// queries however many groups there are.
+export async function listMemberships(
+  userId: string,
+): Promise<(Membership & { members: Member[] })[]> {
   const { data, error } = await getDb()
     .from("group_members")
-    .select("user_id, default_share_weight")
-    .eq("group_id", groupId)
-    .is("left_at", null)
+    .select(MEMBERSHIP_COLUMNS)
+    .eq("user_id", userId)
     .order("joined_at");
   if (error) {
-    throw new Error(`Could not load share weights: ${error.message}`);
+    throw new Error(`Could not load groups: ${error.message}`);
   }
-  return (data as WeightRow[]).map((row) => ({
-    userId: row.user_id,
-    weight: row.default_share_weight,
+  const memberships = data as unknown as MembershipRow[];
+  if (memberships.length === 0) {
+    return [];
+  }
+  const rows = await getMemberRows(
+    memberships.map((row) => row.groups.id),
+    "Could not load members",
+  );
+  return memberships.map((row) => ({
+    joinedAt: row.joined_at,
+    leftAt: row.left_at,
+    group: toGroup(row.groups),
+    members: rows
+      .filter(
+        (member) =>
+          member.group_id === row.groups.id && isMemberAt(member, row.left_at),
+      )
+      .map(toMember),
   }));
+}
+
+// A new member starts at weight 1, an even split (#6).
+// TODO(#63): give the newcomer the shared weight when every weight is equal,
+// or reset the group to 1 when they differ, in one SQL function with the join.
+export async function addMember(
+  groupId: string,
+  userId: string,
+): Promise<void> {
+  const { error } = await getDb()
+    .from("group_members")
+    .insert({ group_id: groupId, user_id: userId, default_share_weight: 1 });
+  if (error) {
+    throw toJoinError(error);
+  }
+}
+
+// A former member who is invited again joins from now, at weight 1. They keep
+// one row, so joined_at becomes the time of this join.
+// TODO(#63): follow the same weight rule as addMember.
+export async function rejoinMember(
+  groupId: string,
+  userId: string,
+): Promise<void> {
+  const { error } = await getDb()
+    .from("group_members")
+    .update({
+      left_at: null,
+      joined_at: new Date().toISOString(),
+      default_share_weight: 1,
+    })
+    .eq("group_id", groupId)
+    .eq("user_id", userId)
+    .not("left_at", "is", null);
+  if (error) {
+    throw toJoinError(error);
+  }
 }

@@ -19,4 +19,13 @@ describe("overview page", () => {
     expect(screen.getByText("Signed in as Sam Lee")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
   });
+
+  it("links to the Groups page until the app shell exists", () => {
+    render(<OverviewPage />);
+
+    expect(screen.getByRole("link", { name: /Groups/ })).toHaveAttribute(
+      "href",
+      "/groups",
+    );
+  });
 });

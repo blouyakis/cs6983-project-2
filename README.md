@@ -40,14 +40,14 @@ The list follows the PRD's priorities. **Built** means it is on `main`; the rest
 
 - **Accounts (built, [#4](https://github.com/blouyakis/cs6983-project-2/issues/4)):** register with email and password, log in with an expiring JWT, log out
 - **Access control (built, [#5](https://github.com/blouyakis/cs6983-project-2/issues/5)):** users only read or change data in groups they belong to. API requests without a session get `401`, and `requireGroupAccess` gives `403` to anyone outside a group
-- **Groups and invitations ([#6](https://github.com/blouyakis/cs6983-project-2/issues/6)):** create a group for any part of life and invite members by email
+- **Groups and invitations (built, [#6](https://github.com/blouyakis/cs6983-project-2/issues/6)):** create a group for any part of life, invite members by email, and see your groups on the Groups page. A former member who is invited again rejoins
 - **Lists ([#11](https://github.com/blouyakis/cs6983-project-2/issues/11), [#12](https://github.com/blouyakis/cs6983-project-2/issues/12), [#13](https://github.com/blouyakis/cs6983-project-2/issues/13)):** add things to do or buy, and check them off with the actual cost and who shares it
 - **Expenses ([#7](https://github.com/blouyakis/cs6983-project-2/issues/7), [#8](https://github.com/blouyakis/cs6983-project-2/issues/8), [#20](https://github.com/blouyakis/cs6983-project-2/issues/20)):** log personal or group costs, split evenly or by custom amounts, and edit or delete until settled
 - **Balances ([#9](https://github.com/blouyakis/cs6983-project-2/issues/9)):** each member's net balance across unsettled expenses
 - **Settle-up ([#19](https://github.com/blouyakis/cs6983-project-2/issues/19)):** the fewest payments that clear every balance, marked paid and confirmed by the recipient
 - **Overview ([#10](https://github.com/blouyakis/cs6983-project-2/issues/10)):** personal total, share in each group, and net balance across groups
 
-**Should have:** estimated costs on list items ([#11](https://github.com/blouyakis/cs6983-project-2/issues/11)), direct payments between two members ([#14](https://github.com/blouyakis/cs6983-project-2/issues/14)), an itemized bill per member ([#21](https://github.com/blouyakis/cs6983-project-2/issues/21)), leaving a group with read-only history ([#22](https://github.com/blouyakis/cs6983-project-2/issues/22)), a default split ratio ([#8](https://github.com/blouyakis/cs6983-project-2/issues/8)), and filters by group, person, and date ([#15](https://github.com/blouyakis/cs6983-project-2/issues/15)).
+**Should have:** estimated costs on list items ([#11](https://github.com/blouyakis/cs6983-project-2/issues/11)), direct payments between two members ([#14](https://github.com/blouyakis/cs6983-project-2/issues/14)), an itemized bill per member ([#21](https://github.com/blouyakis/cs6983-project-2/issues/21)), leaving a group with read-only history ([#22](https://github.com/blouyakis/cs6983-project-2/issues/22)), a default split ratio ([#8](https://github.com/blouyakis/cs6983-project-2/issues/8) splits by it and [#6](https://github.com/blouyakis/cs6983-project-2/issues/6) stores it; the screen to set it is [#63](https://github.com/blouyakis/cs6983-project-2/issues/63)), and filters by group, person, and date ([#15](https://github.com/blouyakis/cs6983-project-2/issues/15)).
 
 **Could have:** CSV export of a group's history and real-time updates.
 
@@ -82,8 +82,8 @@ Diagrams of the system, its layers, and a request are in [`docs/architecture.md`
 ├── .nvmrc                 # Node 26
 ├── e2e/                   # Playwright
 ├── src/proxy.ts           # first check on every request: 401 for the API, redirect to /login for pages
-├── src/app/               # App Router: (auth) login and register, (app) overview, api routes
-├── src/components/        # ui/ primitives and auth/ forms
+├── src/app/               # App Router: (auth) login and register, (app) overview and groups, api routes
+├── src/components/        # ui/ primitives, and auth/ and groups/ feature folders
 ├── src/lib/               # auth, db (the only Supabase client), http, services, validation
 ├── supabase/
 │   ├── migrations/        # SQL migrations
@@ -179,7 +179,7 @@ Full conventions are in [`AGENTS.md`](./AGENTS.md).
 
 ## API
 
-Five routes are implemented: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me` and `GET /api/groups/{groupId}`. The rest of the REST API is described in [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) and is built issue by issue. Swagger UI will be served at `/api/docs` ([#16](https://github.com/blouyakis/cs6983-project-2/issues/16)).
+Nine routes are implemented: `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `GET` and `POST /api/groups`, `GET` and `PATCH /api/groups/{groupId}`, and `POST /api/groups/{groupId}/invitations`. The rest of the REST API is described in [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) and is built issue by issue. Swagger UI will be served at `/api/docs` ([#16](https://github.com/blouyakis/cs6983-project-2/issues/16)).
 
 Errors use one body, `{ "error": { "code", "message", "fields"? } }`. The session is an `httpOnly` cookie named `session`; the API never returns the token.
 

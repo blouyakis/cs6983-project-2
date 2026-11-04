@@ -109,7 +109,7 @@ Writes that touch several tables (registering an account with its personal space
 
 A personal space is a group with `is_personal = true` and exactly one member, its owner. Invitations to it return `403`.
 
-`requireGroupAccess` returns the group and `readUntil`: the former member's `left_at`, or null for a current member. A service that lists rows must show a former member only rows created before `readUntil`. A group that does not exist gets the same `403` as one the user is not in, so ids can't be probed. A `groupId` that is not a UUID is rejected with `400` by the route before the service runs.
+`requireGroupAccess` returns the group and `readUntil`: the former member's `left_at`, or null for a current member. A service that lists rows must show a former member only rows created before `readUntil`. A group that does not exist gets the same `403` as one the user is not in, so ids can't be probed. A `groupId` that is not a UUID is rejected with `400` by the route before the service runs. Pages answer both cases with `404` instead: the group page shows not found for a malformed id and for a group the user can't see, so a page never says whether a group exists either.
 
 ## 5. Database schema
 
@@ -229,11 +229,14 @@ erDiagram
 
 - `is_personal` marks a user's personal space. Each user has exactly one, created at registration: `register_user(p_email, p_password_hash, p_name)` inserts the user (email trimmed and lowercase), the personal space and the owner's membership in one transaction and returns the user id. A partial unique index on `(created_by) where is_personal` enforces it.
 - `archived_at` is set when the last member leaves; the group is then read-only.
+- A shared group is created by `create_group(p_name, p_created_by)`, which inserts the group and the creator's membership at weight 1 in one transaction and returns the group id. A group has no emoji column: its tile shows the first character of `name` (#6).
 
 **`group_members`**: who is or was in a group. Primary key `(group_id, user_id)`.
 
-- `default_share_weight` is a positive integer. A 60/40 group stores 3 and 2. Even groups store 1 for everyone. The server's even mode ignores them and gives every sharer weight 1. They reach a new expense through `SplitEditor`, which opens on Custom amounts filled in from these weights when they differ (DESIGN.md), so the payer can keep or change them.
+- `default_share_weight` is an integer from 1 to 100 (`group_members_weight_at_most_100`), so `amount_cents × total weight` stays a safe integer when the largest amount is split among 12 members. Every new member starts at 1. A 60/40 group stores 3 and 2. Even groups store 1 for everyone. The server's even mode ignores them and gives every sharer weight 1. They reach a new expense through `SplitEditor`, which opens on Custom amounts filled in from these weights when they differ (DESIGN.md), so the payer can keep or change them. `update_group(p_group_id, p_name, p_weights)` renames a group, sets its whole ratio, or both, in one transaction; either part can be null. `p_weights` is a JSON array of `{"user_id", "weight"}` and must list every current member exactly once, or the call fails with `22023` and changes nothing. It takes the same lock on the group row as the member cap trigger, so an invite can't land between the check and the write.
 - `left_at` is set when a member leaves; the row stays so history and read access still work.
+- A former member who is invited again keeps their one row: `left_at` becomes null, `joined_at` becomes the time they rejoined, and their weight goes back to 1 (#6). Only `left_at` decides access, so a rejoined member reads everything again.
+- A current member is a row with `left_at` null. In `lib/db/group-members.ts`, one predicate, `isMemberAt(row, at)`, decides membership for the member list, the Groups page and splitting an expense, so they always agree. With `at` null it means a current member. For a former member, `at` is their `left_at`, so they see the members as they were when they left, themselves included, and not people who joined later (AGENTS.md 6.6). `getMemberRows` reads the rows of many groups in one query, so the Groups page takes two queries however many groups the user is in.
 - A trigger rejects a join or rejoin that would make a 13th current member (`MAX_GROUP_MEMBERS = 12`). It locks the group row, so two joins cannot race for the last place.
 
 **`list_items`**: things to do or buy.
