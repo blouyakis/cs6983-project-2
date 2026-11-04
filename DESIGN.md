@@ -48,7 +48,7 @@ Some mockups show a balance as a signed amount in color, such as −$31.00 on th
 
 ## Components
 
-Built components are in `src/components/ui/`, so reuse them before making a new one. So far those are `Avatar` and `Badge` (#6), `FormSheet` (#56), `PrimaryButton` and `TextField` (#4); the rest are planned names. The group components from #6 (`GroupCard`, `ArchivedGroupCard`, `PersonalSpaceCard`, `MemberList`, `InviteForm`) are in `src/components/groups/`. Every amount goes through `MoneyText`, and every form follows `FormSheet`.
+Built components are in `src/components/ui/`, so reuse them before making a new one. So far those are `Avatar` and `Badge` (#6), `FormSheet` (#56), `Toggle` and `ChipPicker` (#7), `PrimaryButton` and `TextField` (#4); the rest are planned names. The group components from #6 (`GroupCard`, `ArchivedGroupCard`, `PersonalSpaceCard`, `MemberList`, `InviteForm`) are in `src/components/groups/`. The expense components from #7 (`EntryForm`, `SplitEditor`, and `AddExpenseButton`, which opens the form) are in `src/components/expenses/`; `EntryForm` only has the Already spent mode so far, and Plan it comes with #11. Every amount goes through `MoneyText`, and every form follows `FormSheet`.
 
 ### Shared
 

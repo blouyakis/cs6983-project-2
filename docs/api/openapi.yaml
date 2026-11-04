@@ -351,19 +351,60 @@ paths:
   /api/groups/{groupId}/expenses:
     get:
       summary: List expenses (with filters)
-      description: Issues #7, #15.
+      description: |
+        Issues #7, #15. The group's expenses, newest day first and, within a
+        day, newest entry first. A former member only sees what was added
+        before they left. The filters are #15.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
+        "200":
+          description: The group's expenses, each with its shares.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseListResponse"
+        "401":
+          $ref: "#/components/responses/Error"
         "403":
           $ref: "#/components/responses/Error"
     post:
       summary: Add an expense
-      description: Issues #7, #15.
+      description: |
+        Issues #7, #15. The payer is always the session user: the body has
+        no payer field, and one sent anyway is ignored (AGENTS.md Section
+        6.7). The expense and its shares are written in one transaction.
+        Only current members of an active group can add; a former member or
+        an archived group gets 403. In a personal space the user is the only
+        sharer.
       parameters:
         - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExpenseRequest"
       responses:
+        "201":
+          description: The new expense.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseResponse"
         "400":
+          description: |
+            Invalid input. Each error is keyed by a top-level field, such as
+            `amountCents`, `spentOn`, `sharedBy` (someone who isn't a current
+            member, or a payer who isn't sharing) or `amountsCents` (custom
+            amounts that don't add up).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/expenses/{expenseId}:
     patch:
@@ -544,6 +585,101 @@ components:
       items:
         type: string
         format: uuid
+    CreateExpenseRequest:
+      description: |
+        Issue #7. The `Split` fields (`mode`, `sharedBy`, and `amountsCents`
+        for a custom split) sit at the top level, next to the expense's own.
+      allOf:
+        - type: object
+          required: [description, amountCents, spentOn]
+          properties:
+            description:
+              type: string
+              description: Trimmed.
+              minLength: 1
+              maxLength: 100
+              example: Electricity
+            amountCents:
+              $ref: "#/components/schemas/AmountCents"
+            spentOn:
+              type: string
+              format: date
+              description: |
+                The day it was spent, with no time zone. Not in the future:
+                the latest day allowed is tomorrow in UTC, so someone east of
+                UTC can still enter their own today.
+              example: "2026-11-02"
+        - $ref: "#/components/schemas/Split"
+    Expense:
+      type: object
+      required:
+        [
+          id,
+          groupId,
+          description,
+          amountCents,
+          payerId,
+          spentOn,
+          settled,
+          createdAt,
+          editedAt,
+          shares,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        groupId:
+          type: string
+          format: uuid
+        description:
+          type: string
+        amountCents:
+          $ref: "#/components/schemas/AmountCents"
+        payerId:
+          type: string
+          format: uuid
+        spentOn:
+          type: string
+          format: date
+        settled:
+          type: boolean
+          description: |
+            True once a settle-up has closed over it. A settled expense is
+            locked, so the client doesn't offer an edit or a delete.
+        createdAt:
+          type: string
+          format: date-time
+        editedAt:
+          type: string
+          format: date-time
+          nullable: true
+        shares:
+          type: array
+          description: Who shares the expense. The shares add up to `amountCents`.
+          items:
+            type: object
+            required: [userId, shareCents]
+            properties:
+              userId:
+                type: string
+                format: uuid
+              shareCents:
+                $ref: "#/components/schemas/AmountCents"
+    ExpenseResponse:
+      type: object
+      required: [expense]
+      properties:
+        expense:
+          $ref: "#/components/schemas/Expense"
+    ExpenseListResponse:
+      type: object
+      required: [expenses]
+      properties:
+        expenses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Expense"
     RegisterRequest:
       type: object
       required: [name, email, password]
