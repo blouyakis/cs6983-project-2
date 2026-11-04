@@ -12,6 +12,90 @@ export type NewExpense = {
   shares: Share[];
 };
 
+type ExpenseRow = {
+  id: string;
+  group_id: string;
+  description: string;
+  amount_cents: number;
+  payer_id: string;
+  spent_on: string;
+  settlement_id: string | null;
+  created_at: string;
+  edited_at: string | null;
+  expense_shares: { user_id: string; share_cents: number }[];
+};
+
+export type Expense = {
+  id: string;
+  groupId: string;
+  description: string;
+  amountCents: number;
+  payerId: string;
+  spentOn: string;
+  // Settled expenses are locked (AGENTS.md Section 6.7), so the client never
+  // offers an edit that would get a 409.
+  settled: boolean;
+  createdAt: string;
+  editedAt: string | null;
+  shares: Share[];
+};
+
+const EXPENSE_COLUMNS =
+  "id, group_id, description, amount_cents, payer_id, spent_on, settlement_id, created_at, edited_at, expense_shares(user_id, share_cents)";
+
+function toExpense(row: ExpenseRow): Expense {
+  return {
+    id: row.id,
+    groupId: row.group_id,
+    description: row.description,
+    amountCents: row.amount_cents,
+    payerId: row.payer_id,
+    spentOn: row.spent_on,
+    settled: row.settlement_id !== null,
+    createdAt: row.created_at,
+    editedAt: row.edited_at,
+    shares: row.expense_shares.map((share) => ({
+      userId: share.user_id,
+      shareCents: share.share_cents,
+    })),
+  };
+}
+
+// The group's expenses, newest day first and, within a day, newest entry
+// first. `createdBefore` is a former member's left_at: they only see what was
+// added up to the day they left (AGENTS.md Section 6.6). Null shows everything.
+export async function listExpenses(
+  groupId: string,
+  createdBefore: string | null,
+): Promise<Expense[]> {
+  let query = getDb()
+    .from("expenses")
+    .select(EXPENSE_COLUMNS)
+    .eq("group_id", groupId);
+  if (createdBefore !== null) {
+    query = query.lte("created_at", createdBefore);
+  }
+  const { data, error } = await query
+    .order("spent_on", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) {
+    throw new Error(`Could not load expenses: ${error.message}`);
+  }
+  return (data as unknown as ExpenseRow[]).map(toExpense);
+}
+
+export async function findExpense(expenseId: string): Promise<Expense | null> {
+  const { data, error } = await getDb()
+    .from("expenses")
+    .select(EXPENSE_COLUMNS)
+    .eq("id", expenseId)
+    .maybeSingle<ExpenseRow>();
+  if (error) {
+    throw new Error(`Could not load the expense: ${error.message}`);
+  }
+  return data ? toExpense(data) : null;
+}
+
 // Writes an expense and its shares in one transaction through create_expense
 // (#43), so an expense never exists without shares that add up to its amount.
 // Returns the new expense's id.
