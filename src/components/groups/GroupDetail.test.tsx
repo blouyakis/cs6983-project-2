@@ -1,19 +1,30 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ForbiddenError } from "@/lib/http/errors";
-import type { GroupDetails } from "@/lib/services/group-service";
+import type { GroupDetails, GroupSummary } from "@/lib/services/group-service";
 import { GroupDetail } from "./GroupDetail";
 
 const mocks = vi.hoisted(() => ({
   getSessionUserId: vi.fn(),
   getGroup: vi.fn(),
+  listGroups: vi.fn(),
   redirect: vi.fn(),
   notFound: vi.fn(),
 }));
 vi.mock("@/lib/auth/cookies", () => ({
   getSessionUserId: mocks.getSessionUserId,
 }));
-vi.mock("@/lib/services/group-service", () => ({ getGroup: mocks.getGroup }));
+vi.mock("@/lib/services/group-service", () => ({
+  getGroup: mocks.getGroup,
+  listGroups: mocks.listGroups,
+}));
+// The button is a Client Component with its own tests. Here it only has to be
+// given the right groups.
+vi.mock("@/components/expenses/AddExpenseButton", () => ({
+  AddExpenseButton: (props: object) => (
+    <div data-testid="add-expense" data-props={JSON.stringify(props)} />
+  ),
+}));
 vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,
   notFound: mocks.notFound,
@@ -43,6 +54,16 @@ function details(overrides: Partial<GroupDetails> = {}): GroupDetails {
   };
 }
 
+function summary(overrides: Partial<GroupSummary> = {}): GroupSummary {
+  return { ...details(), leftAt: null, ...overrides };
+}
+
+function addExpenseProps() {
+  return JSON.parse(
+    screen.getByTestId("add-expense").getAttribute("data-props") ?? "{}",
+  );
+}
+
 function detail(id = groupId) {
   return GroupDetail({ params: Promise.resolve({ groupId: id }) });
 }
@@ -56,6 +77,7 @@ beforeEach(() => {
     throw new Error("NEXT_NOT_FOUND");
   });
   mocks.getSessionUserId.mockResolvedValue(anaId);
+  mocks.listGroups.mockResolvedValue([]);
 });
 
 describe("GroupDetail", () => {
@@ -93,6 +115,59 @@ describe("GroupDetail", () => {
       screen.queryByRole("button", { name: "Invite" }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("Read only")).toBeInTheDocument();
+  });
+
+  it("offers to log a cost in this group, and in the other groups the user can add to", async () => {
+    const trip = summary({
+      id: "1c8f9b21-2222-4333-8444-a55566667777",
+      name: "✈️ Trip",
+    });
+    const left = summary({
+      id: "2d90ac32-2222-4333-8444-a55566667777",
+      name: "Old flat",
+      readOnly: true,
+      leftAt: "2026-09-02T10:00:00+00:00",
+    });
+    mocks.getGroup.mockResolvedValue(details());
+    mocks.listGroups.mockResolvedValue([summary(), trip, left]);
+
+    render(await detail());
+
+    expect(mocks.listGroups).toHaveBeenCalledWith(anaId);
+    const props = addExpenseProps();
+    expect(props.currentUserId).toBe(anaId);
+    expect(props.defaultGroupId).toBe(groupId);
+    expect(props.groups.map((group: { id: string }) => group.id)).toEqual([
+      groupId,
+      trip.id,
+    ]);
+    expect(props.groups[0]).toEqual({
+      id: groupId,
+      name: "🏠 Dorm 4B",
+      isPersonal: false,
+      members: details().members,
+    });
+  });
+
+  it("offers it in the personal space too", async () => {
+    mocks.getGroup.mockResolvedValue(
+      details({ name: "Personal space", isPersonal: true }),
+    );
+    mocks.listGroups.mockResolvedValue([
+      summary({ name: "Personal space", isPersonal: true }),
+    ]);
+
+    render(await detail());
+
+    expect(addExpenseProps().groups[0].isPersonal).toBe(true);
+  });
+
+  it("does not offer it when the group is read-only", async () => {
+    mocks.getGroup.mockResolvedValue(details({ readOnly: true }));
+
+    render(await detail());
+
+    expect(screen.queryByTestId("add-expense")).not.toBeInTheDocument();
   });
 
   it("shows not found for a group the user can't see, without saying it exists", async () => {
