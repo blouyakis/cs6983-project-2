@@ -245,6 +245,29 @@ describe("EntryForm", () => {
     });
   });
 
+  it("lets the user change the split after the members changed", () => {
+    const alone: EntryGroup = { ...flat, members: [member(ana, "Ana")] };
+    const view = setup({ groups: [alone] });
+    view.rerender(
+      <EntryForm
+        groups={[
+          { ...flat, members: [member(ana, "Ana"), member(sam, "Sam")] },
+        ]}
+        currentUserId={ana}
+        open
+        onClose={view.onClose}
+        onAdded={view.onAdded}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("radio", { name: "Custom amounts" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Sam" }));
+
+    expect(screen.getByRole("radio", { name: "Custom amounts" })).toBeChecked();
+    expect(screen.getByLabelText("Your share")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Sam" })).not.toBeChecked();
+  });
+
   it("keeps who the user chose while the members stay the same", () => {
     setup();
     fireEvent.click(screen.getByRole("checkbox", { name: "Sam" }));
