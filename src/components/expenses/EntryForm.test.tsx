@@ -217,6 +217,45 @@ describe("EntryForm", () => {
     expect(screen.getByRole("checkbox", { name: "Sam" })).toBeInTheDocument();
   });
 
+  it("splits among the members it is given now, not the ones it was first given", async () => {
+    mocks.postJson.mockResolvedValue({ ok: true, data: { expense: saved } });
+    const alone: EntryGroup = { ...flat, members: [member(ana, "Ana")] };
+    const view = setup({ groups: [alone] });
+
+    // The page refreshed after Ana invited Sam, so the form gets new members.
+    view.rerender(
+      <EntryForm
+        groups={[
+          { ...flat, members: [member(ana, "Ana"), member(sam, "Sam")] },
+        ]}
+        currentUserId={ana}
+        open
+        onClose={view.onClose}
+        onAdded={view.onAdded}
+      />,
+    );
+
+    expect(screen.getByRole("checkbox", { name: "Sam" })).toBeChecked();
+    fill("Electricity", "10.01");
+    submit();
+    await waitFor(() => expect(mocks.postJson).toHaveBeenCalled());
+    expect(mocks.postJson.mock.calls[0][1]).toMatchObject({
+      mode: "even",
+      sharedBy: [ana, sam],
+    });
+  });
+
+  it("keeps who the user chose while the members stay the same", () => {
+    setup();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Sam" }));
+
+    fireEvent.change(screen.getByLabelText("Amount"), {
+      target: { value: "5" },
+    });
+
+    expect(screen.getByRole("checkbox", { name: "Sam" })).not.toBeChecked();
+  });
+
   it("asks for what it was for, next to the field, without sending", () => {
     setup();
 
