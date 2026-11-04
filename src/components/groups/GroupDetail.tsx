@@ -1,8 +1,13 @@
 import { notFound, redirect } from "next/navigation";
+import { AddExpenseButton } from "@/components/expenses/AddExpenseButton";
 import { Badge } from "@/components/ui/Badge";
 import { getSessionUserId } from "@/lib/auth/cookies";
 import { ForbiddenError } from "@/lib/http/errors";
-import { getGroup, type GroupDetails } from "@/lib/services/group-service";
+import {
+  getGroup,
+  listGroups,
+  type GroupDetails,
+} from "@/lib/services/group-service";
 import { groupParamsSchema } from "@/lib/validation/group";
 import { GroupTile } from "./GroupTile";
 import { InviteForm } from "./InviteForm";
@@ -32,6 +37,19 @@ export async function GroupDetail({ params }: GroupDetailProps) {
     throw error;
   }
 
+  // The groups the user can add a cost to, for the form's group picker: not
+  // ones they left or archived ones (AGENTS.md Section 6.6).
+  const addableGroups = group.readOnly
+    ? []
+    : (await listGroups(userId))
+        .filter((summary) => !summary.readOnly)
+        .map(({ id, name, isPersonal, members }) => ({
+          id,
+          name,
+          isPersonal,
+          members,
+        }));
+
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-wrap items-center gap-3">
@@ -47,6 +65,13 @@ export async function GroupDetail({ params }: GroupDetailProps) {
       {group.readOnly ? (
         <p>You can read this group&apos;s history, but not add to it.</p>
       ) : null}
+      {group.readOnly ? null : (
+        <AddExpenseButton
+          groups={addableGroups}
+          currentUserId={userId}
+          defaultGroupId={group.id}
+        />
+      )}
       {!group.isPersonal && !group.readOnly ? (
         <InviteForm groupId={group.id} />
       ) : null}
