@@ -106,6 +106,16 @@ describe("suggestPayments", () => {
     expectCleared(before, payments);
   });
 
+  it("keeps the first split it found when another is just as short", () => {
+    // {a, b} + {c, d} and {a, d} + {c, b} both take two payments.
+    const before = balances({ a: -100, b: 100, c: -100, d: 100 });
+
+    const payments = suggestPayments(before);
+
+    expect(payments).toHaveLength(2);
+    expectCleared(before, payments);
+  });
+
   it("finishes quickly for twelve members with random balances", () => {
     const seeds = [1, 2, 3, 4, 5];
     for (const seed of seeds) {
