@@ -9,6 +9,7 @@ import {
   vi,
 } from "vitest";
 import type { Expense } from "@/lib/db/expenses";
+import type { ListItem } from "@/lib/db/list-items";
 import { AddExpenseButton } from "./AddExpenseButton";
 import type { EntryGroup } from "./EntryForm";
 
@@ -136,5 +137,22 @@ describe("AddExpenseButton", () => {
 
     expect(mocks.refresh).not.toHaveBeenCalled();
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("says what was planned and refreshes the page after a switch to Plan it", async () => {
+    const milk = { id: "i1", title: "🥛 Milk" } as ListItem;
+    mocks.postJson.mockResolvedValue({ ok: true, data: { item: milk } });
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: /Log a cost/ }));
+
+    fireEvent.click(screen.getByRole("radio", { name: "Plan it" }));
+    fireEvent.change(screen.getByLabelText("What is it?"), {
+      target: { value: "🥛 Milk" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
+
+    const notice = await screen.findByRole("status");
+    expect(notice).toHaveTextContent("Added 🥛 Milk to 🏠 Flat's list.");
+    expect(mocks.refresh).toHaveBeenCalled();
   });
 });

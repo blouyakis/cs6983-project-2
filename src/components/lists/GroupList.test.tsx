@@ -14,6 +14,7 @@ import {
   it,
   vi,
 } from "vitest";
+import type { Expense } from "@/lib/db/expenses";
 import type { ListItem } from "@/lib/db/list-items";
 import type { EntryGroup } from "@/components/expenses/EntryForm";
 import { GroupList } from "./GroupList";
@@ -240,5 +241,105 @@ describe("GroupList", () => {
 
     expect(screen.getByText("Planned")).toBeInTheDocument();
     expect(rows()[0]).toHaveTextContent("Added Nov 4");
+  });
+
+  it("opens the edit form as the item is, not as it was left after Cancel", () => {
+    setup();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Dish soap" }));
+    fireEvent.change(screen.getByLabelText("What is it?"), {
+      target: { value: "Hand soap" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Dish soap" }));
+
+    expect(screen.getByLabelText("What is it?")).toHaveValue("Dish soap");
+  });
+
+  it("opens the edit form with the item as the server now has it", () => {
+    const view = setup();
+    fireEvent.click(screen.getByRole("button", { name: "Edit Dish soap" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    // Someone else edited it, and the page was refreshed.
+    const edited = { ...soap, title: "Lemon dish soap" };
+    view.rerender(
+      <GroupList
+        groupId={groupId}
+        isPersonal={false}
+        readOnly={false}
+        items={[edited]}
+        names={{ [ana]: "Ana", [sam]: "Sam" }}
+        currentUserId={ana}
+        entryGroups={[flat]}
+      />,
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit Lemon dish soap" }),
+    );
+
+    expect(screen.getByLabelText("What is it?")).toHaveValue("Lemon dish soap");
+  });
+
+  it("sends one delete however often Delete is pressed while it is on its way", () => {
+    mocks.deleteJson.mockReturnValue(new Promise(() => {}));
+    setup();
+    const remove = screen.getByRole("button", { name: "Delete Dish soap" });
+
+    fireEvent.click(remove);
+    fireEvent.click(remove);
+
+    expect(mocks.deleteJson).toHaveBeenCalledTimes(1);
+    expect(remove).toBeDisabled();
+  });
+
+  it("says what was added to the list, and where", async () => {
+    const milk = item({ title: "🥛 Milk" });
+    mocks.postJson.mockResolvedValue({ ok: true, data: { item: milk } });
+    setup();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
+    fireEvent.change(screen.getByLabelText("What is it?"), {
+      target: { value: "🥛 Milk" },
+    });
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Add to list",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Added 🥛 Milk to Flat's list.",
+      ),
+    );
+    expect(mocks.refresh).toHaveBeenCalled();
+  });
+
+  it("says what was logged after a switch to Already spent", async () => {
+    const expense = {
+      id: "e1",
+      description: "Electricity",
+      amountCents: 1234,
+    } as Expense;
+    mocks.postJson.mockResolvedValue({ ok: true, data: { expense } });
+    setup();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Already spent" }));
+    fireEvent.change(screen.getByLabelText("What was it for?"), {
+      target: { value: "Electricity" },
+    });
+    fireEvent.change(screen.getByLabelText("Amount"), {
+      target: { value: "12.34" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add expense" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Added Electricity ($12.34) to Flat.",
+      ),
+    );
+    expect(mocks.refresh).toHaveBeenCalled();
   });
 });
