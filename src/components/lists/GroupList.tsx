@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { EntryForm, type EntryGroup } from "@/components/expenses/EntryForm";
+import { expenseNotice, planNotice } from "@/components/expenses/entry-notices";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { ListItem } from "@/lib/db/list-items";
 import { openEstimateTotalCents } from "@/lib/domain/list-stats";
@@ -132,8 +133,16 @@ export function GroupList({
             initialMode="plan"
             open={adding}
             onClose={() => setAdding(false)}
-            onPlanned={() => router.refresh()}
-            onAdded={() => router.refresh()}
+            // Either mode, and any group the picker chose, so the notice says
+            // what went where.
+            onPlanned={(item, group) => {
+              setNotice(planNotice(item, group));
+              router.refresh();
+            }}
+            onAdded={(expense, group) => {
+              setNotice(expenseNotice(expense, group));
+              router.refresh();
+            }}
           />
         </>
       )}
