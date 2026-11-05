@@ -14,6 +14,10 @@ type EditListItemFormProps = {
   open: boolean;
   onClose: () => void;
   onSaved: (item: ListItem) => void;
+  // The server refused the edit as a whole, such as a 409 because someone
+  // checked the item off first, or a 404 because someone deleted it. The list
+  // on the page is out of date then. Not called for a field error.
+  onRefused?: () => void;
 };
 
 function textsOf(item: ListItem): ListItemTexts {
@@ -34,6 +38,7 @@ export function EditListItemForm({
   open,
   onClose,
   onSaved,
+  onRefused,
 }: EditListItemFormProps) {
   const [texts, setTexts] = useState(() => textsOf(item));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -60,6 +65,9 @@ export function EditListItemForm({
     }
     setErrors(result.error.fields ?? {});
     setFormError(result.error.fields ? undefined : result.error.message);
+    if (!result.error.fields) {
+      onRefused?.();
+    }
   }
 
   return (

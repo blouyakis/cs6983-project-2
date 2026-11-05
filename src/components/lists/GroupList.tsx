@@ -183,6 +183,7 @@ export function GroupList({
           open={editOpen}
           onClose={() => setEditOpen(false)}
           onSaved={() => router.refresh()}
+          onRefused={() => router.refresh()}
         />
       ) : null}
     </section>
