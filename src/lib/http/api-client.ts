@@ -16,18 +16,24 @@ const NETWORK_ERROR: ApiError = {
   message: "Something went wrong. Try again.",
 };
 
+// A DELETE has no body, so it sends no content type either.
 async function sendJson<T>(
-  method: "POST" | "PATCH",
+  method: "POST" | "PATCH" | "DELETE",
   url: string,
-  body: unknown,
+  body?: unknown,
 ): Promise<ApiResult<T>> {
   let response: Response;
   try {
-    response = await fetch(url, {
-      method,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    response = await fetch(
+      url,
+      method === "DELETE"
+        ? { method }
+        : {
+            method,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          },
+    );
   } catch {
     return { ok: false, error: NETWORK_ERROR };
   }
@@ -63,4 +69,8 @@ export function patchJson<T = unknown>(
   body: unknown,
 ): Promise<ApiResult<T>> {
   return sendJson<T>("PATCH", url, body);
+}
+
+export function deleteJson<T = unknown>(url: string): Promise<ApiResult<T>> {
+  return sendJson<T>("DELETE", url);
 }
