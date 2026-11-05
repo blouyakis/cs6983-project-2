@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { patchJson, postJson } from "./api-client";
+import { deleteJson, patchJson, postJson } from "./api-client";
 
 const login = vi.hoisted(() => ({ goToLogin: vi.fn() }));
 vi.mock("./go-to-login", () => login);
@@ -87,6 +87,27 @@ describe("patchJson", () => {
   });
 });
 
+describe("deleteJson", () => {
+  it("sends a DELETE with no body and succeeds on 204", async () => {
+    const fetchMock = respond(204);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await deleteJson("/api/groups/g1/list-items/i1");
+
+    expect(result).toEqual({ ok: true, data: undefined });
+    expect(fetchMock).toHaveBeenCalledWith("/api/groups/g1/list-items/i1", {
+      method: "DELETE",
+    });
+  });
+
+  it("returns the error body from the OpenAPI spec", async () => {
+    const error = { code: "CONFLICT", message: "Uncheck it first." };
+    vi.stubGlobal("fetch", respond(409, { error }));
+
+    expect(await deleteJson("/api/x")).toEqual({ ok: false, error });
+  });
+});
+
 // AGENTS.md Section 8: an expired session gets 401 and the user is sent to
 // login, instead of a form showing "Please log in to continue." as its error.
 describe("an expired session", () => {
@@ -98,6 +119,14 @@ describe("an expired session", () => {
     vi.stubGlobal("fetch", respond(401, unauthorized));
 
     await postJson("/api/groups", { name: "Flat" });
+
+    expect(login.goToLogin).toHaveBeenCalledTimes(1);
+  });
+
+  it("does the same for a DELETE", async () => {
+    vi.stubGlobal("fetch", respond(401, unauthorized));
+
+    await deleteJson("/api/groups/g1/list-items/i1");
 
     expect(login.goToLogin).toHaveBeenCalledTimes(1);
   });
