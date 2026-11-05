@@ -107,7 +107,7 @@ Writes that touch several tables (registering an account with its personal space
 | Former member (`left_at` set) | Rows created before their `left_at` | `403` |
 | Anyone else, including other users' personal spaces | `403` | `403` |
 
-A personal space is a group with `is_personal = true` and exactly one member, its owner. Invitations to it return `403`.
+A personal space is a group with `is_personal = true` and exactly one member, its owner. Invitations to it return `403`, and so do renaming it and setting its weights, because it has no name or split to change (#23).
 
 `requireGroupAccess` returns the group and `readUntil`: the former member's `left_at`, or null for a current member. A service that lists rows must show a former member only rows created before `readUntil`. A group that does not exist gets the same `403` as one the user is not in, so ids can't be probed. A `groupId` that is not a UUID is rejected with `400` by the route before the service runs. Pages answer both cases with `404` instead: the group page shows not found for a malformed id and for a group the user can't see, so a page never says whether a group exists either.
 

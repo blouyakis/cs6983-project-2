@@ -197,7 +197,8 @@ paths:
         Issues #6, #8. Send `name`, `memberWeights`, or both. The weights
         must list every current member exactly once. They are the default
         for new expenses only; existing expenses keep their shares. Former
-        members and archived groups get 403.
+        members and archived groups get 403, and so does a personal space,
+        which has no name or split to change (#23).
       parameters:
         - $ref: "#/components/parameters/GroupId"
       requestBody:
