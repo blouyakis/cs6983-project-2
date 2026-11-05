@@ -199,3 +199,38 @@ test("the page keeps only the latest notice", async ({ browser }) => {
     main.getByText("Added Sponges to 🏠 Dorm 4B's list."),
   ).toHaveCount(0);
 });
+
+// Radio groups are one Tab stop, and the arrow keys choose within them. The
+// Plan it / Already spent switch shared its radio name with the split editor's
+// Evenly / Custom amounts, so the browser made the four options one group.
+test("the Plan it / Already spent switch works with the keyboard alone", async ({
+  browser,
+}) => {
+  const ana = await newUser(browser, "Ana");
+  await createGroup(ana.page, "🏠 Dorm 4B");
+  const page = ana.page;
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: "Add to list" })
+    .focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "New entry" });
+  const planIt = dialog.getByRole("radio", { name: "Plan it" });
+  const spent = dialog.getByRole("radio", { name: "Already spent" });
+  await expect(planIt).toBeFocused();
+
+  await page.keyboard.press("ArrowRight");
+  await expect(spent).toBeFocused();
+  await expect(spent).toBeChecked();
+  await expect(dialog.getByLabel("Day")).toBeVisible();
+
+  // Tab leaves the switch, and Shift+Tab comes back to the chosen option.
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Shift+Tab");
+  await expect(spent).toBeFocused();
+  await expect(spent).toBeChecked();
+
+  await page.keyboard.press("ArrowLeft");
+  await expect(planIt).toBeChecked();
+  await expect(dialog.getByLabel("What is it?")).toBeVisible();
+});

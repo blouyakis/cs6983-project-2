@@ -460,6 +460,21 @@ describe("EntryForm in Plan it mode", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps Already spent chosen once the split's own switch appears", () => {
+    plan();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Already spent" }));
+
+    // The split editor has a switch of its own. Sharing a radio name with it
+    // made the browser treat all four options as one group.
+    expect(screen.getByRole("radio", { name: "Already spent" })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Evenly" })).toBeChecked();
+    const names = new Set(
+      screen.getAllByRole("radio").map((radio) => radio.getAttribute("name")),
+    );
+    expect(names.size).toBe(3);
+  });
+
   it("starts on Plan it when opened for a plan", () => {
     plan();
 
