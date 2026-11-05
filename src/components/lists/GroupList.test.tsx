@@ -618,6 +618,30 @@ describe("GroupList", () => {
     expect(remove).toHaveFocus();
   });
 
+  // Someone else deleted the item (404) or checked it off (409) first, so the
+  // refresh takes the row's Delete button away and focus would fall to body.
+  it.each([
+    ["NOT_FOUND", "Not found."],
+    ["CONFLICT", "This item is done. Uncheck it first to change it."],
+  ])(
+    "moves focus to the list heading when the delete gets %s, since the refresh takes Delete away",
+    async (code, message) => {
+      mocks.deleteJson.mockResolvedValue({
+        ok: false,
+        error: { code, message },
+      });
+      setup();
+
+      deleteItem("Dish soap");
+      await waitFor(() =>
+        expect(screen.getByRole("status")).toHaveTextContent(message),
+      );
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(listHeading()).toHaveFocus();
+    },
+  );
+
   it("says what was saved after an edit", async () => {
     mocks.patchJson.mockResolvedValue({
       ok: true,
