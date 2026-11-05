@@ -163,4 +163,24 @@ describe("ConfirmDialog", () => {
     expect(cancel).toHaveFocus();
     expect(onCancel).not.toHaveBeenCalled();
   });
+
+  // The action button had focus when it was pressed, and turning it off sends
+  // focus to body in a browser. Cancel is the one control left in the dialog.
+  it("moves focus to Cancel when it becomes busy", () => {
+    const props = {
+      open: true,
+      message:
+        "Delete Groceries? Its $45.10 is removed from everyone's balance.",
+      confirmLabel: "Delete expense",
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    };
+    const { rerender } = render(<ConfirmDialog {...props} busy={false} />);
+    const action = screen.getByRole("button", { name: "Delete expense" });
+    action.focus();
+
+    rerender(<ConfirmDialog {...props} busy />);
+
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
+  });
 });
