@@ -14,6 +14,8 @@ type PaymentCardProps = {
   onAct: (payment: Payment, action: PaymentAction) => void;
   // While an action is being sent, so it isn't sent twice.
   busy?: boolean;
+  // False for a read-only viewer, who gets the card without its button.
+  canAct?: boolean;
 };
 
 // One suggested payment (DESIGN.md "PaymentCard"): "You → Sam" with the
@@ -25,6 +27,7 @@ export function PaymentCard({
   currentUserId,
   onAct,
   busy = false,
+  canAct = true,
 }: PaymentCardProps) {
   const name = (userId: string) =>
     userId === currentUserId ? "You" : (names[userId] ?? "a former member");
@@ -47,6 +50,9 @@ export function PaymentCard({
     action = isRecipient ? "confirmed" : null;
   } else {
     status = "Confirmed · done";
+  }
+  if (!canAct) {
+    action = null;
   }
   const needsYou = action !== null;
 
