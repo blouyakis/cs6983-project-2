@@ -3,6 +3,7 @@ import { AddExpenseButton } from "@/components/expenses/AddExpenseButton";
 import { Badge } from "@/components/ui/Badge";
 import { getSessionUserId } from "@/lib/auth/cookies";
 import { ForbiddenError } from "@/lib/http/errors";
+import { getGroupBalances } from "@/lib/services/balance-service";
 import {
   getGroup,
   listGroups,
@@ -50,6 +51,12 @@ export async function GroupDetail({ params }: GroupDetailProps) {
           members,
         }));
 
+  // Balances are computed on the server per request (#9); the personal space
+  // has nothing to split.
+  const balances = group.isPersonal
+    ? undefined
+    : await getGroupBalances(userId, group.id);
+
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-wrap items-center gap-3">
@@ -60,7 +67,11 @@ export async function GroupDetail({ params }: GroupDetailProps) {
       {group.isPersonal ? (
         <p>Private · nothing here is split or visible to anyone.</p>
       ) : (
-        <MemberList members={group.members} currentUserId={userId} />
+        <MemberList
+          members={group.members}
+          currentUserId={userId}
+          balances={balances}
+        />
       )}
       {group.readOnly ? (
         <p>You can read this group&apos;s history, but not add to it.</p>
