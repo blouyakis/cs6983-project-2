@@ -11,8 +11,12 @@ type ListStatsProps = {
 
 // The card above a list (DESIGN.md "ListStats"): the estimates of the open
 // items, "still to buy" in a group and "planned" in the personal space, which
-// also shows what was spent this month (#23).
-// TODO(#12): add spent and spent versus estimate, which need done items' costs.
+// also shows what was spent this month (#23). That one counts every personal
+// expense dated this month, logged directly or by checking off an item, so the
+// personal list needs no other spent figure.
+// TODO(#12): add spent and spent versus estimate to a shared group's list.
+// They come from done items' costs, so they mean something different from the
+// personal space's spent this month.
 export function ListStats({
   openEstimateCents,
   isPersonal,
