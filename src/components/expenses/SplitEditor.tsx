@@ -74,7 +74,7 @@ export function SplitEditor({
       <h3 className="text-lg font-bold">How is it split?</h3>
       <Toggle
         label="How is it split?"
-        name="mode"
+        name="splitMode"
         options={MODES}
         value={state.mode}
         onChange={(mode) => onChange(chooseMode(state, mode))}

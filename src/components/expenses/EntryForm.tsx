@@ -281,7 +281,9 @@ export function EntryForm({
       </p>
       <Toggle
         label="Kind of entry"
-        name="mode"
+        // Not "mode": the split editor's switch is in the same form, and
+        // radios that share a name are one group to the browser.
+        name="entryKind"
         options={MODES}
         value={fields.mode}
         onChange={chooseMode}
