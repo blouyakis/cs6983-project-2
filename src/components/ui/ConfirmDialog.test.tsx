@@ -135,4 +135,18 @@ describe("ConfirmDialog", () => {
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
   });
+
+  // The action is already on its way, so Cancel can't stop it. It says so
+  // with aria-disabled instead of disabled, so focus still has a place to
+  // stay inside the dialog while the action button is off.
+  it("marks Cancel unavailable while busy and does nothing when it is pressed", () => {
+    const { onCancel } = renderDialog({ busy: true });
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+
+    fireEvent.click(cancel);
+
+    expect(cancel).toHaveAttribute("aria-disabled", "true");
+    expect(cancel).toHaveFocus();
+    expect(onCancel).not.toHaveBeenCalled();
+  });
 });
