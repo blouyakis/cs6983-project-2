@@ -390,6 +390,12 @@ paths:
       responses:
         "204":
           description: Deleted.
+        "400":
+          description: The group id or the item id isn't a UUID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "401":
           $ref: "#/components/responses/Error"
         "403":
