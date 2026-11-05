@@ -1,5 +1,12 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { cleanUp, createGroupWithMembers, createUser, db } from "./fixtures";
+import {
+  cleanUp,
+  createGroupWithMembers,
+  createUser,
+  db,
+  trackUser,
+  uniqueEmail,
+} from "./fixtures";
 
 afterAll(cleanUp);
 
@@ -10,48 +17,50 @@ function membership(groupId: string, userId: string) {
   return { group_id: groupId, user_id: userId, default_share_weight: 1 };
 }
 
-// A personal space with no members yet, created by `ownerId`.
-async function createPersonalSpace(ownerId: string): Promise<string> {
-  const { data, error } = await db
+// An account registered the way the app does it, so its personal space and
+// the owner's membership exist from the start. A user from createUser has no
+// personal space, and ensure_personal_spaces, run by another test file at the
+// same time, could give it one before this file makes its own (#79).
+async function registeredOwner() {
+  const { data, error } = await db.rpc("register_user", {
+    p_email: uniqueEmail(),
+    p_password_hash: "hash",
+    p_name: "Ana",
+  });
+  if (error) {
+    throw error;
+  }
+  const ownerId = data as string;
+  trackUser(ownerId);
+  const space = await db
     .from("groups")
-    .insert({ name: "Personal space", is_personal: true, created_by: ownerId })
     .select("id")
+    .eq("created_by", ownerId)
+    .eq("is_personal", true)
     .single();
-  if (error) {
-    throw error;
+  if (space.error) {
+    throw space.error;
   }
-  return data.id as string;
-}
-
-// A personal space whose owner is already its member.
-async function personalSpaceWithOwner() {
-  const ownerId = await createUser();
-  const spaceId = await createPersonalSpace(ownerId);
-  const { error } = await db
-    .from("group_members")
-    .insert(membership(spaceId, ownerId));
-  if (error) {
-    throw error;
-  }
-  return { ownerId, spaceId };
+  return { ownerId, spaceId: space.data.id as string };
 }
 
 // architecture.md Section 4: a personal space has exactly one member, its
 // owner. inviteMember checks this too, but the database is the last word.
 describe("personal space members", () => {
-  it("lets the owner be the member of their personal space", async () => {
-    const ownerId = await createUser();
-    const spaceId = await createPersonalSpace(ownerId);
+  it("lets register_user make the owner the member of their personal space", async () => {
+    const { ownerId, spaceId } = await registeredOwner();
 
-    const { error } = await db
+    const { data, error } = await db
       .from("group_members")
-      .insert(membership(spaceId, ownerId));
+      .select("user_id")
+      .eq("group_id", spaceId);
 
     expect(error).toBeNull();
+    expect(data).toEqual([{ user_id: ownerId }]);
   });
 
   it("rejects anyone else joining a personal space", async () => {
-    const { spaceId } = await personalSpaceWithOwner();
+    const { spaceId } = await registeredOwner();
     const otherId = await createUser();
 
     const { error } = await db
@@ -63,8 +72,12 @@ describe("personal space members", () => {
   });
 
   it("rejects someone else as the only member of a personal space", async () => {
-    const ownerId = await createUser();
-    const spaceId = await createPersonalSpace(ownerId);
+    const { ownerId, spaceId } = await registeredOwner();
+    await db
+      .from("group_members")
+      .delete()
+      .eq("group_id", spaceId)
+      .eq("user_id", ownerId);
     const otherId = await createUser();
 
     const { error } = await db
@@ -75,7 +88,7 @@ describe("personal space members", () => {
   });
 
   it("rejects someone who left joining as a former member", async () => {
-    const { spaceId } = await personalSpaceWithOwner();
+    const { spaceId } = await registeredOwner();
     const otherId = await createUser();
 
     const { error } = await db.from("group_members").insert({
@@ -88,7 +101,7 @@ describe("personal space members", () => {
   });
 
   it("rejects moving a membership into someone else's personal space", async () => {
-    const { spaceId } = await personalSpaceWithOwner();
+    const { spaceId } = await registeredOwner();
     const { groupId, memberIds } = await createGroupWithMembers(2);
 
     const { error } = await db
@@ -101,7 +114,7 @@ describe("personal space members", () => {
   });
 
   it("rejects handing the owner's membership to someone else", async () => {
-    const { ownerId, spaceId } = await personalSpaceWithOwner();
+    const { ownerId, spaceId } = await registeredOwner();
     const otherId = await createUser();
 
     const { error } = await db
