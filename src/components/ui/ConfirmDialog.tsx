@@ -59,6 +59,14 @@ export function ConfirmDialog({
     }
   }, [open]);
 
+  // The action button had focus when it was pressed, and turning it off sends
+  // focus to body in a browser. Cancel is the one control left in the dialog.
+  useEffect(() => {
+    if (open && busy) {
+      cancelRef.current?.focus();
+    }
+  }, [open, busy]);
+
   // Escape closes this layer only: preventDefault tells an enclosing
   // FormSheet that this Escape was used (see its handleKeyDown).
   function handleKeyDown(event: KeyboardEvent<HTMLDialogElement>) {
@@ -123,8 +131,9 @@ export function ConfirmDialog({
               ref={cancelRef}
               type="button"
               // While busy the action is on its way and Cancel can't stop it.
-              // aria-disabled, not disabled, keeps it focusable, so focus has
-              // somewhere to stay while the action button is off.
+              // aria-disabled, not disabled, keeps it focusable, so focus can
+              // move here and stay in the dialog while the action button is
+              // off.
               aria-disabled={busy || undefined}
               onClick={busy ? undefined : onCancel}
               className="rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold aria-disabled:bg-disabled"
