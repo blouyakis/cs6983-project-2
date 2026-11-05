@@ -68,12 +68,9 @@ export function GroupList({
     setDeleting(next);
   }
 
-  // addedBy can be someone who left before the user joined, whom the user
-  // can't see.
-  function nameOf(userId: string | null): string | null {
-    if (userId === null) {
-      return null;
-    }
+  // addedBy and completedBy can be someone who left before the user joined,
+  // whom the user can't see.
+  function nameOf(userId: string): string {
     if (userId === currentUserId) {
       return "You";
     }
@@ -126,8 +123,10 @@ export function GroupList({
             <ListItemRow
               key={item.id}
               item={item}
-              addedByName={nameOf(item.addedBy) ?? ""}
-              completedByName={nameOf(item.completedBy)}
+              addedByName={nameOf(item.addedBy)}
+              completedByName={
+                item.completedBy === null ? null : nameOf(item.completedBy)
+              }
               isPersonal={isPersonal}
               onEdit={
                 readOnly
