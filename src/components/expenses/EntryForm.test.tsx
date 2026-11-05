@@ -10,6 +10,7 @@ import {
   vi,
 } from "vitest";
 import type { Expense } from "@/lib/db/expenses";
+import type { ListItem } from "@/lib/db/list-items";
 import type { Member } from "@/lib/db/group-members";
 import { splitMessages } from "@/lib/domain/splits";
 import { EntryForm, type EntryGroup } from "./EntryForm";
@@ -422,5 +423,148 @@ describe("EntryForm", () => {
 
     expect(screen.getByLabelText("What was it for?")).toHaveValue("");
     expect(screen.getByLabelText("Amount")).toHaveValue("");
+  });
+});
+
+describe("EntryForm in Plan it mode", () => {
+  const milk = { id: "i1", title: "Milk" } as ListItem;
+
+  function plan(props: Partial<Parameters<typeof EntryForm>[0]> = {}) {
+    const onPlanned = vi.fn();
+    const view = setup({ initialMode: "plan", onPlanned, ...props });
+    return { onPlanned, ...view };
+  }
+
+  function fillPlan(title: string, estimate = "") {
+    fireEvent.change(screen.getByLabelText("What is it?"), {
+      target: { value: title },
+    });
+    fireEvent.change(screen.getByLabelText("Estimated cost"), {
+      target: { value: estimate },
+    });
+  }
+
+  function addToList() {
+    fireEvent.click(screen.getByRole("button", { name: "Add to list" }));
+  }
+
+  it("switches between Plan it and Already spent, starting on Already spent", () => {
+    setup();
+    expect(screen.getByRole("radio", { name: "Already spent" })).toBeChecked();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Plan it" }));
+
+    expect(screen.getByRole("radio", { name: "Plan it" })).toBeChecked();
+    expect(
+      screen.getByRole("button", { name: "Add to list" }),
+    ).toBeInTheDocument();
+  });
+
+  it("starts on Plan it when opened for a plan", () => {
+    plan();
+
+    expect(screen.getByRole("radio", { name: "Plan it" })).toBeChecked();
+  });
+
+  it("asks for a title, an estimate, a quantity and a note, with no day or split", () => {
+    plan();
+
+    expect(screen.getByLabelText("What is it?")).toBeInTheDocument();
+    expect(screen.getByLabelText("Estimated cost")).toBeInTheDocument();
+    expect(screen.getByLabelText("Quantity")).toBeInTheDocument();
+    expect(screen.getByLabelText("Note")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Day")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "How is it split?" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("adds the item to the chosen group's list and reports it", async () => {
+    mocks.postJson.mockResolvedValue({ ok: true, data: { item: milk } });
+    const { onPlanned, onAdded, onClose } = plan();
+
+    fillPlan("Milk", "4.50");
+    addToList();
+
+    await waitFor(() => expect(onPlanned).toHaveBeenCalledWith(milk, flat));
+    expect(mocks.postJson).toHaveBeenCalledWith(
+      `/api/groups/${flat.id}/list-items`,
+      { title: "Milk", quantity: null, note: null, estimatedCents: 450 },
+    );
+    expect(onAdded).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("adds an item with no estimate", async () => {
+    mocks.postJson.mockResolvedValue({ ok: true, data: { item: milk } });
+    const { onPlanned } = plan();
+
+    fillPlan("Take out recycling");
+    addToList();
+
+    await waitFor(() => expect(onPlanned).toHaveBeenCalled());
+    expect(mocks.postJson.mock.calls[0][1]).toMatchObject({
+      estimatedCents: null,
+    });
+  });
+
+  it("adds to the personal space the same way", async () => {
+    mocks.postJson.mockResolvedValue({ ok: true, data: { item: milk } });
+    plan({ defaultGroupId: personal.id });
+
+    fillPlan("Haircut", "35");
+    addToList();
+
+    await waitFor(() =>
+      expect(mocks.postJson).toHaveBeenCalledWith(
+        `/api/groups/${personal.id}/list-items`,
+        expect.objectContaining({ estimatedCents: 3500 }),
+      ),
+    );
+  });
+
+  it("rejects an estimate of $0 next to the field without sending", () => {
+    plan();
+
+    fillPlan("Milk", "0");
+    addToList();
+
+    expect(screen.getByLabelText("Estimated cost")).toHaveAccessibleDescription(
+      expect.stringContaining("Enter an estimate from $0.01"),
+    );
+    expect(mocks.postJson).not.toHaveBeenCalled();
+  });
+
+  it("asks for what it is, next to the field, without sending", () => {
+    plan();
+
+    fillPlan("  ");
+    addToList();
+
+    expect(screen.getByLabelText("What is it?")).toHaveAccessibleDescription(
+      "Enter what to do or buy.",
+    );
+    expect(mocks.postJson).not.toHaveBeenCalled();
+  });
+
+  it("shows the server's field errors next to the fields", async () => {
+    mocks.postJson.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Check the highlighted fields.",
+        fields: { title: "The title must be at most 100 characters." },
+      },
+    });
+    plan();
+
+    fillPlan("Milk");
+    addToList();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("What is it?")).toHaveAccessibleDescription(
+        "The title must be at most 100 characters.",
+      ),
+    );
   });
 });
