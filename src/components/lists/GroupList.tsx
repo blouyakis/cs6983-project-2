@@ -219,24 +219,24 @@ export function GroupList({
               router.refresh();
             }}
           />
+          <ConfirmDialog
+            open={confirming !== undefined}
+            message={
+              confirming === undefined
+                ? ""
+                : `Delete ${splitLeadingEmoji(confirming.title).text}? ${
+                    isPersonal
+                      ? "It comes off your list."
+                      : "It comes off the list for everyone."
+                  }`
+            }
+            confirmLabel="Delete"
+            onConfirm={confirmDelete}
+            onCancel={cancelDelete}
+            busy={confirming !== undefined && deleting.has(confirming.id)}
+          />
         </>
       )}
-      <ConfirmDialog
-        open={confirming !== undefined}
-        message={
-          confirming === undefined
-            ? ""
-            : `Delete ${splitLeadingEmoji(confirming.title).text}? ${
-                isPersonal
-                  ? "It comes off your list."
-                  : "It comes off the list for everyone."
-              }`
-        }
-        confirmLabel="Delete"
-        onConfirm={confirmDelete}
-        onCancel={cancelDelete}
-        busy={confirming !== undefined && deleting.has(confirming.id)}
-      />
       {editing ? (
         <EditListItemForm
           key={editCount}
