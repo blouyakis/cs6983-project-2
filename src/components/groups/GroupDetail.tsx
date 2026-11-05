@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AddExpenseButton } from "@/components/expenses/AddExpenseButton";
 import { ExpenseList } from "@/components/expenses/ExpenseList";
@@ -77,6 +78,15 @@ export async function GroupDetail({ params }: GroupDetailProps) {
           <GroupTile name={group.name} />
           <h1 className="text-3xl font-bold">{group.name}</h1>
           {group.readOnly ? <Badge>Read only</Badge> : null}
+          {group.isPersonal ? null : (
+            <Link
+              href={`/groups/${group.id}/settle-up`}
+              aria-label={`Settle up ${group.name}`}
+              className="ml-auto rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-ink)]"
+            >
+              <span aria-hidden="true">💸 </span>Settle up
+            </Link>
+          )}
         </header>
         {group.isPersonal ? (
           <p>Private · nothing here is split or visible to anyone.</p>
