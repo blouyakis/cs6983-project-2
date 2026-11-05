@@ -31,13 +31,17 @@ test("create a group, invite a member by email, and both see it", async ({
   const sam = await newUser(browser, "Sam");
   const ana = await newUser(browser, "Ana");
 
-  await ana.page.getByRole("link", { name: /Groups/ }).click();
+  // The sidebar's Groups link; the overview has no link of its own (#53).
+  await ana.page.getByRole("link", { name: "Groups" }).click();
   await expect(
     ana.page.getByRole("heading", { level: 1, name: /Your corners of life/ }),
   ).toBeVisible();
   await expect(ana.page.getByText("Shared · 0 groups")).toBeVisible();
 
-  await ana.page.getByRole("button", { name: /New group/ }).click();
+  await ana.page
+    .getByRole("main")
+    .getByRole("button", { name: /New group/ })
+    .click();
   const dialog = ana.page.getByRole("dialog", { name: "New group" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByLabel("Name")).toBeFocused();
@@ -83,7 +87,10 @@ test("the new group form closes with Escape and returns focus", async ({
   await register(page, "Jo", uniqueEmail("jo"));
   await page.goto("/groups");
 
-  const opener = page.getByRole("button", { name: /New group/ });
+  // The sidebar has a New group button too, so look inside the page.
+  const opener = page
+    .getByRole("main")
+    .getByRole("button", { name: /New group/ });
   await opener.click();
   await expect(page.getByRole("dialog", { name: "New group" })).toBeVisible();
 

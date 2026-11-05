@@ -20,12 +20,9 @@ describe("overview page", () => {
     expect(screen.getByRole("button", { name: "Log out" })).toBeInTheDocument();
   });
 
-  it("links to the Groups page until the app shell exists", () => {
+  it("has no Groups link of its own, because the app shell provides one", () => {
     render(<OverviewPage />);
 
-    expect(screen.getByRole("link", { name: /Groups/ })).toHaveAttribute(
-      "href",
-      "/groups",
-    );
+    expect(screen.queryByRole("link", { name: /Groups/ })).toBeNull();
   });
 });
