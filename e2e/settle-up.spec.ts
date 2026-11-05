@@ -95,7 +95,11 @@ test("start a settle-up, pay and confirm the one suggested payment, and the peri
   await expect(
     ana.page.getByRole("heading", { level: 1, name: /Settle up · 🏠 Dorm 4B/ }),
   ).toBeVisible();
-  await expect(ana.page.getByText(/1 unsettled expense/)).toBeVisible();
+  // The count is in the header's context line and in the standings footnote,
+  // so look for the line that has both.
+  await expect(
+    ana.page.getByText(/Open period since .* · 1 unsettled expense$/),
+  ).toBeVisible();
   await expect(standingsRow(ana.page, "You (Ana)")).toContainText(
     "You are owed $22.55",
   );
@@ -152,7 +156,9 @@ test("start a settle-up, pay and confirm the one suggested payment, and the peri
     "You are all settled up",
   );
   await expect(ana.page.getByText("No settle-up is open.")).toBeVisible();
-  await expect(ana.page.getByText(/0 unsettled expenses/)).toBeVisible();
+  await expect(
+    ana.page.getByText(/Open period since .* · 0 unsettled expenses$/),
+  ).toBeVisible();
   const pastPeriods = ana.page.getByRole("region", { name: "Past periods" });
   await expect(pastPeriods.getByRole("listitem")).toHaveCount(1);
   await expect(pastPeriods).toContainText("1 expense · 1 payment");
@@ -199,7 +205,9 @@ test("cancelling a settle-up asks first and leaves the costs unsettled", async (
   );
   await expect(ana.page.getByText("No settle-up is open.")).toBeVisible();
   await expect(standingsRow(ana.page, "Sam")).toContainText("Sam owes $22.55");
-  await expect(ana.page.getByText(/1 unsettled expense/)).toBeVisible();
+  await expect(
+    ana.page.getByText(/Open period since .* · 1 unsettled expense$/),
+  ).toBeVisible();
 
   // And it can be started again.
   await ana.page.getByRole("button", { name: /Start settle-up/ }).click();
