@@ -442,6 +442,38 @@ describe("GroupList", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  // A second confirm that lands before React re-renders the button as busy is
+  // turned away by deletingRef. It must not close the dialog while the first
+  // DELETE is still on its way.
+  it("stays open when Delete is confirmed twice before a re-render, then moves focus to the heading", async () => {
+    let finish: (value: unknown) => void = () => {};
+    mocks.deleteJson.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    setup();
+    const remove = screen.getByRole("button", { name: "Delete Dish soap" });
+    remove.focus();
+    fireEvent.click(remove);
+    const confirm = within(confirmDialog()).getByRole("button", {
+      name: "Delete",
+    });
+
+    await act(async () => {
+      confirm.click();
+      confirm.click();
+    });
+
+    expect(mocks.deleteJson).toHaveBeenCalledTimes(1);
+    expect(confirmDialog()).toBeInTheDocument();
+    await act(async () => {
+      finish({ ok: true, data: undefined });
+    });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(listHeading()).toHaveFocus();
+  });
+
   it("keeps the last notice when a delete is cancelled, since nothing changed", async () => {
     mocks.patchJson.mockResolvedValue({ ok: true, data: { item: soap } });
     setup();
