@@ -27,6 +27,8 @@ type GroupListProps = {
   currentUserId: string;
   // The groups the New entry form can add to, for its group picker.
   entryGroups: EntryGroup[];
+  // What the personal space spent this month, for ListStats. Null in a group.
+  spentThisMonthCents: number | null;
 };
 
 // A group's or the personal space's list (user flow 2, DESIGN.md "Lists").
@@ -40,6 +42,7 @@ export function GroupList({
   names,
   currentUserId,
   entryGroups,
+  spentThisMonthCents,
 }: GroupListProps) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
@@ -108,6 +111,7 @@ export function GroupList({
       <ListStats
         openEstimateCents={openEstimateTotalCents(items)}
         isPersonal={isPersonal}
+        spentThisMonthCents={spentThisMonthCents}
       />
       <div className="flex items-baseline justify-between gap-3">
         <h2 id="list-heading" className="text-xl font-bold">

@@ -5,6 +5,7 @@ import { GroupList } from "@/components/lists/GroupList";
 import { Badge } from "@/components/ui/Badge";
 import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import { getSessionUserId } from "@/lib/auth/cookies";
+import { monthOf, spentInMonthCents } from "@/lib/domain/list-stats";
 import { ForbiddenError } from "@/lib/http/errors";
 import { getGroupBalances } from "@/lib/services/balance-service";
 import { listGroupExpenses } from "@/lib/services/expense-service";
@@ -64,6 +65,11 @@ export async function GroupDetail({ params }: GroupDetailProps) {
     : await getGroupBalances(userId, group.id);
   const expenses = await listGroupExpenses(userId, group.id);
   const items = await listGroupListItems(userId, group.id);
+  // The personal list shows this month's spending (#23). Every expense in the
+  // personal space is the owner's alone, so it adds up the amounts.
+  const spentThisMonthCents = group.isPersonal
+    ? spentInMonthCents(expenses, monthOf(new Date()))
+    : null;
   const names = Object.fromEntries(
     group.members.map((member) => [member.userId, member.name]),
   );
@@ -106,6 +112,7 @@ export async function GroupDetail({ params }: GroupDetailProps) {
           names={names}
           currentUserId={userId}
           entryGroups={addableGroups}
+          spentThisMonthCents={spentThisMonthCents}
         />
         <ExpenseList
           expenses={expenses}
