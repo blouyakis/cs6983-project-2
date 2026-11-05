@@ -7,6 +7,7 @@ import {
   chooseSharers,
   initialSplitState,
   resolveSplit,
+  savedSplitState,
   typeAmount,
 } from "./split-state";
 
@@ -257,5 +258,53 @@ describe("resolveSplit", () => {
         amountCents: expect.stringContaining("Enter an amount"),
       },
     });
+  });
+});
+
+describe("savedSplitState", () => {
+  it("opens on Custom amounts filled in with the saved shares, so opening the form never changes the split", () => {
+    const state = savedSplitState(
+      [
+        { userId: ana, shareCents: 501 },
+        { userId: jo, shareCents: 500 },
+      ],
+      people(),
+    );
+
+    expect(state).toEqual({
+      mode: "custom",
+      sharedBy: [ana, jo],
+      typed: { [ana]: "5.01", [jo]: "5.00" },
+    });
+    expect(amountTexts(state, people(), ana, 1001)).toEqual({
+      [ana]: "5.01",
+      [jo]: "5.00",
+    });
+  });
+
+  it("keeps the sharers in the members' order, whatever order the shares came in", () => {
+    const state = savedSplitState(
+      [
+        { userId: jo, shareCents: 1 },
+        { userId: ana, shareCents: 1 },
+      ],
+      people(),
+    );
+
+    expect(state.sharedBy).toEqual([ana, jo]);
+  });
+
+  it("leaves out a sharer who is no longer a member, because an edit can't keep them", () => {
+    const gone = "9c4f5071-1111-4222-8333-944455556666";
+    const state = savedSplitState(
+      [
+        { userId: ana, shareCents: 1 },
+        { userId: gone, shareCents: 1 },
+      ],
+      people(),
+    );
+
+    expect(state.sharedBy).toEqual([ana]);
+    expect(state.typed).toEqual({ [ana]: "0.01" });
   });
 });

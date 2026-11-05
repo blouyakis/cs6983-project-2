@@ -1,9 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { AddExpenseButton } from "@/components/expenses/AddExpenseButton";
+import { ExpenseList } from "@/components/expenses/ExpenseList";
 import { Badge } from "@/components/ui/Badge";
 import { getSessionUserId } from "@/lib/auth/cookies";
 import { ForbiddenError } from "@/lib/http/errors";
 import { getGroupBalances } from "@/lib/services/balance-service";
+import { listGroupExpenses } from "@/lib/services/expense-service";
 import {
   getGroup,
   listGroups,
@@ -56,6 +58,7 @@ export async function GroupDetail({ params }: GroupDetailProps) {
   const balances = group.isPersonal
     ? undefined
     : await getGroupBalances(userId, group.id);
+  const expenses = await listGroupExpenses(userId, group.id);
 
   return (
     <div className="flex flex-col gap-8">
@@ -83,6 +86,13 @@ export async function GroupDetail({ params }: GroupDetailProps) {
           defaultGroupId={group.id}
         />
       )}
+      <ExpenseList
+        expenses={expenses}
+        members={group.members}
+        currentUserId={userId}
+        groupName={group.name}
+        readOnly={group.readOnly}
+      />
       {!group.isPersonal && !group.readOnly ? (
         <InviteForm groupId={group.id} />
       ) : null}

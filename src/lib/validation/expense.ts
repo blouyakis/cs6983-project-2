@@ -58,3 +58,17 @@ export const createExpenseSchema = z
   .and(splitSchema);
 
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
+
+// The body of PATCH /api/groups/{groupId}/expenses/{expenseId} (#20). An edit
+// replaces the description, amount, day and split together, so it takes the
+// same fields as creating. There is still no payer: it can't be changed
+// (AGENTS.md Section 6.7), and one sent anyway is dropped.
+export const updateExpenseSchema = createExpenseSchema;
+
+export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
+
+// The path parameters of /api/groups/{groupId}/expenses/{expenseId}.
+export const expenseParamsSchema = z.object({
+  groupId: z.uuid({ error: "Group id must be a UUID." }),
+  expenseId: z.uuid({ error: "Expense id must be a UUID." }),
+});

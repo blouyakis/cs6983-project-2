@@ -377,6 +377,37 @@ describe("FormSheet", () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
+    // React re-dispatches a dialog's close and cancel events up its own
+    // tree, although they don't bubble in the DOM, so a ConfirmDialog
+    // closing inside the form would otherwise close the form too (#20).
+    it("ignores close and cancel events from a dialog nested inside it", () => {
+      const onClose = vi.fn();
+      render(
+        <FormSheet
+          open
+          title="Edit expense"
+          primaryLabel="Save changes"
+          onSubmit={vi.fn()}
+          onClose={onClose}
+        >
+          <dialog data-testid="nested" open>
+            <p>Delete it?</p>
+          </dialog>
+        </FormSheet>,
+      );
+      const nested = screen.getByTestId("nested") as HTMLDialogElement;
+
+      act(() => {
+        nested.dispatchEvent(new Event("cancel", { cancelable: true }));
+        nested.close();
+      });
+
+      expect(onClose).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole("dialog", { name: "Edit expense" }),
+      ).toBeInTheDocument();
+    });
+
     it("returns focus to the opener and opens again after the browser closes it", () => {
       render(<Opener />);
       const opener = screen.getByRole("button", { name: "New group" });

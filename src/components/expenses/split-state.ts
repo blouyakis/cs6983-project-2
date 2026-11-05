@@ -57,6 +57,31 @@ export function initialSplitState(members: readonly Member[]): SplitState {
   };
 }
 
+// When editing an expense: Custom amounts filled in with the shares already
+// saved, so opening the form never changes the split (DESIGN.md
+// "SplitEditor"). Sharers come in the members' order. Someone who has since
+// left the group is dropped, because the server won't accept them in an edit;
+// the payer can put the cost back on the others.
+export function savedSplitState(
+  shares: readonly Share[],
+  members: readonly Member[],
+): SplitState {
+  const saved = new Map(shares.map((share) => [share.userId, share]));
+  const sharedBy = members
+    .map((member) => member.userId)
+    .filter((userId) => saved.has(userId));
+  return {
+    mode: "custom",
+    sharedBy,
+    typed: Object.fromEntries(
+      sharedBy.map((userId) => [
+        userId,
+        centsToInputText(saved.get(userId)!.shareCents),
+      ]),
+    ),
+  };
+}
+
 // The text in each custom amount field, by user id. Blank when the amount is
 // too large to split, which the amount field reports.
 export function amountTexts(

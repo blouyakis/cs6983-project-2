@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getGroup: vi.fn(),
   listGroups: vi.fn(),
   getGroupBalances: vi.fn(),
+  listGroupExpenses: vi.fn(),
   redirect: vi.fn(),
   notFound: vi.fn(),
 }));
@@ -21,6 +22,15 @@ vi.mock("@/lib/services/group-service", () => ({
 }));
 vi.mock("@/lib/services/balance-service", () => ({
   getGroupBalances: mocks.getGroupBalances,
+}));
+vi.mock("@/lib/services/expense-service", () => ({
+  listGroupExpenses: mocks.listGroupExpenses,
+}));
+// The list has its own tests. Here it only has to be given the expenses.
+vi.mock("@/components/expenses/ExpenseList", () => ({
+  ExpenseList: (props: object) => (
+    <div data-testid="expense-list" data-props={JSON.stringify(props)} />
+  ),
 }));
 // The button is a Client Component with its own tests. Here it only has to be
 // given the right groups.
@@ -80,7 +90,14 @@ beforeEach(() => {
   mocks.getSessionUserId.mockResolvedValue(anaId);
   mocks.listGroups.mockResolvedValue([]);
   mocks.getGroupBalances.mockResolvedValue([]);
+  mocks.listGroupExpenses.mockResolvedValue([]);
 });
+
+function expenseListProps() {
+  return JSON.parse(
+    screen.getByTestId("expense-list").getAttribute("data-props") ?? "{}",
+  );
+}
 
 describe("GroupDetail", () => {
   it("shows each member's balance in words on the group page (#9)", async () => {
@@ -107,6 +124,33 @@ describe("GroupDetail", () => {
     render(await detail());
 
     expect(mocks.getGroupBalances).not.toHaveBeenCalled();
+  });
+
+  it("lists the group's costs, with what the edit form needs (#20)", async () => {
+    mocks.getGroup.mockResolvedValue(details());
+    const groceries = { id: "e", description: "Groceries" };
+    mocks.listGroupExpenses.mockResolvedValue([groceries]);
+
+    render(await detail());
+
+    expect(mocks.listGroupExpenses).toHaveBeenCalledWith(anaId, groupId);
+    expect(expenseListProps()).toMatchObject({
+      expenses: [groceries],
+      members: details().members,
+      currentUserId: anaId,
+      groupName: "🏠 Dorm 4B",
+      readOnly: false,
+    });
+  });
+
+  it("tells the list when the group is read-only, so nothing offers an edit", async () => {
+    mocks.getGroup.mockResolvedValue(
+      details({ readOnly: true, archivedAt: "2026-10-20T00:00:00+00:00" }),
+    );
+
+    render(await detail());
+
+    expect(expenseListProps().readOnly).toBe(true);
   });
 
   it("shows the group's name, its members and the invite form", async () => {
