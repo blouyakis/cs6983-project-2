@@ -95,8 +95,11 @@ export function ConfirmDialog({
     onCancel();
   }
 
+  // A browser fires close a task after dialog.close(). If the dialog was
+  // shown again in between (Escape, then a quick Enter on the same button),
+  // it is open now, and that late event must not cancel the new question.
   function handleClose() {
-    if (open) {
+    if (open && !dialogRef.current?.open) {
       onCancel();
     }
   }
