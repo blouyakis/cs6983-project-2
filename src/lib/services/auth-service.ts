@@ -4,7 +4,7 @@ import { signSession } from "@/lib/auth/session";
 import {
   findUserByEmail,
   findUserById,
-  insertUser,
+  registerUser,
   type User,
 } from "@/lib/db/users";
 import { ConflictError, UnauthorizedError } from "@/lib/http/errors";
@@ -19,14 +19,18 @@ export async function register(input: RegisterInput): Promise<AuthResult> {
   if (await findUserByEmail(input.email)) {
     throw new ConflictError("An account with this email already exists.");
   }
-  // insertUser also throws ConflictError if another request takes the email
-  // between the check above and the insert.
-  // TODO(#23): create the user's personal space in the same transaction.
-  const user = await insertUser({
+  // registerUser also throws ConflictError if another request takes the
+  // email between the check above and the insert. It creates the account and
+  // its personal space together (#66), so a user never exists without one.
+  const userId = await registerUser({
     email: input.email,
     name: input.name,
     passwordHash: await hashPassword(input.password),
   });
+  const user = await findUserById(userId);
+  if (!user) {
+    throw new Error("The new account could not be loaded.");
+  }
   return { user, token: await signSession(user.id) };
 }
 
