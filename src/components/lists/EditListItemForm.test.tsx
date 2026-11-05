@@ -49,10 +49,17 @@ const milk: ListItem = {
 function setup() {
   const onClose = vi.fn();
   const onSaved = vi.fn();
+  const onRefused = vi.fn();
   render(
-    <EditListItemForm item={milk} open onClose={onClose} onSaved={onSaved} />,
+    <EditListItemForm
+      item={milk}
+      open
+      onClose={onClose}
+      onSaved={onSaved}
+      onRefused={onRefused}
+    />,
   );
-  return { onClose, onSaved };
+  return { onClose, onSaved, onRefused };
 }
 
 function save() {
@@ -127,5 +134,38 @@ describe("EditListItemForm", () => {
     ).toBeInTheDocument();
     expect(onSaved).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("reports when the server refuses the edit, so the list can be refreshed", async () => {
+    mocks.patchJson.mockResolvedValue({
+      ok: false,
+      error: { code: "CONFLICT", message: "This item is done." },
+    });
+    const { onRefused } = setup();
+
+    save();
+
+    await waitFor(() => expect(onRefused).toHaveBeenCalled());
+  });
+
+  it("doesn't report a field error from the server as a refusal", async () => {
+    mocks.patchJson.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Check the highlighted fields.",
+        fields: { title: "The title must be at most 100 characters." },
+      },
+    });
+    const { onRefused } = setup();
+
+    save();
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("What is it?")).toHaveAccessibleDescription(
+        "The title must be at most 100 characters.",
+      ),
+    );
+    expect(onRefused).not.toHaveBeenCalled();
   });
 });

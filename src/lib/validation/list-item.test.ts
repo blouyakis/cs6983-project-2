@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MAX_CENTS } from "@/lib/domain/splits";
 import { ValidationError } from "@/lib/http/errors";
 import {
+  MAX_QUANTITY,
   createListItemSchema,
   listItemParamsSchema,
   updateListItemSchema,
@@ -88,7 +89,7 @@ describe("createListItemSchema", () => {
     ).toEqual({ note: "The note must be at most 200 characters." });
   });
 
-  it.each([0, -1, 1.5, "2", MAX_CENTS + 1])(
+  it.each([0, -1, 1.5, "2", MAX_QUANTITY + 1])(
     "rejects a quantity of %j",
     (quantity) => {
       expect(
@@ -174,5 +175,11 @@ describe("listItemParamsSchema", () => {
     expect(() =>
       parseInput(listItemParamsSchema, { groupId: GROUP, itemId: "1" }),
     ).toThrow(ValidationError);
+  });
+
+  describe("MAX_QUANTITY", () => {
+    it("is the largest Postgres integer, the column's own limit", () => {
+      expect(MAX_QUANTITY).toBe(2_147_483_647);
+    });
   });
 });

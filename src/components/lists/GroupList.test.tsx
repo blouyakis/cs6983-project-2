@@ -380,4 +380,89 @@ describe("GroupList", () => {
     );
     expect(screen.getByRole("status")).toHaveClass("text-owe");
   });
+
+  it("keeps Delete off after the item is deleted, until the refresh removes the row", async () => {
+    mocks.deleteJson.mockResolvedValue({ ok: true, data: undefined });
+    setup();
+    const remove = screen.getByRole("button", { name: "Delete Dish soap" });
+
+    fireEvent.click(remove);
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Deleted Dish soap.",
+      ),
+    );
+    fireEvent.click(remove);
+
+    expect(remove).toBeDisabled();
+    expect(mocks.deleteJson).toHaveBeenCalledTimes(1);
+  });
+
+  it("turns Delete back on when the delete fails, so it can be tried again", async () => {
+    mocks.deleteJson.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "NETWORK_ERROR",
+        message: "Something went wrong. Try again.",
+      },
+    });
+    setup();
+    const remove = screen.getByRole("button", { name: "Delete Dish soap" });
+
+    fireEvent.click(remove);
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Something went wrong. Try again.",
+      ),
+    );
+
+    expect(remove).toBeEnabled();
+  });
+
+  it("says what was saved after an edit", async () => {
+    mocks.patchJson.mockResolvedValue({
+      ok: true,
+      data: { item: { ...soap, title: "🧼 Dish soap" } },
+    });
+    setup();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Dish soap" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("Saved Dish soap."),
+    );
+    expect(screen.getByRole("status")).toHaveClass("text-action");
+  });
+
+  it("clears the last notice when the edit form opens", async () => {
+    mocks.deleteJson.mockResolvedValue({ ok: true, data: undefined });
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: "Delete Light bulbs" }));
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Deleted Light bulbs.",
+      ),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Dish soap" }));
+
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("refreshes the list when an edit is refused, since someone changed the item first", async () => {
+    mocks.patchJson.mockResolvedValue({
+      ok: false,
+      error: { code: "NOT_FOUND", message: "This item isn't on the list." },
+    });
+    setup();
+
+    fireEvent.click(screen.getByRole("button", { name: "Edit Dish soap" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalled());
+    expect(
+      screen.getByText("This item isn't on the list."),
+    ).toBeInTheDocument();
+  });
 });
