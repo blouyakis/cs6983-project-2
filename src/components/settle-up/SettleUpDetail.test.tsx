@@ -132,8 +132,10 @@ describe("SettleUpDetail", () => {
   it("shows where everyone stands in words", async () => {
     render(await detail());
 
-    expect(screen.getByText("You owe $15.00")).toBeInTheDocument();
-    expect(screen.getByText("Sam is owed $15.00")).toBeInTheDocument();
+    // MoneyText puts the amount in its own element, so match the row's text.
+    const rows = screen.getAllByRole("listitem").map((row) => row.textContent);
+    expect(rows).toContainEqual(expect.stringContaining("You owe $15.00"));
+    expect(rows).toContainEqual(expect.stringContaining("Sam is owed $15.00"));
   });
 
   it("gives the panel no settle-up when none is open", async () => {
