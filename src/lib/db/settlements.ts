@@ -137,6 +137,20 @@ export async function findOpenSettlement(
   return data ? toSettlement(data) : null;
 }
 
+export async function findSettlement(
+  settlementId: string,
+): Promise<Settlement | null> {
+  const { data, error } = await getDb()
+    .from("settlements")
+    .select(SETTLEMENT_COLUMNS)
+    .eq("id", settlementId)
+    .maybeSingle<SettlementRow>();
+  if (error) {
+    throw new Error(`Could not load the settle-up: ${error.message}`);
+  }
+  return data ? toSettlement(data) : null;
+}
+
 export async function listSettlementPayments(
   settlementId: string,
 ): Promise<Payment[]> {
