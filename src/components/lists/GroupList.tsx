@@ -30,9 +30,11 @@ type GroupListProps = {
   entryGroups: EntryGroup[];
 };
 
-// A failed delete with one of these codes means the item is no longer open:
-// someone else deleted it (404) or checked it off (409) first.
-const GONE_FROM_OPEN = new Set(["NOT_FOUND", "CONFLICT"]);
+// A failed delete with one of these codes means the refresh takes the row's
+// Delete button away: someone else deleted the item (404) or checked it off
+// (409) first, or the user can no longer change the list (403: they left in
+// another tab, or the group was archived).
+const DELETE_GOES_AWAY = new Set(["NOT_FOUND", "CONFLICT", "FORBIDDEN"]);
 
 // A group's or the personal space's list (user flow 2, DESIGN.md "Lists").
 // Any current member can add, edit or delete an open item. After a change the
@@ -66,8 +68,8 @@ export function GroupList({
   const headingRef = useRef<HTMLHeadingElement>(null);
   // Set when a confirmed delete leaves the row without a Delete button to go
   // back to: it stays disabled until the refresh removes a deleted item, and
-  // the refresh takes it away when someone else deleted or checked off the
-  // item first. The ConfirmDialog can't give it focus back, so the heading
+  // the refresh takes it away after some failures (DELETE_GOES_AWAY). The
+  // ConfirmDialog can't give it focus back, so the heading
   // gets it instead.
   const focusHeadingRef = useRef(false);
   // What a confirmed delete did, held until the dialog has closed. While the
@@ -112,8 +114,8 @@ export function GroupList({
   }
 
   // Sends the delete. confirmDelete makes sure it is sent once. True when the
-  // row loses its Delete button: the item is gone, or the server says someone
-  // else deleted it (404) or checked it off (409) first.
+  // row loses its Delete button: the item is gone, or the failure is one in
+  // DELETE_GOES_AWAY.
   async function remove(item: ListItem): Promise<boolean> {
     markDeleting(item.id, true);
     clear();
@@ -131,7 +133,7 @@ export function GroupList({
     }
     // On a 409 someone checked it off first, so the list is out of date too.
     router.refresh();
-    return result.ok || GONE_FROM_OPEN.has(result.error.code);
+    return result.ok || DELETE_GOES_AWAY.has(result.error.code);
   }
 
   // The dialog stays open until the answer comes back, so the notice and the
