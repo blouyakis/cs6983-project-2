@@ -41,7 +41,10 @@ export function GroupList({
 }: GroupListProps) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
+  // The item stays after the form closes, so FormSheet sees open turn false
+  // and returns focus to the Edit button, instead of being unmounted first.
   const [editing, setEditing] = useState<ListItem>();
+  const [editOpen, setEditOpen] = useState(false);
   const [notice, setNotice] = useState<string>();
 
   // addedBy can be someone who left before the user joined, whom the user
@@ -92,7 +95,14 @@ export function GroupList({
               addedByName={nameOf(item.addedBy) ?? ""}
               completedByName={nameOf(item.completedBy)}
               isPersonal={isPersonal}
-              onEdit={readOnly ? undefined : setEditing}
+              onEdit={
+                readOnly
+                  ? undefined
+                  : (chosen) => {
+                      setEditing(chosen);
+                      setEditOpen(true);
+                    }
+              }
               onDelete={readOnly ? undefined : remove}
             />
           ))}
@@ -131,8 +141,8 @@ export function GroupList({
         <EditListItemForm
           key={editing.id}
           item={editing}
-          open
-          onClose={() => setEditing(undefined)}
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
           onSaved={() => router.refresh()}
         />
       ) : null}
