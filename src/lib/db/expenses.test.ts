@@ -1,8 +1,17 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createExpense, findExpense, listExpenses } from "./expenses";
+import {
+  createExpense,
+  deleteExpense,
+  findExpense,
+  listExpenses,
+  updateExpense,
+} from "./expenses";
 
-type Result = { data: unknown; error: { message: string } | null };
+type Result = {
+  data: unknown;
+  error: { message: string; code?: string } | null;
+};
 
 const calls: { name: string; args: unknown }[] = [];
 const queries: { method: string; args: unknown[] }[] = [];
@@ -10,7 +19,7 @@ let result: Result;
 
 function queryBuilder() {
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "lte", "order"]) {
+  for (const method of ["select", "eq", "lte", "order", "delete"]) {
     builder[method] = (...args: unknown[]) => {
       queries.push({ method, args });
       return builder;
@@ -214,6 +223,85 @@ describe("findExpense", () => {
 
     await expect(findExpense(expenseId)).rejects.toThrow(
       "Could not load the expense: boom",
+    );
+  });
+});
+
+const edit = {
+  description: "Power",
+  amountCents: 5001,
+  spentOn: "2026-10-21",
+  shares: [
+    { userId: payerId, shareCents: 2501 },
+    { userId: samId, shareCents: 2500 },
+  ],
+};
+
+describe("updateExpense", () => {
+  beforeEach(() => {
+    result = { data: null, error: null };
+  });
+
+  it("replaces the expense and its shares in one call to update_expense", async () => {
+    await updateExpense(expenseId, edit);
+
+    expect(calls).toEqual([
+      {
+        name: "update_expense",
+        args: {
+          p_expense_id: expenseId,
+          p_description: "Power",
+          p_amount_cents: 5001,
+          p_spent_on: "2026-10-21",
+          p_shares: [
+            { user_id: payerId, share_cents: 2501 },
+            { user_id: samId, share_cents: 2500 },
+          ],
+        },
+      },
+    ]);
+  });
+
+  it("turns the database's settled refusal into a 409", async () => {
+    result = {
+      data: null,
+      error: { message: "A settled expense can't be changed.", code: "P0001" },
+    };
+
+    await expect(updateExpense(expenseId, edit)).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it("throws when the database rejects it for any other reason", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(updateExpense(expenseId, edit)).rejects.toThrow(
+      "Could not update the expense: boom",
+    );
+  });
+});
+
+describe("deleteExpense", () => {
+  beforeEach(() => {
+    result = { data: null, error: null };
+  });
+
+  it("deletes the expense row; its shares cascade and a list item keeps its done state", async () => {
+    await deleteExpense(expenseId);
+
+    expect(queries).toEqual([
+      { method: "from", args: ["expenses"] },
+      { method: "delete", args: [] },
+      { method: "eq", args: ["id", expenseId] },
+    ]);
+  });
+
+  it("throws when the database rejects it", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(deleteExpense(expenseId)).rejects.toThrow(
+      "Could not delete the expense: boom",
     );
   });
 });
