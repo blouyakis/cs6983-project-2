@@ -44,8 +44,11 @@ export function GroupList({
   const [adding, setAdding] = useState(false);
   // The item stays after the form closes, so FormSheet sees open turn false
   // and returns focus to the Edit button, instead of being unmounted first.
+  // Each opening gets a new key, so the form starts from the item as the page
+  // has it now, not from what was typed and cancelled last time.
   const [editing, setEditing] = useState<ListItem>();
   const [editOpen, setEditOpen] = useState(false);
+  const [editCount, setEditCount] = useState(0);
   const [notice, setNotice] = useState<string>();
 
   // addedBy can be someone who left before the user joined, whom the user
@@ -101,6 +104,7 @@ export function GroupList({
                   ? undefined
                   : (chosen) => {
                       setEditing(chosen);
+                      setEditCount((count) => count + 1);
                       setEditOpen(true);
                     }
               }
@@ -148,7 +152,7 @@ export function GroupList({
       )}
       {editing ? (
         <EditListItemForm
-          key={editing.id}
+          key={editCount}
           item={editing}
           open={editOpen}
           onClose={() => setEditOpen(false)}
