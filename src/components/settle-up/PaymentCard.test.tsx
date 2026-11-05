@@ -1,5 +1,4 @@
-import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Payment } from "@/lib/db/settlements";
 import { PaymentCard } from "./PaymentCard";
@@ -61,7 +60,7 @@ describe("PaymentCard", () => {
   it("offers the sender I paid this while it is suggested, and nobody else", async () => {
     const onAct = card(suggested, anaId);
 
-    await userEvent.click(screen.getByRole("button", { name: /I paid this/ }));
+    fireEvent.click(screen.getByRole("button", { name: /I paid this/ }));
 
     expect(onAct).toHaveBeenCalledWith(suggested, "paid");
     expect(
@@ -89,7 +88,7 @@ describe("PaymentCard", () => {
     expect(
       screen.getByText("Marked paid · waiting for you to confirm"),
     ).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /I got it/ }));
+    fireEvent.click(screen.getByRole("button", { name: /I got it/ }));
 
     expect(onAct).toHaveBeenCalledWith(paid, "confirmed");
   });

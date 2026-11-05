@@ -59,8 +59,11 @@ describe("StandingsCard", () => {
       expect(bar).toHaveAttribute("aria-hidden", "true");
     }
     // Sam is owed the most, so his bar is the full width.
-    expect(bars[1].getAttribute("style")).toContain("100%");
-    expect(bars[0].getAttribute("style")).toContain("73.8");
+    const widths = Array.from(bars, (bar) =>
+      bar.firstElementChild?.getAttribute("style"),
+    );
+    expect(widths[1]).toContain("100%");
+    expect(widths[0]).toContain("73.8%");
   });
 
   it("says how many expenses are unsettled and links to the bill", () => {
