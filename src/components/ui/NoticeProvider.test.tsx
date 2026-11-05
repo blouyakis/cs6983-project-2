@@ -1,112 +1,74 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { NoticeProvider, useNotice } from "./NoticeProvider";
+import { describe, expect, it, vi } from "vitest";
+import { NoticeLine, NoticeProvider, useNotice } from "./NoticeProvider";
 
-// A button that posts a notice, and the status region that shows it.
-function Poster({ source, text }: { source: string; text: string }) {
-  const { notice, show } = useNotice(source);
+// A part of the page that posts notices, such as the list or Log a cost.
+function Poster({ name, text }: { name: string; text: string }) {
+  const { show, clear } = useNotice();
   return (
     <div>
       <button type="button" onClick={() => show(text, "done")}>
-        Post from {source}
+        Post from {name}
       </button>
       <button type="button" onClick={() => show(`${text} failed`, "problem")}>
-        Fail from {source}
+        Fail from {name}
       </button>
-      <p role="status" aria-label={source} data-tone={notice?.tone}>
-        {notice?.text}
-      </p>
+      <button type="button" onClick={clear}>
+        Clear from {name}
+      </button>
     </div>
   );
 }
 
-function region(source: string) {
-  return screen.getByRole("status", { name: source });
+function page() {
+  return render(
+    <NoticeProvider>
+      <Poster name="costs" text="Added Sponges." />
+      <NoticeLine />
+      <Poster name="list" text="Deleted Sponges." />
+    </NoticeProvider>,
+  );
 }
 
 describe("NoticeProvider", () => {
-  it("shows a notice where it was posted", () => {
-    render(
-      <NoticeProvider>
-        <Poster source="costs" text="Added Electricity." />
-        <Poster source="list" text="Deleted Milk." />
-      </NoticeProvider>,
-    );
+  it("shows every notice in the one place on the page", () => {
+    page();
 
+    expect(screen.getAllByRole("status")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Post from costs" }));
-
-    expect(region("costs")).toHaveTextContent("Added Electricity.");
-    expect(region("list")).toBeEmptyDOMElement();
-  });
-
-  it("clears the last notice elsewhere on the page when a new one is posted", () => {
-    render(
-      <NoticeProvider>
-        <Poster source="costs" text="Added Sponges." />
-        <Poster source="list" text="Deleted Sponges." />
-      </NoticeProvider>,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Post from costs" }));
-    fireEvent.click(screen.getByRole("button", { name: "Post from list" }));
-
-    expect(region("costs")).toBeEmptyDOMElement();
-    expect(region("list")).toHaveTextContent("Deleted Sponges.");
-  });
-
-  it("says whether it is news or a problem", () => {
-    render(
-      <NoticeProvider>
-        <Poster source="list" text="Deleted Milk." />
-      </NoticeProvider>,
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("Added Sponges.");
 
     fireEvent.click(screen.getByRole("button", { name: "Post from list" }));
-    expect(region("list")).toHaveAttribute("data-tone", "done");
+    expect(screen.getByRole("status")).toHaveTextContent("Deleted Sponges.");
+  });
+
+  it("writes news in green and a problem in the owe color", () => {
+    page();
+
+    fireEvent.click(screen.getByRole("button", { name: "Post from list" }));
+    expect(screen.getByRole("status")).toHaveClass("text-action");
 
     fireEvent.click(screen.getByRole("button", { name: "Fail from list" }));
-    expect(region("list")).toHaveAttribute("data-tone", "problem");
+    expect(screen.getByRole("status")).toHaveClass("text-owe");
+    expect(screen.getByRole("status")).not.toHaveClass("text-action");
   });
 
-  it("clears its own notice", () => {
-    function Clearer() {
-      const { notice, show, clear } = useNotice("list");
-      return (
-        <div>
-          <button type="button" onClick={() => show("Deleted Milk.", "done")}>
-            Post
-          </button>
-          <button type="button" onClick={clear}>
-            Clear
-          </button>
-          <p role="status">{notice?.text}</p>
-        </div>
-      );
-    }
-    render(
-      <NoticeProvider>
-        <Clearer />
-      </NoticeProvider>,
-    );
+  it("clears the notice, whoever posted it", () => {
+    page();
 
-    fireEvent.click(screen.getByRole("button", { name: "Post" }));
-    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    fireEvent.click(screen.getByRole("button", { name: "Post from costs" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear from list" }));
 
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
-  it("keeps a notice to itself when there is no provider", () => {
-    render(
-      <>
-        <Poster source="costs" text="Added Sponges." />
-        <Poster source="list" text="Deleted Sponges." />
-      </>,
+  it("can't be used outside a provider, so no notice is lost", () => {
+    // React logs the error it rethrows; keep the test output clean.
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(() => render(<Poster name="costs" text="Added Sponges." />)).toThrow(
+      "useNotice needs a NoticeProvider",
     );
-
-    fireEvent.click(screen.getByRole("button", { name: "Post from costs" }));
-    fireEvent.click(screen.getByRole("button", { name: "Post from list" }));
-
-    expect(region("costs")).toHaveTextContent("Added Sponges.");
-    expect(region("list")).toHaveTextContent("Deleted Sponges.");
+    quiet.mockRestore();
   });
 });

@@ -10,6 +10,8 @@ import {
 } from "vitest";
 import type { Expense } from "@/lib/db/expenses";
 import type { ListItem } from "@/lib/db/list-items";
+import type { ReactNode } from "react";
+import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import { AddExpenseButton } from "./AddExpenseButton";
 import type { EntryGroup } from "./EntryForm";
 
@@ -53,6 +55,16 @@ const saved = {
   amountCents: 1234,
 } as Expense;
 
+// The group page puts one notice line above the list (NoticeProvider).
+function WithNotices({ children }: { children: ReactNode }) {
+  return (
+    <NoticeProvider>
+      <NoticeLine />
+      {children}
+    </NoticeProvider>
+  );
+}
+
 function setup() {
   render(
     <AddExpenseButton
@@ -60,6 +72,7 @@ function setup() {
       currentUserId={ana}
       defaultGroupId={flat.id}
     />,
+    { wrapper: WithNotices },
   );
 }
 

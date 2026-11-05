@@ -17,6 +17,8 @@ import {
 import type { Expense } from "@/lib/db/expenses";
 import type { ListItem } from "@/lib/db/list-items";
 import type { EntryGroup } from "@/components/expenses/EntryForm";
+import type { ReactNode } from "react";
+import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import { GroupList } from "./GroupList";
 
 const mocks = vi.hoisted(() => ({
@@ -108,6 +110,16 @@ const flat: EntryGroup = {
   ],
 };
 
+// The group page puts one notice line above the list (NoticeProvider).
+function WithNotices({ children }: { children: ReactNode }) {
+  return (
+    <NoticeProvider>
+      <NoticeLine />
+      {children}
+    </NoticeProvider>
+  );
+}
+
 function setup(props: Partial<Parameters<typeof GroupList>[0]> = {}) {
   return render(
     <GroupList
@@ -120,6 +132,7 @@ function setup(props: Partial<Parameters<typeof GroupList>[0]> = {}) {
       entryGroups={[flat]}
       {...props}
     />,
+    { wrapper: WithNotices },
   );
 }
 

@@ -198,6 +198,18 @@ test("the page keeps only the latest notice", async ({ browser }) => {
   await expect(
     main.getByText("Added Sponges to 🏠 Dorm 4B's list."),
   ).toHaveCount(0);
+
+  // One place for every notice, whichever button was used: right above the
+  // STILL TO BUY card, below Log a cost.
+  const notices = main.getByRole("status");
+  await expect(notices).toHaveCount(1);
+  const notice = await notices.boundingBox();
+  const stats = await main.getByText("Still to buy").boundingBox();
+  const logCost = await main
+    .getByRole("button", { name: /Log a cost/ })
+    .boundingBox();
+  expect(notice!.y).toBeLessThan(stats!.y);
+  expect(notice!.y).toBeGreaterThan(logCost!.y);
 });
 
 // Radio groups are one Tab stop, and the arrow keys choose within them. The
