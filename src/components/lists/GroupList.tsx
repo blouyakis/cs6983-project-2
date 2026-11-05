@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EntryForm, type EntryGroup } from "@/components/expenses/EntryForm";
 import { expenseNotice, planNotice } from "@/components/expenses/entry-notices";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useNotice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { ListItem } from "@/lib/db/list-items";
@@ -56,6 +57,20 @@ export function GroupList({
   // React has re-rendered the button as disabled.
   const deletingRef = useRef(new Set<string>());
   const [deleting, setDeleting] = useState<ReadonlySet<string>>(new Set());
+  // The item whose Delete is waiting for the ConfirmDialog (#76).
+  const [confirming, setConfirming] = useState<ListItem>();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Set when a confirmed delete succeeds. The row's Delete button stays
+  // disabled until the refresh removes it, so the ConfirmDialog can't give it
+  // focus back; the heading gets it instead. This effect runs after the
+  // dialog's own, which tries the disabled button first.
+  const focusHeadingRef = useRef(false);
+  useEffect(() => {
+    if (confirming === undefined && focusHeadingRef.current) {
+      focusHeadingRef.current = false;
+      headingRef.current?.focus();
+    }
+  }, [confirming]);
 
   function markDeleting(itemId: string, on: boolean) {
     const next = new Set(deletingRef.current);
@@ -77,11 +92,10 @@ export function GroupList({
     return names[userId] ?? "a former member";
   }
 
-  // TODO(#76): ask with ConfirmDialog first, as DESIGN.md says, once #72
-  // brings src/components/ui/ConfirmDialog.tsx to main.
-  async function remove(item: ListItem) {
+  // Sends the delete, once. True when the item is gone.
+  async function remove(item: ListItem): Promise<boolean> {
     if (deletingRef.current.has(item.id)) {
-      return;
+      return false;
     }
     markDeleting(item.id, true);
     clear();
@@ -99,6 +113,28 @@ export function GroupList({
     }
     // On a 409 someone checked it off first, so the list is out of date too.
     router.refresh();
+    return result.ok;
+  }
+
+  // The dialog stays open until the answer comes back, so the notice and the
+  // list agree with what the user saw. On a failure it hands focus back to
+  // the row's Delete button, which is on again.
+  async function confirmDelete() {
+    if (confirming === undefined) {
+      return;
+    }
+    const ok = await remove(confirming);
+    focusHeadingRef.current = ok;
+    setConfirming(undefined);
+  }
+
+  // Once the DELETE is sent, Cancel and Escape would only hide that it is
+  // still going through, so they wait for the answer.
+  function cancelDelete() {
+    if (confirming !== undefined && deletingRef.current.has(confirming.id)) {
+      return;
+    }
+    setConfirming(undefined);
   }
 
   const openCount = items.filter((item) => item.status === "open").length;
@@ -110,7 +146,12 @@ export function GroupList({
         isPersonal={isPersonal}
       />
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="list-heading" className="text-xl font-bold">
+        <h2
+          id="list-heading"
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-xl font-bold"
+        >
           <span aria-hidden="true">📝 </span>To do &amp; buy
         </h2>
         <p className="font-semibold text-muted">{openCount} open</p>
@@ -138,7 +179,9 @@ export function GroupList({
                       setEditOpen(true);
                     }
               }
-              onDelete={readOnly ? undefined : remove}
+              // Asks first, since the list is shared. The notice stays until
+              // the delete is confirmed, as nothing has changed before that.
+              onDelete={readOnly ? undefined : setConfirming}
               deleting={deleting.has(item.id)}
             />
           ))}
@@ -176,6 +219,18 @@ export function GroupList({
           />
         </>
       )}
+      <ConfirmDialog
+        open={confirming !== undefined}
+        message={
+          confirming === undefined
+            ? ""
+            : `Delete ${splitLeadingEmoji(confirming.title).text}? It comes off the list for everyone.`
+        }
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+        busy={confirming !== undefined && deleting.has(confirming.id)}
+      />
       {editing ? (
         <EditListItemForm
           key={editCount}
