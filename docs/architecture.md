@@ -87,7 +87,7 @@ sequenceDiagram
   R-->>B: 200 JSON
 ```
 
-Writes that touch several tables (registering an account with its personal space; an expense with its shares; checking off or unchecking a list item; closing a settlement) run in a single Postgres function called through `rpc`, so a half-finished write, such as an account without its personal space or an expense without its shares, can never exist.
+Writes that touch several tables (registering an account with its personal space; an expense with its shares; checking off or unchecking a list item; starting, cancelling or closing a settlement) run in a single Postgres function called through `rpc`, so a half-finished write, such as an account without its personal space or an expense without its shares, can never exist.
 
 ## 4. Authentication and access control
 
@@ -349,3 +349,4 @@ Variables are listed in [.env.example](../.env.example). `SUPABASE_URL` and `SUP
 ## 9. Known limitations
 
 - Once someone marks a payment `paid`, the settle-up cannot be cancelled. If another member never pays, it stays open and the group cannot start a new one. Members sort this out outside the app.
+- An expense created before a settle-up started stays editable by its payer until the period closes, because it is unsettled until then. An edit or delete in that window changes the balances the suggested payments were computed from, so the period can close with balances that aren't zero; the difference carries into the next period. Refusing such edits while a settle-up is open is a candidate rule for a later issue.
