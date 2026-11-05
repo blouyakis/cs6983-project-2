@@ -174,3 +174,28 @@ test("scrolling over an open form leaves the page behind it where it was", async
 
   expect(await ana.page.evaluate(() => window.scrollY)).toBe(before);
 });
+
+// Planning from Log a cost and then deleting from the list used to leave
+// "Added Sponges…" in green under Log a cost, while "Deleted Sponges." sat in
+// plain text under the list.
+test("the page keeps only the latest notice", async ({ browser }) => {
+  const ana = await newUser(browser, "Ana");
+  await createGroup(ana.page, "🏠 Dorm 4B");
+  const main = ana.page.getByRole("main");
+
+  await main.getByRole("button", { name: /Log a cost/ }).click();
+  const dialog = ana.page.getByRole("dialog", { name: "New entry" });
+  await dialog.getByText("Plan it", { exact: true }).click();
+  await dialog.getByLabel("What is it?").fill("Sponges");
+  await dialog.getByRole("button", { name: "Add to list" }).click();
+  await expect(
+    main.getByText("Added Sponges to 🏠 Dorm 4B's list."),
+  ).toBeVisible();
+
+  await main.getByRole("button", { name: "Delete Sponges" }).click();
+
+  await expect(main.getByText("Deleted Sponges.")).toBeVisible();
+  await expect(
+    main.getByText("Added Sponges to 🏠 Dorm 4B's list."),
+  ).toHaveCount(0);
+});

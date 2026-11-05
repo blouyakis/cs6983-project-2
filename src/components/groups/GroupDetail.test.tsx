@@ -29,6 +29,11 @@ vi.mock("@/components/lists/GroupList", () => ({
     <div data-testid="group-list" data-props={JSON.stringify(props)} />
   ),
 }));
+vi.mock("@/components/ui/NoticeProvider", () => ({
+  NoticeProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="notice-provider">{children}</div>
+  ),
+}));
 // The button is a Client Component with its own tests. Here it only has to be
 // given the right groups.
 vi.mock("@/components/expenses/AddExpenseButton", () => ({
@@ -278,5 +283,19 @@ describe("GroupDetail", () => {
         entryGroups: [],
       });
     });
+  });
+
+  it("keeps one notice on the page, so a new one clears the last", async () => {
+    mocks.getGroup.mockResolvedValue(details());
+
+    render(await detail());
+
+    // The button and the list are mocked, so only the provider is checked.
+    expect(screen.getByTestId("notice-provider")).toContainElement(
+      screen.getByTestId("group-list"),
+    );
+    expect(screen.getByTestId("notice-provider")).toContainElement(
+      screen.getByTestId("add-expense"),
+    );
   });
 });

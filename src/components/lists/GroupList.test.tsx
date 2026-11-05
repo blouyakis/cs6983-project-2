@@ -342,4 +342,29 @@ describe("GroupList", () => {
     );
     expect(mocks.refresh).toHaveBeenCalled();
   });
+
+  it("writes a done notice in green and a problem in the owe color", async () => {
+    mocks.deleteJson.mockResolvedValueOnce({ ok: true, data: undefined });
+    mocks.deleteJson.mockResolvedValueOnce({
+      ok: false,
+      error: { code: "NOT_FOUND", message: "This item isn't on the list." },
+    });
+    setup();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Dish soap" }));
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Deleted Dish soap.",
+      ),
+    );
+    expect(screen.getByRole("status")).toHaveClass("text-action");
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Light bulbs" }));
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "This item isn't on the list.",
+      ),
+    );
+    expect(screen.getByRole("status")).toHaveClass("text-owe");
+  });
 });
