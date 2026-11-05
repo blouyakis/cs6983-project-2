@@ -141,6 +141,12 @@ describe("suggestPayments", () => {
     );
   });
 
+  it("refuses balances that aren't whole cents", () => {
+    expect(() => suggestPayments(balances({ a: -0.5, b: 0.5 }))).toThrow(
+      /whole cents/,
+    );
+  });
+
   it("refuses more members than the group cap", () => {
     const cents: Record<string, number> = {};
     for (let index = 0; index < 13; index += 1) {
