@@ -1,7 +1,8 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { NewGroupButton } from "@/components/groups/NewGroupButton";
 import { NAV_ITEMS } from "./nav-items";
+import { CurrentNavLink } from "./CurrentNavLink";
 import { NavLink } from "./NavLink";
 
 type AppSidebarProps = {
@@ -25,7 +26,13 @@ export function AppSidebar({ children }: AppSidebarProps) {
       <ul className="flex flex-col gap-1">
         {NAV_ITEMS.map((item) => (
           <li key={item.href}>
-            <NavLink item={item} variant="sidebar" />
+            <Suspense
+              fallback={
+                <NavLink item={item} variant="sidebar" current={false} />
+              }
+            >
+              <CurrentNavLink item={item} variant="sidebar" />
+            </Suspense>
           </li>
         ))}
       </ul>

@@ -1,14 +1,14 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { isCurrentPage, type NavItem } from "./nav-items";
+import type { NavItem } from "./nav-items";
 
 type NavLinkProps = {
   item: NavItem;
   // The sidebar stacks a row per item; the tab bar stacks the emoji over a
   // small label.
   variant: "sidebar" | "tab";
+  // Whether this is the page the user is on. CurrentNavLink works it out
+  // from the pathname; the static shell renders with false.
+  current: boolean;
 };
 
 const BASE = {
@@ -24,8 +24,7 @@ const OTHER = "border-transparent text-ink hover:bg-surface";
 
 // One item of the main navigation. A page that isn't built yet is text, not
 // a link, so keyboard users don't tab to a dead end.
-export function NavLink({ item, variant }: NavLinkProps) {
-  const pathname = usePathname();
+export function NavLink({ item, variant, current }: NavLinkProps) {
   const label = (
     <>
       <span aria-hidden="true" className={variant === "tab" ? "text-xl" : ""}>
@@ -45,7 +44,6 @@ export function NavLink({ item, variant }: NavLinkProps) {
       </span>
     );
   }
-  const current = isCurrentPage(pathname, item.href);
   return (
     <Link
       href={item.href}

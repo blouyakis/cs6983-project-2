@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { CurrentNavLink } from "./CurrentNavLink";
 import { NAV_ITEMS } from "./nav-items";
 import { NavLink } from "./NavLink";
 
@@ -11,7 +13,12 @@ export function TabBar() {
       className="fixed inset-x-0 bottom-0 z-10 flex items-end gap-1 border-t-4 border-ink bg-sidebar px-2 pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))] md:hidden"
     >
       {NAV_ITEMS.map((item) => (
-        <NavLink key={item.href} item={item} variant="tab" />
+        <Suspense
+          key={item.href}
+          fallback={<NavLink item={item} variant="tab" current={false} />}
+        >
+          <CurrentNavLink item={item} variant="tab" />
+        </Suspense>
       ))}
     </nav>
   );
