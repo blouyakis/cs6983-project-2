@@ -124,3 +124,21 @@ test("the personal space has its own list", async ({ browser }) => {
     /Added \w{3} \d+ · est\. \$35\.00/,
   );
 });
+
+// The form body scrolls in a fixed-height column, so a Toggle that may shrink
+// is squashed to its borders once the cost form is taller than the dialog.
+test("the Plan it / Already spent switch keeps its height in both modes", async ({
+  browser,
+}) => {
+  const ana = await newUser(browser, "Ana");
+  await createGroup(ana.page, "🏠 Dorm 4B");
+  const dialog = ana.page.getByRole("dialog", { name: "New entry" });
+  const toggle = dialog.getByRole("radiogroup", { name: "Kind of entry" });
+
+  await ana.page.getByRole("button", { name: /Log a cost/ }).click();
+  expect((await toggle.boundingBox())?.height).toBeGreaterThan(30);
+  await dialog.getByRole("radio", { name: "Plan it" }).check();
+  expect((await toggle.boundingBox())?.height).toBeGreaterThan(30);
+  await dialog.getByRole("radio", { name: "Already spent" }).check();
+  expect((await toggle.boundingBox())?.height).toBeGreaterThan(30);
+});
