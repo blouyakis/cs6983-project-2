@@ -654,11 +654,14 @@ describe("GroupList", () => {
     expect(remove).toHaveFocus();
   });
 
-  // Someone else deleted the item (404) or checked it off (409) first, so the
-  // refresh takes the row's Delete button away and focus would fall to body.
+  // Someone else deleted the item (404) or checked it off (409) first, or the
+  // user can no longer change the list (403: they left in another tab, or the
+  // group was archived). The refresh takes the row's Delete button away, and
+  // focus would fall to body.
   it.each([
     ["NOT_FOUND", "Not found."],
     ["CONFLICT", "This item is done. Uncheck it first to change it."],
+    ["FORBIDDEN", "This group is archived and read-only."],
   ])(
     "moves focus to the list heading when the delete gets %s, since the refresh takes Delete away",
     async (code, message) => {
