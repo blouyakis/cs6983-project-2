@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ListItemInputs } from "@/components/lists/ListItemInputs";
 import { readListItemFields } from "@/components/lists/list-item-fields";
 import { FormSheet } from "@/components/ui/FormSheet";
 import { ChipPicker } from "@/components/ui/ChipPicker";
@@ -293,54 +294,32 @@ export function EntryForm({
         onChange={([groupId]) => chooseGroup(groupId)}
       />
       {planning ? (
-        <>
-          <TextField
-            label="What is it?"
-            name="title"
-            maxLength={100}
-            autoComplete="off"
-            placeholder="e.g. 🥛 Milk"
-            value={fields.description}
-            onChange={(event) =>
-              edit({ description: event.target.value }, "title")
-            }
-            error={errors.title}
-          />
-          <TextField
-            label="Estimated cost"
-            name="estimate"
-            inputMode="decimal"
-            autoComplete="off"
-            hint="Optional. In dollars, such as 12.34."
-            value={fields.amountText}
-            onChange={(event) =>
-              edit({ amountText: event.target.value }, "estimatedCents")
-            }
-            error={errors.estimatedCents}
-          />
-          <TextField
-            label="Quantity"
-            name="quantity"
-            inputMode="numeric"
-            autoComplete="off"
-            hint="Optional."
-            value={fields.quantityText}
-            onChange={(event) =>
-              edit({ quantityText: event.target.value }, "quantity")
-            }
-            error={errors.quantity}
-          />
-          <TextField
-            label="Note"
-            name="note"
-            maxLength={200}
-            autoComplete="off"
-            hint="Optional."
-            value={fields.note}
-            onChange={(event) => edit({ note: event.target.value }, "note")}
-            error={errors.note}
-          />
-        </>
+        <ListItemInputs
+          texts={{
+            title: fields.description,
+            estimateText: fields.amountText,
+            quantityText: fields.quantityText,
+            note: fields.note,
+          }}
+          errors={errors}
+          onChange={(changes, cleared) =>
+            edit(
+              {
+                ...(changes.title !== undefined
+                  ? { description: changes.title }
+                  : {}),
+                ...(changes.estimateText !== undefined
+                  ? { amountText: changes.estimateText }
+                  : {}),
+                ...(changes.quantityText !== undefined
+                  ? { quantityText: changes.quantityText }
+                  : {}),
+                ...(changes.note !== undefined ? { note: changes.note } : {}),
+              },
+              cleared,
+            )
+          }
+        />
       ) : (
         <>
           <TextField
