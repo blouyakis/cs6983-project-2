@@ -60,6 +60,9 @@ test("a logged cost shows who owes whom, in words, on both members' group pages"
   await invite.getByLabel("Email").fill(sam.email);
   await invite.getByRole("button", { name: "Invite" }).click();
   await expect(ana.page.getByText("Sam joined the group.")).toBeVisible();
+  // The notice shows before the page refreshes, so wait for Sam to be in the
+  // member list: the cost form takes its sharers from there.
+  await expect(memberRow(ana.page, "Sam")).toBeVisible();
 
   // Ana pays $45.10 for both: Sam owes her half.
   await ana.page.getByRole("button", { name: /Log a cost/ }).click();

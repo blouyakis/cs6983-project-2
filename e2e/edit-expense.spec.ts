@@ -44,6 +44,15 @@ async function invite(page: Page, email: string, name: string) {
   await form.getByLabel("Email").fill(email);
   await form.getByRole("button", { name: "Invite" }).click();
   await expect(page.getByText(`${name} joined the group.`)).toBeVisible();
+  // The notice shows before the page refreshes, so wait for the member list
+  // to have them: the cost form takes its sharers from there.
+  await expect(
+    page
+      .getByRole("heading", { name: /^Members/ })
+      .locator("..")
+      .getByRole("listitem")
+      .filter({ hasText: name }),
+  ).toBeVisible();
 }
 
 async function logCost(page: Page, description: string, amount: string) {
