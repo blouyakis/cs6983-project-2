@@ -232,11 +232,15 @@ describe("GroupList", () => {
 
     deleteItem("Dish soap");
 
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Deleted Dish soap.",
+      ),
+    );
     expect(mocks.deleteJson).toHaveBeenCalledWith(
       `/api/groups/${groupId}/list-items/${soap.id}`,
     );
-    expect(screen.getByRole("status")).toHaveTextContent("Deleted Dish soap.");
+    expect(mocks.refresh).toHaveBeenCalled();
   });
 
   it("says why a delete failed, such as the item being checked off first", async () => {
