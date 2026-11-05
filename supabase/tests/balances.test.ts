@@ -62,6 +62,8 @@ async function settlement(
       group_id: groupId,
       started_by: startedBy,
       status,
+      // closed_at may not be before started_at, which defaults to now.
+      started_at: "2026-10-31T00:00:00Z",
       closed_at: status === "closed" ? "2026-11-01T00:00:00Z" : null,
     })
     .select("id")
@@ -162,8 +164,13 @@ describe("getGroupBalances", () => {
 
     const balances = await getGroupBalances(memberIds[0], groupId);
 
+    // The fixture adds the members in one statement, so their join order is
+    // a tie; compare as sets.
+    expect(balances).toHaveLength(3);
     expect(balances).toEqual(
-      memberIds.map((userId) => ({ userId, balanceCents: 0 })),
+      expect.arrayContaining(
+        memberIds.map((userId) => ({ userId, balanceCents: 0 })),
+      ),
     );
   });
 
