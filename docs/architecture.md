@@ -227,7 +227,7 @@ erDiagram
 
 **`groups`**: shared groups and personal spaces.
 
-- `is_personal` marks a user's personal space. Each user has exactly one, created at registration: `register_user(p_email, p_password_hash, p_name)` inserts the user (email trimmed and lowercase), the personal space and the owner's membership in one transaction and returns the user id. A partial unique index on `(created_by) where is_personal` enforces it.
+- `is_personal` marks a user's personal space. Each user has exactly one, created at registration: `register_user(p_email, p_password_hash, p_name)` inserts the user (email trimmed and lowercase), the personal space and the owner's membership in one transaction and returns the user id. A partial unique index on `(created_by) where is_personal` enforces it. Its only member is its owner: the trigger `enforce_personal_space_owner_only` on `group_members` refuses anyone else, on insert and when `group_id` or `user_id` changes (#23).
 - `archived_at` is set when the last member leaves; the group is then read-only.
 - A shared group is created by `create_group(p_name, p_created_by)`, which inserts the group and the creator's membership at weight 1 in one transaction and returns the group id. A group has no emoji column: its tile shows the first character of `name` (#6).
 
