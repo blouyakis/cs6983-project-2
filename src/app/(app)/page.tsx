@@ -1,22 +1,17 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { SignedInAs } from "@/components/auth/SignedInAs";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function OverviewPage() {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-8">
-      <header className="flex items-center justify-between gap-4">
-        <h1 className="text-3xl font-bold">Overview</h1>
+      <PageHeader title="Overview">
         <LogoutButton />
-      </header>
+      </PageHeader>
       <Suspense fallback={<p className="text-muted">Loading…</p>}>
         <SignedInAs />
       </Suspense>
-      {/* TODO(#53): remove this link once AppSidebar and the tab bar exist. */}
-      <Link href="/groups" className="font-semibold underline">
-        <span aria-hidden="true">👥 </span>Groups
-      </Link>
       {/* TODO(#23): show the personal space and groups here. */}
     </main>
   );
