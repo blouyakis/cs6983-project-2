@@ -43,7 +43,7 @@ The list follows the PRD's priorities. **Built** means it is on `main`; the rest
 - **Groups and invitations (built, [#6](https://github.com/blouyakis/cs6983-project-2/issues/6)):** create a group for any part of life, invite members by email, and see your groups on the Groups page. A former member who is invited again rejoins
 - **Lists ([#11](https://github.com/blouyakis/cs6983-project-2/issues/11), [#12](https://github.com/blouyakis/cs6983-project-2/issues/12), [#13](https://github.com/blouyakis/cs6983-project-2/issues/13)):** add things to do or buy, and check them off with the actual cost and who shares it
 - **Expenses ([#7](https://github.com/blouyakis/cs6983-project-2/issues/7), [#8](https://github.com/blouyakis/cs6983-project-2/issues/8), [#20](https://github.com/blouyakis/cs6983-project-2/issues/20)):** log personal or group costs, split evenly or by custom amounts, and edit or delete until settled
-- **Balances ([#9](https://github.com/blouyakis/cs6983-project-2/issues/9)):** each member's net balance across unsettled expenses
+- **Balances (built, [#9](https://github.com/blouyakis/cs6983-project-2/issues/9)):** each member's net balance across unsettled expenses and confirmed payments, computed on the server per request, shown in words on the group page and served by `GET /api/groups/{groupId}/balances`
 - **Settle-up ([#19](https://github.com/blouyakis/cs6983-project-2/issues/19)):** the fewest payments that clear every balance, marked paid and confirmed by the recipient
 - **Overview ([#10](https://github.com/blouyakis/cs6983-project-2/issues/10)):** personal total, share in each group, and net balance across groups
 

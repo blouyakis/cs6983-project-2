@@ -30,4 +30,44 @@ describe("MemberList", () => {
       "SSam",
     ]);
   });
+
+  it("writes each member's balance in words, with the current user as You (#9)", () => {
+    render(
+      <MemberList
+        members={members}
+        currentUserId={anaId}
+        balances={[
+          { userId: anaId, balanceCents: -883 },
+          { userId: samId, balanceCents: 883 },
+        ]}
+      />,
+    );
+
+    const items = within(screen.getByRole("list")).getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("You owe $8.83");
+    expect(items[1]).toHaveTextContent("Sam is owed $8.83");
+  });
+
+  it("says a member with a zero balance is settled up", () => {
+    render(
+      <MemberList
+        members={members}
+        currentUserId={anaId}
+        balances={[
+          { userId: anaId, balanceCents: 0 },
+          { userId: samId, balanceCents: 0 },
+        ]}
+      />,
+    );
+
+    const items = within(screen.getByRole("list")).getAllByRole("listitem");
+    expect(items[0]).toHaveTextContent("You are all settled up");
+    expect(items[1]).toHaveTextContent("Sam is all settled up");
+  });
+
+  it("shows no balance for a member when none was given, as in the personal space", () => {
+    render(<MemberList members={members} currentUserId={anaId} />);
+
+    expect(screen.queryByText(/owe|settled/)).toBeNull();
+  });
 });
