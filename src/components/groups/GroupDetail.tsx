@@ -1,10 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { AddExpenseButton } from "@/components/expenses/AddExpenseButton";
+import { ExpenseList } from "@/components/expenses/ExpenseList";
 import { GroupList } from "@/components/lists/GroupList";
 import { Badge } from "@/components/ui/Badge";
 import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import { getSessionUserId } from "@/lib/auth/cookies";
 import { ForbiddenError } from "@/lib/http/errors";
+import { listGroupExpenses } from "@/lib/services/expense-service";
 import {
   getGroup,
   listGroups,
@@ -53,7 +55,8 @@ export async function GroupDetail({ params }: GroupDetailProps) {
           members,
         }));
 
-  // Access was checked by getGroup, and is checked again here.
+  // Access was checked by getGroup, and is checked again in both of these.
+  const expenses = await listGroupExpenses(userId, group.id);
   const items = await listGroupListItems(userId, group.id);
   const names = Object.fromEntries(
     group.members.map((member) => [member.userId, member.name]),
@@ -84,9 +87,6 @@ export async function GroupDetail({ params }: GroupDetailProps) {
             defaultGroupId={group.id}
           />
         )}
-        {!group.isPersonal && !group.readOnly ? (
-          <InviteForm groupId={group.id} />
-        ) : null}
         <NoticeLine />
         <GroupList
           groupId={group.id}
@@ -97,6 +97,16 @@ export async function GroupDetail({ params }: GroupDetailProps) {
           currentUserId={userId}
           entryGroups={addableGroups}
         />
+        <ExpenseList
+          expenses={expenses}
+          members={group.members}
+          currentUserId={userId}
+          groupName={group.name}
+          readOnly={group.readOnly}
+        />
+        {!group.isPersonal && !group.readOnly ? (
+          <InviteForm groupId={group.id} />
+        ) : null}
       </div>
     </NoticeProvider>
   );

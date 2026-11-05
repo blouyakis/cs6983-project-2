@@ -87,29 +87,38 @@ describe("patchJson", () => {
   });
 });
 
+// AGENTS.md Section 8: an expired session gets 401 and the user is sent to
+// login, instead of a form showing "Please log in to continue." as its error.
 describe("deleteJson", () => {
   it("sends a DELETE with no body and succeeds on 204", async () => {
     const fetchMock = respond(204);
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await deleteJson("/api/groups/g1/list-items/i1");
-
-    expect(result).toEqual({ ok: true, data: undefined });
-    expect(fetchMock).toHaveBeenCalledWith("/api/groups/g1/list-items/i1", {
+    expect(await deleteJson("/api/groups/g/expenses/e")).toEqual({
+      ok: true,
+      data: undefined,
+    });
+    expect(fetchMock).toHaveBeenCalledWith("/api/groups/g/expenses/e", {
       method: "DELETE",
     });
   });
 
-  it("returns the error body from the OpenAPI spec", async () => {
-    const error = { code: "CONFLICT", message: "Uncheck it first." };
+  it("returns the error body, such as a 409 for a settled expense", async () => {
+    const error = { code: "CONFLICT", message: "Settled." };
     vi.stubGlobal("fetch", respond(409, { error }));
 
     expect(await deleteJson("/api/x")).toEqual({ ok: false, error });
   });
+
+  it("sends the user to login on 401", async () => {
+    vi.stubGlobal("fetch", respond(401, { error: { code: "UNAUTHORIZED" } }));
+
+    await deleteJson("/api/x");
+
+    expect(login.goToLogin).toHaveBeenCalledOnce();
+  });
 });
 
-// AGENTS.md Section 8: an expired session gets 401 and the user is sent to
-// login, instead of a form showing "Please log in to continue." as its error.
 describe("an expired session", () => {
   const unauthorized = {
     error: { code: "UNAUTHORIZED", message: "Please log in to continue." },
@@ -119,14 +128,6 @@ describe("an expired session", () => {
     vi.stubGlobal("fetch", respond(401, unauthorized));
 
     await postJson("/api/groups", { name: "Flat" });
-
-    expect(login.goToLogin).toHaveBeenCalledTimes(1);
-  });
-
-  it("does the same for a DELETE", async () => {
-    vi.stubGlobal("fetch", respond(401, unauthorized));
-
-    await deleteJson("/api/groups/g1/list-items/i1");
 
     expect(login.goToLogin).toHaveBeenCalledTimes(1);
   });

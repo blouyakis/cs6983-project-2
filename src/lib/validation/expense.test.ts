@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_CENTS, splitMessages } from "@/lib/domain/splits";
 import { ValidationError } from "@/lib/http/errors";
-import { createExpenseSchema } from "./expense";
+import {
+  createExpenseSchema,
+  expenseParamsSchema,
+  updateExpenseSchema,
+} from "./expense";
 import { parseInput } from "./parse";
 
 const ANA = "0b0f6a3e-7c1d-4a52-9d3e-1f2a3b4c5d6e";
@@ -155,5 +159,52 @@ describe("createExpenseSchema", () => {
         sharedBy: [ANA.toUpperCase(), BEN],
       }).sharedBy,
     ).toEqual([ANA, BEN]);
+  });
+});
+
+describe("updateExpenseSchema", () => {
+  it("takes the same fields as creating, because an edit replaces them all", () => {
+    expect(parseInput(updateExpenseSchema, valid)).toEqual(valid);
+  });
+
+  it("ignores a payer id in the body, because the payer can't be changed", () => {
+    const parsed = parseInput(updateExpenseSchema, {
+      ...valid,
+      payerId: BEN,
+    });
+
+    expect(parsed).not.toHaveProperty("payerId");
+  });
+
+  it("rejects a missing split, so an edit can't leave stale shares", () => {
+    expect(() =>
+      parseInput(updateExpenseSchema, {
+        description: "Dinner",
+        amountCents: 1000,
+        spentOn: "2026-11-02",
+      }),
+    ).toThrow(ValidationError);
+  });
+});
+
+describe("expenseParamsSchema", () => {
+  it("accepts a group id and an expense id that are UUIDs", () => {
+    expect(
+      parseInput(expenseParamsSchema, { groupId: ANA, expenseId: BEN }),
+    ).toEqual({ groupId: ANA, expenseId: BEN });
+  });
+
+  it.each([
+    ["groupId", { groupId: "flat", expenseId: BEN }],
+    ["expenseId", { groupId: ANA, expenseId: "1" }],
+  ])("rejects a malformed %s", (field, params) => {
+    try {
+      parseInput(expenseParamsSchema, params);
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).fields).toHaveProperty(field);
+      return;
+    }
+    throw new Error("expected a ValidationError");
   });
 });

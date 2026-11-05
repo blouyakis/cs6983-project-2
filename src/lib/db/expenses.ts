@@ -1,5 +1,6 @@
 import "server-only";
 import type { Share } from "@/lib/domain/splits";
+import { ConflictError } from "@/lib/http/errors";
 import { getDb } from "./client";
 
 export type NewExpense = {
@@ -8,6 +9,14 @@ export type NewExpense = {
   amountCents: number;
   payerId: string;
   // A calendar day, such as "2026-10-20".
+  spentOn: string;
+  shares: Share[];
+};
+
+// What an edit replaces (#20). The payer and the group stay as they are.
+export type ExpenseEdit = {
+  description: string;
+  amountCents: number;
   spentOn: string;
   shares: Share[];
 };
@@ -115,4 +124,45 @@ export async function createExpense(expense: NewExpense): Promise<string> {
     throw new Error(`Could not create the expense: ${error.message}`);
   }
   return data as string;
+}
+
+// Raised by update_expense when the expense has a settlement. The service
+// checks first, so this is the backstop for a settle-up that claimed the
+// expense between that check and this call.
+const SETTLED_ERROR_CODE = "P0001";
+
+// Replaces an unsettled expense's description, amount, day and shares in one
+// transaction through update_expense (#20), and marks it edited. The payer
+// can't be changed (AGENTS.md Section 6.7), so it isn't a parameter.
+export async function updateExpense(
+  expenseId: string,
+  edit: ExpenseEdit,
+): Promise<void> {
+  const { error } = await getDb().rpc("update_expense", {
+    p_expense_id: expenseId,
+    p_description: edit.description,
+    p_amount_cents: edit.amountCents,
+    p_spent_on: edit.spentOn,
+    p_shares: edit.shares.map((share) => ({
+      user_id: share.userId,
+      share_cents: share.shareCents,
+    })),
+  });
+  if (error) {
+    if (error.code === SETTLED_ERROR_CODE) {
+      throw new ConflictError(
+        "This expense has been settled, so it can't be changed.",
+      );
+    }
+    throw new Error(`Could not update the expense: ${error.message}`);
+  }
+}
+
+// Removes an expense. Its shares cascade, and a list item it came from keeps
+// its done state with no expense (architecture.md Section 5).
+export async function deleteExpense(expenseId: string): Promise<void> {
+  const { error } = await getDb().from("expenses").delete().eq("id", expenseId);
+  if (error) {
+    throw new Error(`Could not delete the expense: ${error.message}`);
+  }
 }

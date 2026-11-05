@@ -26,7 +26,7 @@ async function sendJson<T>(
   try {
     response = await fetch(
       url,
-      method === "DELETE"
+      body === undefined
         ? { method }
         : {
             method,
@@ -71,6 +71,7 @@ export function patchJson<T = unknown>(
   return sendJson<T>("PATCH", url, body);
 }
 
-export function deleteJson<T = unknown>(url: string): Promise<ApiResult<T>> {
-  return sendJson<T>("DELETE", url);
+// A DELETE has no body; a 204 comes back as ok with no data.
+export function deleteJson(url: string): Promise<ApiResult<undefined>> {
+  return sendJson<undefined>("DELETE", url);
 }
