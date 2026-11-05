@@ -226,7 +226,11 @@ export function GroupList({
         message={
           confirming === undefined
             ? ""
-            : `Delete ${splitLeadingEmoji(confirming.title).text}? It comes off the list for everyone.`
+            : `Delete ${splitLeadingEmoji(confirming.title).text}? ${
+                isPersonal
+                  ? "It comes off your list."
+                  : "It comes off the list for everyone."
+              }`
         }
         confirmLabel="Delete"
         onConfirm={confirmDelete}
