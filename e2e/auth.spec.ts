@@ -35,6 +35,14 @@ test("register, log out, and log back in", async ({ page, context }) => {
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
   await expect(page.getByText("Signed in as Sam Lee")).toBeVisible();
 
+  // User flow 1: the new account has its personal space from the start (#66).
+  const groups = await page.request.get("/api/groups");
+  expect(groups.status()).toBe(200);
+  const personal = (await groups.json()).groups.filter(
+    (group: { isPersonal: boolean }) => group.isPersonal,
+  );
+  expect(personal).toHaveLength(1);
+
   const session = (await context.cookies()).find((c) => c.name === "session");
   expect(session).toMatchObject({
     httpOnly: true,
