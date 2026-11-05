@@ -28,13 +28,16 @@ const note = z
   .nullable();
 
 // list_items.quantity and estimated_cents are Postgres integer and must be
-// above 0 (list_items_quantity_positive, list_items_estimate_positive).
+// above 0 (list_items_quantity_positive, list_items_estimate_positive). A
+// quantity is a count, not money, so it has its own limit: the column's.
+export const MAX_QUANTITY = 2_147_483_647;
+
 const enterQuantity = "Enter a quantity of 1 or more, in whole units.";
 const quantity = z
   .number({ error: enterQuantity })
   .int({ error: enterQuantity })
   .min(1, { error: enterQuantity })
-  .max(MAX_CENTS, { error: enterQuantity })
+  .max(MAX_QUANTITY, { error: enterQuantity })
   .nullable();
 
 const enterEstimate = `Enter an estimate from ${formatCents(1)} to ${formatCents(MAX_CENTS)}, in whole cents.`;
