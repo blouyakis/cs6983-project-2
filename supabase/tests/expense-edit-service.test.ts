@@ -66,10 +66,11 @@ async function settle(groupId: string, by: string, expenseId: string) {
   }
 }
 
+// left_at may not be before joined_at, which the fixture set to now.
 async function leave(groupId: string, userId: string) {
   const { error } = await db
     .from("group_members")
-    .update({ left_at: "2026-11-03T00:00:00Z" })
+    .update({ left_at: new Date(Date.now() + 1000).toISOString() })
     .eq("group_id", groupId)
     .eq("user_id", userId);
   if (error) {
