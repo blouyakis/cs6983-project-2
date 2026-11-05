@@ -133,6 +133,7 @@ export function GroupList({
                 readOnly
                   ? undefined
                   : (chosen) => {
+                      clear();
                       setEditing(chosen);
                       setEditCount((count) => count + 1);
                       setEditOpen(true);
@@ -182,7 +183,10 @@ export function GroupList({
           item={editing}
           open={editOpen}
           onClose={() => setEditOpen(false)}
-          onSaved={() => router.refresh()}
+          onSaved={(saved) => {
+            show(`Saved ${splitLeadingEmoji(saved.title).text}.`, "done");
+            router.refresh();
+          }}
           onRefused={() => router.refresh()}
         />
       ) : null}
