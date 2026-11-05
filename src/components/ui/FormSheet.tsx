@@ -120,7 +120,18 @@ export function FormSheet({
     }
   }
 
+  // A dialog's close and cancel events don't bubble in the DOM, but React
+  // re-dispatches them up its own tree, so a ConfirmDialog nested in the
+  // form (#20) would otherwise close the form with itself. Only this
+  // dialog's own events count.
+  function isOwnEvent(event: SyntheticEvent<HTMLDialogElement>): boolean {
+    return event.target === event.currentTarget;
+  }
+
   function handleCancel(event: SyntheticEvent<HTMLDialogElement>) {
+    if (!isOwnEvent(event)) {
+      return;
+    }
     event.preventDefault();
     onClose();
   }
@@ -128,8 +139,8 @@ export function FormSheet({
   // Chrome can close a modal dialog on a second Escape without a cancelable
   // cancel event. Tell the parent, so `open` doesn't stay true. When the
   // parent closed it, `open` is already false and there is nothing to say.
-  function handleClose() {
-    if (open) {
+  function handleClose(event: SyntheticEvent<HTMLDialogElement>) {
+    if (open && isOwnEvent(event)) {
       onClose();
     }
   }

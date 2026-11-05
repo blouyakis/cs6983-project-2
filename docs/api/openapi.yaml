@@ -409,20 +409,61 @@ paths:
   /api/groups/{groupId}/expenses/{expenseId}:
     patch:
       summary: Edit an unsettled expense
-      description: Issue #20. A settled expense is 409. A non-payer gets 403. The payer can't be changed.
+      description: |
+        Issue #20. Replaces the description, amount, day and split together,
+        in one transaction, and marks the expense edited (`editedAt`). Only
+        the payer may edit (anyone else gets 403), and only while the expense
+        is unsettled (409 once it is in a closed settlement). The payer can't
+        be changed: the body has no payer field, and one sent anyway is
+        ignored (AGENTS.md Section 6.7). The payer must stay one of the
+        sharers, or the request is 400 on `sharedBy`. A former member or an
+        archived group gets 403. Balances are computed per request, so they
+        reflect the edit at once.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ExpenseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExpenseRequest"
       responses:
+        "200":
+          description: The edited expense.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseResponse"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
     delete:
       summary: Delete an unsettled expense
-      description: Issue #20. A settled expense is 409. A non-payer gets 403.
+      description: |
+        Issue #20. Only the payer, and only while the expense is unsettled
+        (409 once settled; anyone else gets 403). The shares go with it. A
+        list item the expense came from stays checked off with no expense;
+        unchecking the item is #12.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ExpenseId"
       responses:
+        "204":
+          description: The expense is gone.
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/balances:
@@ -514,6 +555,7 @@ components:
       required: true
       schema:
         type: string
+        format: uuid
     PaymentId:
       name: paymentId
       in: path
