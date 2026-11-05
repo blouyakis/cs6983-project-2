@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { NOTICE_TONES, useNotice } from "@/components/ui/NoticeProvider";
+import { useNotice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { EntryForm, type EntryGroup } from "./EntryForm";
 import { expenseNotice, planNotice } from "./entry-notices";
@@ -25,7 +25,8 @@ export function AddExpenseButton({
 }: AddExpenseButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const { notice, show, clear } = useNotice("costs");
+  // Shown in NoticeLine, above the list on the group page.
+  const { show, clear } = useNotice();
 
   return (
     <div className="flex flex-col gap-2">
@@ -39,14 +40,6 @@ export function AddExpenseButton({
           <span aria-hidden="true">💸 </span>Log a cost
         </PrimaryButton>
       </div>
-      {/* The region stays in the page, so a notice is announced when it
-          appears instead of being created along with its text. */}
-      <p
-        role="status"
-        className={`font-semibold ${notice ? NOTICE_TONES[notice.tone] : ""}`}
-      >
-        {notice?.text}
-      </p>
       <EntryForm
         groups={groups}
         currentUserId={currentUserId}

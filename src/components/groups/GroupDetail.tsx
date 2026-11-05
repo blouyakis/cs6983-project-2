@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { AddExpenseButton } from "@/components/expenses/AddExpenseButton";
 import { GroupList } from "@/components/lists/GroupList";
 import { Badge } from "@/components/ui/Badge";
-import { NoticeProvider } from "@/components/ui/NoticeProvider";
+import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import { getSessionUserId } from "@/lib/auth/cookies";
 import { ForbiddenError } from "@/lib/http/errors";
 import {
@@ -59,8 +59,8 @@ export async function GroupDetail({ params }: GroupDetailProps) {
     group.members.map((member) => [member.userId, member.name]),
   );
 
-  // One notice for the whole page: logging a cost and changing the list each
-  // show theirs by their own button, and a new one clears the last.
+  // One notice for the whole page, in one place right above the list, whether
+  // it came from Log a cost, the list's form or a row.
   return (
     <NoticeProvider>
       <div className="flex flex-col gap-8">
@@ -87,6 +87,7 @@ export async function GroupDetail({ params }: GroupDetailProps) {
         {!group.isPersonal && !group.readOnly ? (
           <InviteForm groupId={group.id} />
         ) : null}
+        <NoticeLine />
         <GroupList
           groupId={group.id}
           isPersonal={group.isPersonal}

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { EntryForm, type EntryGroup } from "@/components/expenses/EntryForm";
 import { expenseNotice, planNotice } from "@/components/expenses/entry-notices";
-import { NOTICE_TONES, useNotice } from "@/components/ui/NoticeProvider";
+import { useNotice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { ListItem } from "@/lib/db/list-items";
 import { openEstimateTotalCents } from "@/lib/domain/list-stats";
@@ -50,7 +50,8 @@ export function GroupList({
   const [editing, setEditing] = useState<ListItem>();
   const [editOpen, setEditOpen] = useState(false);
   const [editCount, setEditCount] = useState(0);
-  const { notice, show, clear } = useNotice("list");
+  // Shown in NoticeLine, above the list on the group page.
+  const { show, clear } = useNotice();
   // Items whose delete is on its way. The ref turns away a second click before
   // React has re-rendered the button as disabled.
   const deletingRef = useRef(new Set<string>());
@@ -141,14 +142,6 @@ export function GroupList({
           ))}
         </ul>
       )}
-      {/* The region stays in the page, so a notice is announced when it
-          appears instead of being created along with its text. */}
-      <p
-        role="status"
-        className={`font-semibold ${notice ? NOTICE_TONES[notice.tone] : ""}`}
-      >
-        {notice?.text}
-      </p>
       {readOnly ? null : (
         <>
           <div>

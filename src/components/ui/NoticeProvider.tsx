@@ -2,7 +2,6 @@
 
 import {
   createContext,
-  useCallback,
   useContext,
   useMemo,
   useState,
@@ -14,48 +13,57 @@ import {
 export type NoticeTone = "done" | "problem";
 export type Notice = { text: string; tone: NoticeTone };
 
-type Posted = Notice & { source: string };
-
 type NoticeContextValue = {
-  posted: Posted | null;
-  setPosted: (posted: Posted | null) => void;
+  notice: Notice | null;
+  show: (text: string, tone: NoticeTone) => void;
+  clear: () => void;
 };
 
 const NoticeContext = createContext<NoticeContextValue | null>(null);
 
-// Keeps one notice on a page. Each part of the page shows a notice next to
-// the button that caused it, and posting a new one clears the last, wherever
-// it was, so an old "Added Sponges…" never sits beside "Deleted Sponges.".
+const TONES: Record<NoticeTone, string> = {
+  done: "text-action",
+  problem: "text-owe",
+};
+
+// One notice for a page (DESIGN.md "Notices"). Every part of the page posts
+// to it, and NoticeLine shows it in one place, so the same action never says
+// what it did in two places, and a new notice replaces the last.
 export function NoticeProvider({ children }: { children: ReactNode }) {
-  const [posted, setPosted] = useState<Posted | null>(null);
-  const value = useMemo(() => ({ posted, setPosted }), [posted]);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const value = useMemo(
+    () => ({
+      notice,
+      show: (text: string, tone: NoticeTone) => setNotice({ text, tone }),
+      clear: () => setNotice(null),
+    }),
+    [notice],
+  );
   return (
     <NoticeContext.Provider value={value}>{children}</NoticeContext.Provider>
   );
 }
 
-// `source` names the part of the page, such as "costs" or "list". Without a
-// provider, the notice is kept locally, as each part did before.
-export function useNotice(source: string) {
-  const shared = useContext(NoticeContext);
-  const [local, setLocal] = useState<Posted | null>(null);
-  const posted = shared ? shared.posted : local;
-  const setPosted = shared ? shared.setPosted : setLocal;
-
-  const show = useCallback(
-    (text: string, tone: NoticeTone) => setPosted({ source, text, tone }),
-    [setPosted, source],
-  );
-  const clear = useCallback(() => setPosted(null), [setPosted]);
-  const notice: Notice | undefined =
-    posted && posted.source === source
-      ? { text: posted.text, tone: posted.tone }
-      : undefined;
-
-  return { notice, show, clear };
+// Throws outside a provider, so a notice is never posted where nothing shows
+// it.
+export function useNotice(): NoticeContextValue {
+  const value = useContext(NoticeContext);
+  if (!value) {
+    throw new Error("useNotice needs a NoticeProvider");
+  }
+  return value;
 }
 
-export const NOTICE_TONES: Record<NoticeTone, string> = {
-  done: "text-action",
-  problem: "text-owe",
-};
+// The page's one notice. The region stays in the page, so a notice is
+// announced when it appears instead of being created along with its text.
+export function NoticeLine() {
+  const { notice } = useNotice();
+  return (
+    <p
+      role="status"
+      className={`font-semibold ${notice ? TONES[notice.tone] : ""}`}
+    >
+      {notice?.text}
+    </p>
+  );
+}
