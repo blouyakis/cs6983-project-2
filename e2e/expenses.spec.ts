@@ -28,7 +28,10 @@ async function newUser(browser: Browser, name: string) {
 // Creates a group and lands on its page. Returns the group's id.
 async function createGroup(page: Page, name: string): Promise<string> {
   await page.goto("/groups");
-  await page.getByRole("button", { name: /New group/ }).click();
+  await page
+    .getByRole("main")
+    .getByRole("button", { name: /New group/ })
+    .click();
   const dialog = page.getByRole("dialog", { name: "New group" });
   await dialog.getByLabel("Name").fill(name);
   await dialog.getByRole("button", { name: "Create group" }).click();

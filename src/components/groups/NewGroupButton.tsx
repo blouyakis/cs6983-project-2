@@ -35,6 +35,9 @@ export function NewGroupButton() {
       setSubmitting(false);
       close();
       router.push(`/groups/${result.data.group.id}`);
+      // The sidebar's group list lives in the shared layout, which a push
+      // alone leaves as it is, so refetch the server components too (#53).
+      router.refresh();
       return;
     }
     setSubmitting(false);

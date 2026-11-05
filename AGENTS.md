@@ -59,7 +59,7 @@ This is the **target structure**. Paths marked `(planned)` do not exist yet; cre
 │   ├── research/ design/
 │   ├── decisions/           # (planned)
 │   ├── api/openapi.yaml
-│   └── sprints/             # sprint-1/ retrospective, issue-4-comparison.md
+│   └── sprints/             # sprint-1/ retrospective, sprint-2/ planning, issue-4-comparison.md
 ├── supabase/
 │   ├── migrations/
 │   ├── seed.sql             # demo data for local development
@@ -208,6 +208,7 @@ Non-negotiable values, check them before opening a PR: bcrypt cost **12** · ses
 
 ## Changelog
 
+- 2026-11-04, Barbara: added `sprint-2/ planning` to the `docs/sprints/` line of the folder tree in Section 2 (#67), because the Sprint 2 planning notes now exist there. The notes were late: the Sprint 1 retrospective asked for them on 2026-10-31.
 - 2026-11-03, Ziye: said in Section 6.3 that a default share weight is a whole number from 1 to 100 (#6). Without a cap, a weight like 10⁹ makes `amount × total weight` unsafe in `splitByWeights`, which turns into a 500; the cap was only in architecture.md, and an agent reads this file first.
 - 2026-11-02, Ziye: said in Section 6.3 that a group's ratio reaches an expense through `SplitEditor` opening on Custom amounts, and that the server's even mode is always 1:1 (#8). The old sentence read as if the server applied the ratio, so an API client or an agent could expect `mode: "even"` in a 60/40 group to split 60/40, when it splits 50/50.
 - 2026-10-31, Ziye: let the member who checked off a list item uncheck it in user flow 2 and Section 6.7, which deletes its expense and reopens the item while the expense is unsettled. An item checked off by mistake needed an undo, and it follows the same rules as deleting the expense. Section 6.7 also states the `403` and `409` codes, an item with no expense, and an item that is already open, because before this they were only in architecture.md, and an agent reads this file first.

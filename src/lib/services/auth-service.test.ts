@@ -9,7 +9,7 @@ import { getCurrentUser, login, register } from "./auth-service";
 const db = vi.hoisted(() => ({
   findUserByEmail: vi.fn(),
   findUserById: vi.fn(),
-  insertUser: vi.fn(),
+  registerUser: vi.fn(),
 }));
 
 vi.mock("@/lib/db/users", () => db);
@@ -46,13 +46,17 @@ describe("register", () => {
 
   it("stores a bcrypt hash, never the password, and returns a session for the new user", async () => {
     db.findUserByEmail.mockResolvedValue(null);
-    db.insertUser.mockResolvedValue(sam);
+    db.registerUser.mockResolvedValue(sam.id);
+    db.findUserById.mockResolvedValue(sam);
 
     const { user, token } = await register(input);
 
     expect(user).toEqual(sam);
     expect(await verifySession(token)).toBe(sam.id);
-    const stored = db.insertUser.mock.calls[0][0];
+    // Loaded afterwards, so the response goes through the same mapping as
+    // login (#66).
+    expect(db.findUserById).toHaveBeenCalledWith(sam.id);
+    const stored = db.registerUser.mock.calls[0][0];
     expect(stored).toEqual({
       email: "sam@example.com",
       name: "Sam Lee",
@@ -67,12 +71,12 @@ describe("register", () => {
     await expect(register(input)).rejects.toEqual(
       new ConflictError("An account with this email already exists."),
     );
-    expect(db.insertUser).not.toHaveBeenCalled();
+    expect(db.registerUser).not.toHaveBeenCalled();
   });
 
   it("passes on a conflict from a registration that raced this one", async () => {
     db.findUserByEmail.mockResolvedValue(null);
-    db.insertUser.mockRejectedValue(
+    db.registerUser.mockRejectedValue(
       new ConflictError("An account with this email already exists."),
     );
 

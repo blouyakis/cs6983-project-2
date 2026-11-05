@@ -67,21 +67,22 @@ export async function findUserById(id: string): Promise<User | null> {
   return data ? toUser(data) : null;
 }
 
-export async function insertUser(user: NewUser): Promise<User> {
-  const { data, error } = await getDb()
-    .from("users")
-    .insert({
-      email: user.email,
-      name: user.name,
-      password_hash: user.passwordHash,
-    })
-    .select(PUBLIC_COLUMNS)
-    .single<UserRow>();
+// Creates the account, its personal space and the owner's membership in one
+// transaction through register_user (#66), so no account exists without a
+// personal space. The function lowercases and trims the email, as Zod has
+// already done. Returns the new user's id; load it with findUserById so the
+// response goes through the same mapping as login.
+export async function registerUser(user: NewUser): Promise<string> {
+  const { data, error } = await getDb().rpc("register_user", {
+    p_email: user.email,
+    p_password_hash: user.passwordHash,
+    p_name: user.name,
+  });
   if (error) {
     if (error.code === UNIQUE_VIOLATION) {
       throw new ConflictError("An account with this email already exists.");
     }
     throw new Error(`Could not create user: ${error.message}`);
   }
-  return toUser(data);
+  return data as string;
 }
