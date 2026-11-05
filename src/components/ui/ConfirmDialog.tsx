@@ -119,8 +119,12 @@ export function ConfirmDialog({
             <button
               ref={cancelRef}
               type="button"
-              onClick={onCancel}
-              className="rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold"
+              // While busy the action is on its way and Cancel can't stop it.
+              // aria-disabled, not disabled, keeps it focusable, so focus has
+              // somewhere to stay while the action button is off.
+              aria-disabled={busy || undefined}
+              onClick={busy ? undefined : onCancel}
+              className="rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold aria-disabled:bg-disabled"
             >
               Cancel
             </button>
