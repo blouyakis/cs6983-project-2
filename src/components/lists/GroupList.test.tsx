@@ -224,6 +224,17 @@ describe("GroupList", () => {
     );
   });
 
+  it("returns focus to the Edit button when the edit form closes", () => {
+    setup();
+    const edit = screen.getByRole("button", { name: "Edit Dish soap" });
+
+    edit.focus();
+    fireEvent.click(edit);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(edit).toHaveFocus();
+  });
+
   it("says when each item was added in the personal space", () => {
     setup({ isPersonal: true, items: [soap] });
 
