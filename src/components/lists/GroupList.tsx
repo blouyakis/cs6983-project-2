@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { EntryForm, type EntryGroup } from "@/components/expenses/EntryForm";
 import { expenseNotice, planNotice } from "@/components/expenses/entry-notices";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { useNotice } from "@/components/ui/NoticeProvider";
+import { useNotice, type Notice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { ListItem } from "@/lib/db/list-items";
 import { openEstimateTotalCents } from "@/lib/domain/list-stats";
@@ -68,15 +68,28 @@ export function GroupList({
   // back to: it stays disabled until the refresh removes a deleted item, and
   // the refresh takes it away when someone else deleted or checked off the
   // item first. The ConfirmDialog can't give it focus back, so the heading
-  // gets it instead. This effect runs after the
-  // dialog's own, which tries the disabled button first.
+  // gets it instead.
   const focusHeadingRef = useRef(false);
+  // What a confirmed delete did, held until the dialog has closed. While the
+  // modal is open the rest of the page is inert, and a screen reader may skip
+  // a change to the notice line there.
+  const deleteNoticeRef = useRef<Notice>(undefined);
+  // Runs after the dialog's own effect, which closes it and tries to give
+  // focus back to the row's Delete button.
   useEffect(() => {
-    if (confirming === undefined && focusHeadingRef.current) {
+    if (confirming !== undefined) {
+      return;
+    }
+    const notice = deleteNoticeRef.current;
+    if (notice !== undefined) {
+      deleteNoticeRef.current = undefined;
+      show(notice.text, notice.tone);
+    }
+    if (focusHeadingRef.current) {
       focusHeadingRef.current = false;
       headingRef.current?.focus();
     }
-  }, [confirming]);
+  }, [confirming, show]);
 
   function markDeleting(itemId: string, on: boolean) {
     const next = new Set(deletingRef.current);
@@ -111,10 +124,10 @@ export function GroupList({
     if (result.ok) {
       // Delete stays off: the row is still shown until the refresh removes
       // it, and a second click would only get a 404.
-      show(`Deleted ${text}.`, "done");
+      deleteNoticeRef.current = { text: `Deleted ${text}.`, tone: "done" };
     } else {
       markDeleting(item.id, false);
-      show(result.error.message, "problem");
+      deleteNoticeRef.current = { text: result.error.message, tone: "problem" };
     }
     // On a 409 someone checked it off first, so the list is out of date too.
     router.refresh();
