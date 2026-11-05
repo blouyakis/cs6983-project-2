@@ -289,38 +289,120 @@ paths:
   /api/groups/{groupId}/list-items:
     get:
       summary: List items
-      description: Issues #11, #12. Each done item says whether its expense is settled, so the client can disable unchecking it.
+      description: |
+        Issues #11, #12. Open items first, then done items, newest first in
+        each. `addedBy` is a user id; the page names them from the group's
+        members. A former member only sees what was added before they left.
+        Whether each done item's expense is settled, so the client can
+        disable unchecking it, comes with #12.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
+        "200":
+          description: The group's list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListItemListResponse"
+        "401":
+          $ref: "#/components/responses/Error"
         "403":
           $ref: "#/components/responses/Error"
     post:
       summary: Add an item
-      description: Issues #11, #12.
+      description: |
+        Issue #11. The item is added by the session user: the body has no
+        `addedBy`, and one sent anyway is ignored. Only current members of an
+        active group can add; a former member or an archived group gets 403.
+        Works the same in a personal space.
       parameters:
         - $ref: "#/components/parameters/GroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateListItemRequest"
       responses:
+        "201":
+          description: The new item, open.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListItemResponse"
         "400":
+          description: |
+            Invalid input, keyed by field: `title`, `quantity` or
+            `estimatedCents` (0 or below, or not whole) or `note`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/list-items/{itemId}:
     patch:
-      summary: Edit an item
-      description: Issues #11, #12.
+      summary: Edit an open item
+      description: |
+        Issue #11. Any current member can edit an open item, whoever added
+        it. Only the fields sent change; null clears a quantity, note or
+        estimate. A done item is 409: uncheck it first (#12).
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateListItemRequest"
       responses:
+        "200":
+          description: The edited item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListItemResponse"
         "400":
+          description: Invalid input, keyed by field, or a body with no field to change.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
           $ref: "#/components/responses/Error"
     delete:
-      summary: Remove an item
-      description: Issues #11, #12.
+      summary: Delete an open item
+      description: |
+        Issue #11. Any current member can delete an open item, and the row is
+        removed. A done item is 409: uncheck it first (#12).
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ItemId"
       responses:
+        "204":
+          description: Deleted.
+        "400":
+          description: The group id or the item id isn't a UUID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         "404":
+          $ref: "#/components/responses/Error"
+        "409":
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/list-items/{itemId}/complete:
     post:
@@ -758,6 +840,116 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Balance"
+    ListItemTitle:
+      type: string
+      description: Trimmed. An emoji at the start is shown as the item's emoji.
+      minLength: 1
+      maxLength: 100
+      example: 🥛 Milk
+    ListItemFields:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+          nullable: true
+        note:
+          type: string
+          description: Trimmed. A blank note is stored as null.
+          maxLength: 200
+          nullable: true
+        estimatedCents:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+          nullable: true
+          description: The estimated cost in cents. Null for no estimate.
+    CreateListItemRequest:
+      description: Issue #11.
+      allOf:
+        - type: object
+          required: [title]
+          properties:
+            title:
+              $ref: "#/components/schemas/ListItemTitle"
+        - $ref: "#/components/schemas/ListItemFields"
+    UpdateListItemRequest:
+      description: Issue #11. At least one field. The title can't be cleared.
+      minProperties: 1
+      allOf:
+        - type: object
+          properties:
+            title:
+              $ref: "#/components/schemas/ListItemTitle"
+        - $ref: "#/components/schemas/ListItemFields"
+    ListItem:
+      type: object
+      required:
+        [
+          id,
+          groupId,
+          title,
+          quantity,
+          note,
+          estimatedCents,
+          status,
+          addedBy,
+          completedBy,
+          completedAt,
+          createdAt,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        groupId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        quantity:
+          type: integer
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        estimatedCents:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [open, done]
+        addedBy:
+          type: string
+          format: uuid
+          description: The user who added it.
+        completedBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: The user who checked it off (#12). Null while open.
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+    ListItemResponse:
+      type: object
+      required: [item]
+      properties:
+        item:
+          $ref: "#/components/schemas/ListItem"
+    ListItemListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListItem"
     RegisterRequest:
       type: object
       required: [name, email, password]

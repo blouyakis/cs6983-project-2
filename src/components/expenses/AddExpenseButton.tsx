@@ -2,9 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useNotice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
-import { formatCents } from "@/lib/domain/money";
 import { EntryForm, type EntryGroup } from "./EntryForm";
+import { expenseNotice, planNotice } from "./entry-notices";
 
 type AddExpenseButtonProps = {
   // Only the groups the user can add to: not ones they left or archived ones.
@@ -24,25 +25,21 @@ export function AddExpenseButton({
 }: AddExpenseButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [notice, setNotice] = useState<string>();
+  // Shown in NoticeLine, above the list on the group page.
+  const { show, clear } = useNotice();
 
   return (
     <div className="flex flex-col gap-2">
       <div>
         <PrimaryButton
           onClick={() => {
-            setNotice(undefined);
+            clear();
             setOpen(true);
           }}
         >
           <span aria-hidden="true">💸 </span>Log a cost
         </PrimaryButton>
       </div>
-      {/* The region stays in the page, so a notice is announced when it
-          appears instead of being created along with its text. */}
-      <p role="status" className="font-semibold text-action">
-        {notice}
-      </p>
       <EntryForm
         groups={groups}
         currentUserId={currentUserId}
@@ -50,9 +47,13 @@ export function AddExpenseButton({
         open={open}
         onClose={() => setOpen(false)}
         onAdded={(expense, group) => {
-          setNotice(
-            `Added ${expense.description} (${formatCents(expense.amountCents)}) to ${group.name}.`,
-          );
+          show(expenseNotice(expense, group), "done");
+          router.refresh();
+        }}
+        // The form can switch to Plan it, so the list on the page needs the
+        // refresh too.
+        onPlanned={(item, group) => {
+          show(planNotice(item, group), "done");
           router.refresh();
         }}
       />

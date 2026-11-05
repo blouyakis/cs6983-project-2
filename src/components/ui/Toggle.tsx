@@ -10,7 +10,8 @@ type ToggleProps<Value extends string> = {
 // A two-option switch, such as Evenly / Custom amounts (DESIGN.md "Toggle").
 // It is a radio group, so the arrow keys move between the options and a
 // screen reader says which one is selected. The selected option is filled with
-// `ink`.
+// `ink`. It never shrinks: overflow-hidden lets a flex item shrink to nothing,
+// and in FormSheet's scrolling body that squashed it to its two borders.
 export function Toggle<Value extends string>({
   label,
   name,
@@ -22,7 +23,7 @@ export function Toggle<Value extends string>({
     <div
       role="radiogroup"
       aria-label={label}
-      className="inline-flex self-start overflow-hidden rounded-lg border-2 border-ink"
+      className="inline-flex shrink-0 self-start overflow-hidden rounded-lg border-2 border-ink"
     >
       {options.map((option) => (
         <label key={option.value} className="cursor-pointer">

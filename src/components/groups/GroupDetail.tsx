@@ -1,7 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { AddExpenseButton } from "@/components/expenses/AddExpenseButton";
 import { ExpenseList } from "@/components/expenses/ExpenseList";
+import { GroupList } from "@/components/lists/GroupList";
 import { Badge } from "@/components/ui/Badge";
+import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import { getSessionUserId } from "@/lib/auth/cookies";
 import { ForbiddenError } from "@/lib/http/errors";
 import { getGroupBalances } from "@/lib/services/balance-service";
@@ -11,6 +13,7 @@ import {
   listGroups,
   type GroupDetails,
 } from "@/lib/services/group-service";
+import { listGroupListItems } from "@/lib/services/list-item-service";
 import { groupParamsSchema } from "@/lib/validation/group";
 import { GroupTile } from "./GroupTile";
 import { InviteForm } from "./InviteForm";
@@ -53,50 +56,68 @@ export async function GroupDetail({ params }: GroupDetailProps) {
           members,
         }));
 
+  // Access was checked by getGroup, and is checked again in each of these.
   // Balances are computed on the server per request (#9); the personal space
   // has nothing to split.
   const balances = group.isPersonal
     ? undefined
     : await getGroupBalances(userId, group.id);
   const expenses = await listGroupExpenses(userId, group.id);
+  const items = await listGroupListItems(userId, group.id);
+  const names = Object.fromEntries(
+    group.members.map((member) => [member.userId, member.name]),
+  );
 
+  // One notice for the whole page, in one place right above the list, whether
+  // it came from Log a cost, the list's form or a row.
   return (
-    <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-center gap-3">
-        <GroupTile name={group.name} />
-        <h1 className="text-3xl font-bold">{group.name}</h1>
-        {group.readOnly ? <Badge>Read only</Badge> : null}
-      </header>
-      {group.isPersonal ? (
-        <p>Private · nothing here is split or visible to anyone.</p>
-      ) : (
-        <MemberList
+    <NoticeProvider>
+      <div className="flex flex-col gap-8">
+        <header className="flex flex-wrap items-center gap-3">
+          <GroupTile name={group.name} />
+          <h1 className="text-3xl font-bold">{group.name}</h1>
+          {group.readOnly ? <Badge>Read only</Badge> : null}
+        </header>
+        {group.isPersonal ? (
+          <p>Private · nothing here is split or visible to anyone.</p>
+        ) : (
+          <MemberList
+            members={group.members}
+            currentUserId={userId}
+            balances={balances}
+          />
+        )}
+        {group.readOnly ? (
+          <p>You can read this group&apos;s history, but not add to it.</p>
+        ) : null}
+        {group.readOnly ? null : (
+          <AddExpenseButton
+            groups={addableGroups}
+            currentUserId={userId}
+            defaultGroupId={group.id}
+          />
+        )}
+        <NoticeLine />
+        <GroupList
+          groupId={group.id}
+          isPersonal={group.isPersonal}
+          readOnly={group.readOnly}
+          items={items}
+          names={names}
+          currentUserId={userId}
+          entryGroups={addableGroups}
+        />
+        <ExpenseList
+          expenses={expenses}
           members={group.members}
           currentUserId={userId}
-          balances={balances}
+          groupName={group.name}
+          readOnly={group.readOnly}
         />
-      )}
-      {group.readOnly ? (
-        <p>You can read this group&apos;s history, but not add to it.</p>
-      ) : null}
-      {group.readOnly ? null : (
-        <AddExpenseButton
-          groups={addableGroups}
-          currentUserId={userId}
-          defaultGroupId={group.id}
-        />
-      )}
-      <ExpenseList
-        expenses={expenses}
-        members={group.members}
-        currentUserId={userId}
-        groupName={group.name}
-        readOnly={group.readOnly}
-      />
-      {!group.isPersonal && !group.readOnly ? (
-        <InviteForm groupId={group.id} />
-      ) : null}
-      {/* TODO(#11): show the group's list here. */}
-    </div>
+        {!group.isPersonal && !group.readOnly ? (
+          <InviteForm groupId={group.id} />
+        ) : null}
+      </div>
+    </NoticeProvider>
   );
 }
