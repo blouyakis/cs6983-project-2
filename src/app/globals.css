@@ -30,6 +30,13 @@ body {
   outline-offset: 2px;
 }
 
+/* A modal dialog (FormSheet, ConfirmDialog) makes the page behind it inert,
+   but Chrome still scrolls that page once the dialog can't scroll any
+   further, so its scrollbar moves while the form stands still. Lock it. */
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
