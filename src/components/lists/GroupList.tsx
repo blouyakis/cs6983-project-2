@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { EntryForm, type EntryGroup } from "@/components/expenses/EntryForm";
 import { expenseNotice, planNotice } from "@/components/expenses/entry-notices";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
@@ -50,6 +50,21 @@ export function GroupList({
   const [editOpen, setEditOpen] = useState(false);
   const [editCount, setEditCount] = useState(0);
   const [notice, setNotice] = useState<string>();
+  // Items whose delete is on its way. The ref turns away a second click before
+  // React has re-rendered the button as disabled.
+  const deletingRef = useRef(new Set<string>());
+  const [deleting, setDeleting] = useState<ReadonlySet<string>>(new Set());
+
+  function markDeleting(itemId: string, on: boolean) {
+    const next = new Set(deletingRef.current);
+    if (on) {
+      next.add(itemId);
+    } else {
+      next.delete(itemId);
+    }
+    deletingRef.current = next;
+    setDeleting(next);
+  }
 
   // addedBy can be someone who left before the user joined, whom the user
   // can't see.
@@ -64,11 +79,16 @@ export function GroupList({
   }
 
   async function remove(item: ListItem) {
+    if (deletingRef.current.has(item.id)) {
+      return;
+    }
+    markDeleting(item.id, true);
     setNotice(undefined);
     const { text } = splitLeadingEmoji(item.title);
     const result = await deleteJson(
       `/api/groups/${groupId}/list-items/${item.id}`,
     );
+    markDeleting(item.id, false);
     setNotice(result.ok ? `Deleted ${text}.` : result.error.message);
     // On a 409 someone checked it off first, so the list is out of date too.
     router.refresh();
@@ -109,6 +129,7 @@ export function GroupList({
                     }
               }
               onDelete={readOnly ? undefined : remove}
+              deleting={deleting.has(item.id)}
             />
           ))}
         </ul>

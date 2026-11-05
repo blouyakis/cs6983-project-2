@@ -13,6 +13,8 @@ type ListItemRowProps = {
   // be unchecked first (#12).
   onEdit?: (item: ListItem) => void;
   onDelete?: (item: ListItem) => void;
+  // True while its delete is on its way, so it can't be sent twice.
+  deleting?: boolean;
 };
 
 function details(item: ListItem, addedByName: string, isPersonal: boolean) {
@@ -36,6 +38,7 @@ export function ListItemRow({
   isPersonal,
   onEdit,
   onDelete,
+  deleting = false,
 }: ListItemRowProps) {
   const { emoji, text } = splitLeadingEmoji(item.title);
   const done = item.status === "done";
@@ -88,8 +91,9 @@ export function ListItemRow({
               <button
                 type="button"
                 onClick={() => onDelete(item)}
+                disabled={deleting}
                 aria-label={`Delete ${text}`}
-                className="rounded-lg border-2 border-owe bg-surface px-3 py-1 text-sm font-semibold text-owe focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+                className="rounded-lg border-2 border-owe bg-surface px-3 py-1 text-sm font-semibold text-owe disabled:cursor-not-allowed disabled:bg-disabled focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
               >
                 Delete
               </button>
