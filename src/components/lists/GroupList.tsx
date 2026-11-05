@@ -30,6 +30,10 @@ type GroupListProps = {
   entryGroups: EntryGroup[];
 };
 
+// A failed delete with one of these codes means the item is no longer open:
+// someone else deleted it (404) or checked it off (409) first.
+const GONE_FROM_OPEN = new Set(["NOT_FOUND", "CONFLICT"]);
+
 // A group's or the personal space's list (user flow 2, DESIGN.md "Lists").
 // Any current member can add, edit or delete an open item. After a change the
 // page is refreshed, so the list and its total come from the server again.
@@ -60,9 +64,11 @@ export function GroupList({
   // The item whose Delete is waiting for the ConfirmDialog (#76).
   const [confirming, setConfirming] = useState<ListItem>();
   const headingRef = useRef<HTMLHeadingElement>(null);
-  // Set when a confirmed delete succeeds. The row's Delete button stays
-  // disabled until the refresh removes it, so the ConfirmDialog can't give it
-  // focus back; the heading gets it instead. This effect runs after the
+  // Set when a confirmed delete leaves the row without a Delete button to go
+  // back to: it stays disabled until the refresh removes a deleted item, and
+  // the refresh takes it away when someone else deleted or checked off the
+  // item first. The ConfirmDialog can't give it focus back, so the heading
+  // gets it instead. This effect runs after the
   // dialog's own, which tries the disabled button first.
   const focusHeadingRef = useRef(false);
   useEffect(() => {
@@ -93,7 +99,8 @@ export function GroupList({
   }
 
   // Sends the delete. confirmDelete makes sure it is sent once. True when the
-  // item is gone.
+  // row loses its Delete button: the item is gone, or the server says someone
+  // else deleted it (404) or checked it off (409) first.
   async function remove(item: ListItem): Promise<boolean> {
     markDeleting(item.id, true);
     clear();
@@ -111,20 +118,20 @@ export function GroupList({
     }
     // On a 409 someone checked it off first, so the list is out of date too.
     router.refresh();
-    return result.ok;
+    return result.ok || GONE_FROM_OPEN.has(result.error.code);
   }
 
   // The dialog stays open until the answer comes back, so the notice and the
-  // list agree with what the user saw. On a failure it hands focus back to
-  // the row's Delete button, which is on again.
+  // list agree with what the user saw. On any other failure, such as the
+  // network, it hands focus back to the row's Delete button, which is on
+  // again.
   async function confirmDelete() {
     // A second confirm before the re-render is turned away here, so it can't
     // close the dialog while the first delete is still on its way.
     if (confirming === undefined || deletingRef.current.has(confirming.id)) {
       return;
     }
-    const ok = await remove(confirming);
-    focusHeadingRef.current = ok;
+    focusHeadingRef.current = await remove(confirming);
     setConfirming(undefined);
   }
 
