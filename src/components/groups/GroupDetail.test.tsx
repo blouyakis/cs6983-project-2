@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getSessionUserId: vi.fn(),
   getGroup: vi.fn(),
   listGroups: vi.fn(),
+  listGroupListItems: vi.fn(),
   listGroupExpenses: vi.fn(),
   redirect: vi.fn(),
   notFound: vi.fn(),
@@ -18,6 +19,22 @@ vi.mock("@/lib/auth/cookies", () => ({
 vi.mock("@/lib/services/group-service", () => ({
   getGroup: mocks.getGroup,
   listGroups: mocks.listGroups,
+}));
+vi.mock("@/lib/services/list-item-service", () => ({
+  listGroupListItems: mocks.listGroupListItems,
+}));
+// The list is a Client Component with its own tests. Here it only has to be
+// given the right items, names and groups.
+vi.mock("@/components/lists/GroupList", () => ({
+  GroupList: (props: object) => (
+    <div data-testid="group-list" data-props={JSON.stringify(props)} />
+  ),
+}));
+vi.mock("@/components/ui/NoticeProvider", () => ({
+  NoticeProvider: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="notice-provider">{children}</div>
+  ),
+  NoticeLine: () => <p data-testid="notice-line" />,
 }));
 vi.mock("@/lib/services/expense-service", () => ({
   listGroupExpenses: mocks.listGroupExpenses,
@@ -74,6 +91,12 @@ function addExpenseProps() {
   );
 }
 
+function groupListProps() {
+  return JSON.parse(
+    screen.getByTestId("group-list").getAttribute("data-props") ?? "{}",
+  );
+}
+
 function detail(id = groupId) {
   return GroupDetail({ params: Promise.resolve({ groupId: id }) });
 }
@@ -88,6 +111,7 @@ beforeEach(() => {
   });
   mocks.getSessionUserId.mockResolvedValue(anaId);
   mocks.listGroups.mockResolvedValue([]);
+  mocks.listGroupListItems.mockResolvedValue([]);
   mocks.listGroupExpenses.mockResolvedValue([]);
 });
 
@@ -235,5 +259,86 @@ describe("GroupDetail", () => {
     mocks.getGroup.mockRejectedValue(new Error("database down"));
 
     await expect(detail()).rejects.toThrow("database down");
+  });
+
+  describe("the list", () => {
+    const samId = "7a2d3e5f-1111-4222-8333-944455556666";
+    const milk = {
+      id: "1d5a6182-3333-4444-8555-b66677778888",
+      groupId,
+      title: "Milk",
+      quantity: null,
+      note: null,
+      estimatedCents: 450,
+      status: "open",
+      addedBy: samId,
+      completedBy: null,
+      completedAt: null,
+      createdAt: "2026-11-04T18:00:00+00:00",
+    };
+
+    it("shows the group's items, with the members' names for who added each", async () => {
+      mocks.getGroup.mockResolvedValue(details());
+      mocks.listGroupListItems.mockResolvedValue([milk]);
+
+      render(await detail());
+
+      expect(mocks.listGroupListItems).toHaveBeenCalledWith(anaId, groupId);
+      expect(groupListProps()).toMatchObject({
+        groupId,
+        isPersonal: false,
+        readOnly: false,
+        items: [milk],
+        names: { [anaId]: "Ana", [samId]: "Sam" },
+        currentUserId: anaId,
+      });
+    });
+
+    it("lets the list add to this group and the other groups the user can add to", async () => {
+      mocks.getGroup.mockResolvedValue(details());
+      mocks.listGroups.mockResolvedValue([
+        summary(),
+        summary({ id: "left", name: "Old flat", readOnly: true }),
+      ]);
+
+      render(await detail());
+
+      expect(
+        groupListProps().entryGroups.map((g: { id: string }) => g.id),
+      ).toEqual([groupId]);
+    });
+
+    it("shows the list in the personal space too", async () => {
+      mocks.getGroup.mockResolvedValue(
+        details({ name: "Personal space", isPersonal: true }),
+      );
+
+      render(await detail());
+
+      expect(groupListProps()).toMatchObject({ isPersonal: true });
+    });
+
+    it("shows a read-only group's list as read-only", async () => {
+      mocks.getGroup.mockResolvedValue(details({ readOnly: true }));
+
+      render(await detail());
+
+      expect(groupListProps()).toMatchObject({
+        readOnly: true,
+        entryGroups: [],
+      });
+    });
+  });
+
+  it("shows every notice in one place, right above the list", async () => {
+    mocks.getGroup.mockResolvedValue(details());
+
+    render(await detail());
+
+    const provider = screen.getByTestId("notice-provider");
+    const line = screen.getByTestId("notice-line");
+    expect(provider).toContainElement(screen.getByTestId("add-expense"));
+    expect(provider).toContainElement(screen.getByTestId("group-list"));
+    expect(line.nextElementSibling).toBe(screen.getByTestId("group-list"));
   });
 });

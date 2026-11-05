@@ -16,6 +16,7 @@ const NETWORK_ERROR: ApiError = {
   message: "Something went wrong. Try again.",
 };
 
+// A DELETE has no body, so it sends no content type either.
 async function sendJson<T>(
   method: "POST" | "PATCH" | "DELETE",
   url: string,
