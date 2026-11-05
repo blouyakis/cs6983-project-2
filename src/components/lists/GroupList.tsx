@@ -79,6 +79,8 @@ export function GroupList({
     return names[userId] ?? "a former member";
   }
 
+  // TODO(#20): ask with ConfirmDialog first, as DESIGN.md says, once #72
+  // brings src/components/ui/ConfirmDialog.tsx to main.
   async function remove(item: ListItem) {
     if (deletingRef.current.has(item.id)) {
       return;
