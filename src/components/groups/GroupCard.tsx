@@ -32,7 +32,9 @@ export function GroupCard({ group, currentUserId }: GroupCardProps) {
         </div>
       </div>
       {/* TODO(#11): show how many items are open on the list. */}
-      {/* TODO(#9): show the user's balance in words with MoneyText. */}
+      {/* TODO(#10): show the user's balance in words with MoneyText, once the
+          overview loads balances for every group in one go (#9 serves them
+          per group). */}
       <div className="border-t-2 border-dashed border-divider pt-3">
         {/* TODO(#7): add Add plan here, and TODO(#19) the settle-up button. */}
         <Link
