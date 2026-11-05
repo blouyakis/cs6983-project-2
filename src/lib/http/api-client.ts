@@ -17,17 +17,22 @@ const NETWORK_ERROR: ApiError = {
 };
 
 async function sendJson<T>(
-  method: "POST" | "PATCH",
+  method: "POST" | "PATCH" | "DELETE",
   url: string,
-  body: unknown,
+  body?: unknown,
 ): Promise<ApiResult<T>> {
   let response: Response;
   try {
-    response = await fetch(url, {
-      method,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    response = await fetch(
+      url,
+      body === undefined
+        ? { method }
+        : {
+            method,
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          },
+    );
   } catch {
     return { ok: false, error: NETWORK_ERROR };
   }
@@ -63,4 +68,9 @@ export function patchJson<T = unknown>(
   body: unknown,
 ): Promise<ApiResult<T>> {
   return sendJson<T>("PATCH", url, body);
+}
+
+// A DELETE has no body; a 204 comes back as ok with no data.
+export function deleteJson(url: string): Promise<ApiResult<undefined>> {
+  return sendJson<undefined>("DELETE", url);
 }
