@@ -137,8 +137,8 @@ test("the Plan it / Already spent switch keeps its height in both modes", async 
 
   await ana.page.getByRole("button", { name: /Log a cost/ }).click();
   expect((await toggle.boundingBox())?.height).toBeGreaterThan(30);
-  await dialog.getByRole("radio", { name: "Plan it" }).check();
+  await dialog.getByText("Plan it", { exact: true }).click();
   expect((await toggle.boundingBox())?.height).toBeGreaterThan(30);
-  await dialog.getByRole("radio", { name: "Already spent" }).check();
+  await dialog.getByText("Already spent", { exact: true }).click();
   expect((await toggle.boundingBox())?.height).toBeGreaterThan(30);
 });
