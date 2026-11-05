@@ -92,10 +92,12 @@ export function GroupList({
     const result = await deleteJson(
       `/api/groups/${groupId}/list-items/${item.id}`,
     );
-    markDeleting(item.id, false);
     if (result.ok) {
+      // Delete stays off: the row is still shown until the refresh removes
+      // it, and a second click would only get a 404.
       show(`Deleted ${text}.`, "done");
     } else {
+      markDeleting(item.id, false);
       show(result.error.message, "problem");
     }
     // On a 409 someone checked it off first, so the list is out of date too.
