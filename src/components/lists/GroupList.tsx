@@ -120,7 +120,9 @@ export function GroupList({
   // list agree with what the user saw. On a failure it hands focus back to
   // the row's Delete button, which is on again.
   async function confirmDelete() {
-    if (confirming === undefined) {
+    // A second confirm before the re-render is turned away here, so it can't
+    // close the dialog while the first delete is still on its way.
+    if (confirming === undefined || deletingRef.current.has(confirming.id)) {
       return;
     }
     const ok = await remove(confirming);
