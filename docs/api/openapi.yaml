@@ -428,10 +428,27 @@ paths:
   /api/groups/{groupId}/balances:
     get:
       summary: Each member's net balance
-      description: Issue #9.
+      description: |
+        Issue #9. Each member's balance in cents for the current period:
+        what they paid, minus their shares, plus confirmed payments they
+        sent, minus confirmed payments they received, over expenses and
+        payments that are unsettled or in the open settle-up (AGENTS.md
+        Section 6.4). Positive means the group owes them; negative means
+        they owe. Balances are computed on every request and never stored,
+        and they always add up to zero. A former member sees the balances
+        as they were when they left. Someone in an unsettled expense who
+        has since left is included, so the sum stays zero.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
+        "200":
+          description: One balance per member, in the order they joined.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BalanceListResponse"
+        "401":
+          $ref: "#/components/responses/Error"
         "403":
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/bills/me:
@@ -680,6 +697,25 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Expense"
+    Balance:
+      type: object
+      required: [userId, balanceCents]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        balanceCents:
+          type: integer
+          description: Positive when the group owes this member, negative when they owe the group.
+          example: -883
+    BalanceListResponse:
+      type: object
+      required: [balances]
+      properties:
+        balances:
+          type: array
+          items:
+            $ref: "#/components/schemas/Balance"
     RegisterRequest:
       type: object
       required: [name, email, password]
