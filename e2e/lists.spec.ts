@@ -142,3 +142,35 @@ test("the Plan it / Already spent switch keeps its height in both modes", async 
   await dialog.getByText("Already spent", { exact: true }).click();
   expect((await toggle.boundingBox())?.height).toBeGreaterThan(30);
 });
+
+// A modal dialog makes the page behind it inert, but Chrome still hands the
+// wheel to that page once the form can't scroll, so the page's scrollbar moved
+// while the form stood still.
+test("scrolling over an open form leaves the page behind it where it was", async ({
+  browser,
+}) => {
+  const ana = await newUser(browser, "Ana");
+  await createGroup(ana.page, "🏠 Dorm 4B");
+  // Short enough that the group page scrolls.
+  await ana.page.setViewportSize({ width: 900, height: 500 });
+
+  await ana.page
+    .getByRole("main")
+    .getByRole("button", { name: "Add to list" })
+    .click();
+  const dialog = ana.page.getByRole("dialog", { name: "New entry" });
+  await expect(dialog).toBeVisible();
+  const before = await ana.page.evaluate(() => window.scrollY);
+  expect(before).toBeGreaterThan(0);
+
+  const box = await dialog.boundingBox();
+  await ana.page.mouse.move(
+    (box?.x ?? 0) + (box?.width ?? 0) / 2,
+    (box?.y ?? 0) + (box?.height ?? 0) / 2,
+  );
+  await ana.page.mouse.wheel(0, -2000);
+  await ana.page.mouse.wheel(0, 2000);
+  await ana.page.waitForTimeout(300);
+
+  expect(await ana.page.evaluate(() => window.scrollY)).toBe(before);
+});
