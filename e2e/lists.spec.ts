@@ -98,6 +98,12 @@ test("add items to a group list, see what is still to buy, then edit and delete 
   await edit.getByRole("button", { name: "Cancel" }).click();
 
   await sam.page.getByRole("button", { name: "Delete Paper towels" }).click();
+  await sam.page
+    .getByRole("dialog", {
+      name: "Delete Paper towels? It comes off the list for everyone.",
+    })
+    .getByRole("button", { name: "Delete" })
+    .click();
   await expect(
     sam.page.getByRole("status").filter({ hasText: "Deleted" }),
   ).toHaveText("Deleted Paper towels.");
@@ -193,6 +199,12 @@ test("the page keeps only the latest notice", async ({ browser }) => {
   ).toBeVisible();
 
   await main.getByRole("button", { name: "Delete Sponges" }).click();
+  await ana.page
+    .getByRole("dialog", {
+      name: "Delete Sponges? It comes off the list for everyone.",
+    })
+    .getByRole("button", { name: "Delete" })
+    .click();
 
   await expect(main.getByText("Deleted Sponges.")).toBeVisible();
   await expect(
@@ -245,4 +257,49 @@ test("the Plan it / Already spent switch works with the keyboard alone", async (
   await page.keyboard.press("ArrowLeft");
   await expect(planIt).toBeChecked();
   await expect(dialog.getByLabel("What is it?")).toBeVisible();
+});
+
+// The list is shared, so Delete asks first (#76). Everything here is done
+// with the keyboard: Cancel has focus when the dialog opens, so Enter alone
+// never deletes, and focus lands on the list heading once the row is gone.
+test("delete a list item with the keyboard, confirming in the dialog", async ({
+  browser,
+}) => {
+  const ana = await newUser(browser, "Ana");
+  await createGroup(ana.page, "Flat 2");
+  await addToList(ana.page, "Sponges", "3");
+  await addToList(ana.page, "Bin bags");
+  const page = ana.page;
+  const confirm = page.getByRole("dialog", {
+    name: "Delete Sponges? It comes off the list for everyone.",
+  });
+
+  await page.getByRole("button", { name: "Delete Sponges" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(confirm).toBeVisible();
+  await expect(confirm.getByRole("button", { name: "Cancel" })).toBeFocused();
+
+  // Escape keeps the item, and focus goes back to its Delete button.
+  await page.keyboard.press("Escape");
+  await expect(confirm).toBeHidden();
+  await expect(list(page)).toContainText("Sponges");
+  await expect(
+    page.getByRole("button", { name: "Delete Sponges" }),
+  ).toBeFocused();
+
+  await page.keyboard.press("Enter");
+  await expect(confirm.getByRole("button", { name: "Cancel" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(confirm.getByRole("button", { name: "Delete" })).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  await expect(
+    page.getByRole("status").filter({ hasText: "Deleted" }),
+  ).toHaveText("Deleted Sponges.");
+  await expect(confirm).toBeHidden();
+  await expect(list(page)).not.toContainText("Sponges");
+  await expect(list(page)).toContainText("Bin bags");
+  await expect(
+    page.getByRole("heading", { name: "To do & buy" }),
+  ).toBeFocused();
 });
