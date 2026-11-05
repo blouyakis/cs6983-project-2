@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConflictError } from "@/lib/http/errors";
-import { findUserByEmail, findUserById, insertUser } from "./users";
+import { findUserByEmail, findUserById, registerUser } from "./users";
 
 type Result = {
   data: unknown;
@@ -30,6 +30,10 @@ function queryBuilder() {
 
 vi.mock("./client", () => ({
   getDb: () => ({
+    rpc: async (name: string, args: unknown) => {
+      calls.push({ method: "rpc", args: [name, args] });
+      return result;
+    },
     from: (table: string) => {
       calls.push({ method: "from", args: [table] });
       return queryBuilder();
@@ -105,26 +109,30 @@ describe("findUserById", () => {
   });
 });
 
-describe("insertUser", () => {
-  it("writes snake_case columns and returns the new user", async () => {
-    result = { data: publicRow, error: null };
-    const user = await insertUser({
+describe("registerUser", () => {
+  it("creates the account and its personal space in one call to register_user, and returns the id", async () => {
+    result = { data: row.id, error: null };
+
+    const id = await registerUser({
       email: "sam@example.com",
       name: "Sam Lee",
       passwordHash: "$2b$12$hash",
     });
-    expect(calls).toContainEqual({
-      method: "insert",
-      args: [
-        {
-          email: "sam@example.com",
-          name: "Sam Lee",
-          password_hash: "$2b$12$hash",
-        },
-      ],
-    });
-    expect(user.id).toBe(row.id);
-    expect(user).not.toHaveProperty("passwordHash");
+
+    expect(id).toBe(row.id);
+    expect(calls).toEqual([
+      {
+        method: "rpc",
+        args: [
+          "register_user",
+          {
+            p_email: "sam@example.com",
+            p_password_hash: "$2b$12$hash",
+            p_name: "Sam Lee",
+          },
+        ],
+      },
+    ]);
   });
 
   it("turns a unique violation on email into a ConflictError", async () => {
@@ -132,8 +140,13 @@ describe("insertUser", () => {
       data: null,
       error: { code: "23505", message: "duplicate key users_email_key" },
     };
+
     await expect(
-      insertUser({ email: "sam@example.com", name: "Sam", passwordHash: "x" }),
+      registerUser({
+        email: "sam@example.com",
+        name: "Sam",
+        passwordHash: "x",
+      }),
     ).rejects.toEqual(
       new ConflictError("An account with this email already exists."),
     );
@@ -141,8 +154,13 @@ describe("insertUser", () => {
 
   it("throws other database errors as they are", async () => {
     result = { data: null, error: { code: "XX000", message: "boom" } };
+
     await expect(
-      insertUser({ email: "sam@example.com", name: "Sam", passwordHash: "x" }),
+      registerUser({
+        email: "sam@example.com",
+        name: "Sam",
+        passwordHash: "x",
+      }),
     ).rejects.toThrow(/boom/);
   });
 });
