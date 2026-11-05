@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { readListItemFields } from "@/components/lists/list-item-fields";
 import { FormSheet } from "@/components/ui/FormSheet";
 import { ChipPicker } from "@/components/ui/ChipPicker";
 import { TextField } from "@/components/ui/TextField";
+import { Toggle } from "@/components/ui/Toggle";
 import type { Expense } from "@/lib/db/expenses";
 import type { Member } from "@/lib/db/group-members";
+import type { ListItem } from "@/lib/db/list-items";
 import { parseDollars } from "@/lib/domain/money";
 import { ValidationError } from "@/lib/http/errors";
 import { postJson } from "@/lib/http/api-client";
@@ -30,20 +33,36 @@ export type EntryGroup = {
   members: Member[];
 };
 
+// Plan it adds to a list (#11); Already spent logs a cost (#7).
+export type EntryMode = "plan" | "spent";
+
+const MODES = [
+  { value: "plan", label: "Plan it" },
+  { value: "spent", label: "Already spent" },
+] as const;
+
 type EntryFormProps = {
   groups: EntryGroup[];
   currentUserId: string;
   // The group the form was opened from. Otherwise the first one is chosen.
   defaultGroupId?: string;
+  // The mode the form opens on. Already spent unless it was opened for a plan.
+  initialMode?: EntryMode;
   open: boolean;
   onClose: () => void;
   onAdded: (expense: Expense, group: EntryGroup) => void;
+  onPlanned?: (item: ListItem, group: EntryGroup) => void;
 };
 
+// The title and the amount are shared by both modes, so switching keeps what
+// was typed: a plan's title and estimate, or a cost's description and amount.
 type Fields = {
+  mode: EntryMode;
   groupId: string;
   description: string;
   amountText: string;
+  quantityText: string;
+  note: string;
   spentOn: string;
   split: SplitState;
   // The members the split was made for. When they change, the split is made
@@ -68,31 +87,45 @@ function membersKey(members: readonly Member[]): string {
   );
 }
 
-function blank(groups: EntryGroup[], defaultGroupId?: string): Fields {
+function blank(
+  groups: EntryGroup[],
+  defaultGroupId: string | undefined,
+  mode: EntryMode,
+): Fields {
   const group = groups.find((g) => g.id === defaultGroupId) ?? groups[0];
   return {
+    mode,
     groupId: group?.id ?? "",
     description: "",
     amountText: "",
+    quantityText: "",
+    note: "",
     spentOn: today(),
     split: initialSplitState(group?.members ?? []),
     splitKey: membersKey(group?.members ?? []),
   };
 }
 
-// The New entry form in Already spent mode: a cost that was never on a list
-// (DESIGN.md "EntryForm"). Plan it comes with #11, which adds the mode toggle.
-// The request is checked here with the same schema and split rules as the
-// server, so a mistake is shown next to its field before anything is sent.
+// The New entry form (DESIGN.md "EntryForm"). Plan it adds an item to a list
+// (#11), and Already spent logs a cost that was never on one (#7). The request
+// is checked here with the same schema and split rules as the server, so a
+// mistake is shown next to its field before anything is sent.
+//
+// Plan it has no day and no split, because list_items stores neither. The
+// split is chosen when the item is checked off (#12).
 export function EntryForm({
   groups,
   currentUserId,
   defaultGroupId,
+  initialMode = "spent",
   open,
   onClose,
   onAdded,
+  onPlanned,
 }: EntryFormProps) {
-  const [fields, setFields] = useState(() => blank(groups, defaultGroupId));
+  const [fields, setFields] = useState(() =>
+    blank(groups, defaultGroupId, initialMode),
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
@@ -108,8 +141,10 @@ export function EntryForm({
       ? fields.split
       : initialSplitState(group.members);
 
+  const planning = fields.mode === "plan";
+
   function close() {
-    setFields(blank(groups, defaultGroupId));
+    setFields(blank(groups, defaultGroupId, initialMode));
     setErrors({});
     setFormError(undefined);
     onClose();
@@ -141,7 +176,45 @@ export function EntryForm({
     }
   }
 
+  function chooseMode(mode: EntryMode) {
+    setFields((current) => ({ ...current, mode }));
+    setErrors({});
+    setFormError(undefined);
+  }
+
+  async function handlePlan() {
+    const read = readListItemFields({
+      title: fields.description,
+      quantityText: fields.quantityText,
+      note: fields.note,
+      estimateText: fields.amountText,
+    });
+    if (!read.ok) {
+      setErrors(read.errors);
+      setFormError(undefined);
+      return;
+    }
+
+    setSubmitting(true);
+    const result = await postJson<{ item: ListItem }>(
+      `/api/groups/${group.id}/list-items`,
+      read.input,
+    );
+    setSubmitting(false);
+    if (result.ok) {
+      onPlanned?.(result.data.item, group);
+      close();
+      return;
+    }
+    setErrors(result.error.fields ?? {});
+    setFormError(result.error.fields ? undefined : result.error.message);
+  }
+
   async function handleSubmit() {
+    if (planning) {
+      await handlePlan();
+      return;
+    }
     // A personal space has no split: the user is the only sharer (#23).
     const only: SplitFields = { mode: "even", sharedBy: [currentUserId] };
     const resolved =
@@ -196,15 +269,22 @@ export function EntryForm({
     <FormSheet
       open={open}
       title="New entry"
-      primaryLabel="Add expense"
+      primaryLabel={planning ? "Add to list" : "Add expense"}
       onSubmit={handleSubmit}
       onClose={close}
       submitting={submitting}
       error={formError}
     >
       <p className="text-sm text-muted">
-        Already spent: log a cost that was never on a list.
+        Plan it first, or log what you already spent.
       </p>
+      <Toggle
+        label="Kind of entry"
+        name="mode"
+        options={MODES}
+        value={fields.mode}
+        onChange={chooseMode}
+      />
       <ChipPicker
         label="Group"
         name="group"
@@ -212,55 +292,110 @@ export function EntryForm({
         selected={[group.id]}
         onChange={([groupId]) => chooseGroup(groupId)}
       />
-      <TextField
-        label="What was it for?"
-        name="description"
-        maxLength={100}
-        autoComplete="off"
-        value={fields.description}
-        onChange={(event) =>
-          edit({ description: event.target.value }, "description")
-        }
-        error={errors.description}
-      />
-      <TextField
-        label="Amount"
-        name="amount"
-        inputMode="decimal"
-        autoComplete="off"
-        hint="In dollars, such as 12.34."
-        value={fields.amountText}
-        onChange={(event) =>
-          edit({ amountText: event.target.value }, "amountCents")
-        }
-        error={errors.amountCents}
-      />
-      <TextField
-        label="Day"
-        name="spentOn"
-        type="date"
-        // No max: a day past it would fail the browser's own form check, which
-        // blocks the submit and shows a tooltip instead of our message.
-        value={fields.spentOn}
-        onChange={(event) => edit({ spentOn: event.target.value }, "spentOn")}
-        error={errors.spentOn}
-      />
-      {group.isPersonal ? null : (
-        <SplitEditor
-          members={group.members}
-          payerId={currentUserId}
-          amountCents={amountCents}
-          state={split}
-          onChange={(next) =>
-            edit(
-              { split: next, splitKey: currentKey },
-              "sharedBy",
-              "amountsCents",
-              "mode",
-            )
-          }
-          error={errors.sharedBy ?? errors.amountsCents ?? errors.mode}
-        />
+      {planning ? (
+        <>
+          <TextField
+            label="What is it?"
+            name="title"
+            maxLength={100}
+            autoComplete="off"
+            placeholder="e.g. 🥛 Milk"
+            value={fields.description}
+            onChange={(event) =>
+              edit({ description: event.target.value }, "title")
+            }
+            error={errors.title}
+          />
+          <TextField
+            label="Estimated cost"
+            name="estimate"
+            inputMode="decimal"
+            autoComplete="off"
+            hint="Optional. In dollars, such as 12.34."
+            value={fields.amountText}
+            onChange={(event) =>
+              edit({ amountText: event.target.value }, "estimatedCents")
+            }
+            error={errors.estimatedCents}
+          />
+          <TextField
+            label="Quantity"
+            name="quantity"
+            inputMode="numeric"
+            autoComplete="off"
+            hint="Optional."
+            value={fields.quantityText}
+            onChange={(event) =>
+              edit({ quantityText: event.target.value }, "quantity")
+            }
+            error={errors.quantity}
+          />
+          <TextField
+            label="Note"
+            name="note"
+            maxLength={200}
+            autoComplete="off"
+            hint="Optional."
+            value={fields.note}
+            onChange={(event) => edit({ note: event.target.value }, "note")}
+            error={errors.note}
+          />
+        </>
+      ) : (
+        <>
+          <TextField
+            label="What was it for?"
+            name="description"
+            maxLength={100}
+            autoComplete="off"
+            value={fields.description}
+            onChange={(event) =>
+              edit({ description: event.target.value }, "description")
+            }
+            error={errors.description}
+          />
+          <TextField
+            label="Amount"
+            name="amount"
+            inputMode="decimal"
+            autoComplete="off"
+            hint="In dollars, such as 12.34."
+            value={fields.amountText}
+            onChange={(event) =>
+              edit({ amountText: event.target.value }, "amountCents")
+            }
+            error={errors.amountCents}
+          />
+          <TextField
+            label="Day"
+            name="spentOn"
+            type="date"
+            // No max: a day past it would fail the browser's own form check, which
+            // blocks the submit and shows a tooltip instead of our message.
+            value={fields.spentOn}
+            onChange={(event) =>
+              edit({ spentOn: event.target.value }, "spentOn")
+            }
+            error={errors.spentOn}
+          />
+          {group.isPersonal ? null : (
+            <SplitEditor
+              members={group.members}
+              payerId={currentUserId}
+              amountCents={amountCents}
+              state={split}
+              onChange={(next) =>
+                edit(
+                  { split: next, splitKey: currentKey },
+                  "sharedBy",
+                  "amountsCents",
+                  "mode",
+                )
+              }
+              error={errors.sharedBy ?? errors.amountsCents ?? errors.mode}
+            />
+          )}
+        </>
       )}
     </FormSheet>
   );
