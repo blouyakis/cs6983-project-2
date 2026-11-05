@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getSessionUserId: vi.fn(),
   getGroup: vi.fn(),
   listGroups: vi.fn(),
+  getGroupBalances: vi.fn(),
   listGroupListItems: vi.fn(),
   listGroupExpenses: vi.fn(),
   redirect: vi.fn(),
@@ -19,6 +20,9 @@ vi.mock("@/lib/auth/cookies", () => ({
 vi.mock("@/lib/services/group-service", () => ({
   getGroup: mocks.getGroup,
   listGroups: mocks.listGroups,
+}));
+vi.mock("@/lib/services/balance-service", () => ({
+  getGroupBalances: mocks.getGroupBalances,
 }));
 vi.mock("@/lib/services/list-item-service", () => ({
   listGroupListItems: mocks.listGroupListItems,
@@ -59,6 +63,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const anaId = "6f1c2d4e-1111-4222-8333-944455556666";
+const samId = "7a2d3e5f-1111-4222-8333-944455556666";
 const groupId = "0b7e8a10-2222-4333-8444-a55566667777";
 
 function details(overrides: Partial<GroupDetails> = {}): GroupDetails {
@@ -111,6 +116,7 @@ beforeEach(() => {
   });
   mocks.getSessionUserId.mockResolvedValue(anaId);
   mocks.listGroups.mockResolvedValue([]);
+  mocks.getGroupBalances.mockResolvedValue([]);
   mocks.listGroupListItems.mockResolvedValue([]);
   mocks.listGroupExpenses.mockResolvedValue([]);
 });
@@ -122,6 +128,32 @@ function expenseListProps() {
 }
 
 describe("GroupDetail", () => {
+  it("shows each member's balance in words on the group page (#9)", async () => {
+    mocks.getGroup.mockResolvedValue(details());
+    mocks.getGroupBalances.mockResolvedValue([
+      { userId: anaId, balanceCents: -883 },
+      { userId: samId, balanceCents: 883 },
+    ]);
+
+    render(await detail());
+
+    expect(mocks.getGroupBalances).toHaveBeenCalledWith(anaId, groupId);
+    // MoneyText puts the amount in its own element, so match the row's text.
+    const rows = screen.getAllByRole("listitem").map((row) => row.textContent);
+    expect(rows).toContainEqual(expect.stringContaining("You owe $8.83"));
+    expect(rows).toContainEqual(expect.stringContaining("Sam is owed $8.83"));
+  });
+
+  it("asks for no balances in the personal space, which has nothing to split", async () => {
+    mocks.getGroup.mockResolvedValue(
+      details({ name: "Personal space", isPersonal: true }),
+    );
+
+    render(await detail());
+
+    expect(mocks.getGroupBalances).not.toHaveBeenCalled();
+  });
+
   it("lists the group's costs, with what the edit form needs (#20)", async () => {
     mocks.getGroup.mockResolvedValue(details());
     const groceries = { id: "e", description: "Groceries" };
@@ -262,7 +294,6 @@ describe("GroupDetail", () => {
   });
 
   describe("the list", () => {
-    const samId = "7a2d3e5f-1111-4222-8333-944455556666";
     const milk = {
       id: "1d5a6182-3333-4444-8555-b66677778888",
       groupId,

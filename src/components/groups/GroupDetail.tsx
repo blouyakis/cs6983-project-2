@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import { getSessionUserId } from "@/lib/auth/cookies";
 import { ForbiddenError } from "@/lib/http/errors";
+import { getGroupBalances } from "@/lib/services/balance-service";
 import { listGroupExpenses } from "@/lib/services/expense-service";
 import {
   getGroup,
@@ -55,7 +56,12 @@ export async function GroupDetail({ params }: GroupDetailProps) {
           members,
         }));
 
-  // Access was checked by getGroup, and is checked again in both of these.
+  // Access was checked by getGroup, and is checked again in each of these.
+  // Balances are computed on the server per request (#9); the personal space
+  // has nothing to split.
+  const balances = group.isPersonal
+    ? undefined
+    : await getGroupBalances(userId, group.id);
   const expenses = await listGroupExpenses(userId, group.id);
   const items = await listGroupListItems(userId, group.id);
   const names = Object.fromEntries(
@@ -75,7 +81,11 @@ export async function GroupDetail({ params }: GroupDetailProps) {
         {group.isPersonal ? (
           <p>Private · nothing here is split or visible to anyone.</p>
         ) : (
-          <MemberList members={group.members} currentUserId={userId} />
+          <MemberList
+            members={group.members}
+            currentUserId={userId}
+            balances={balances}
+          />
         )}
         {group.readOnly ? (
           <p>You can read this group&apos;s history, but not add to it.</p>

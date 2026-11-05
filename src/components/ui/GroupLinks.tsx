@@ -35,7 +35,8 @@ export function GroupLinks({ groups }: GroupLinksProps) {
               }`}
             >
               <span className="truncate">{group.name}</span>
-              {/* TODO(#9): add the user's balance in words with MoneyText. */}
+              {/* TODO(#10): add the user's balance in words with MoneyText, once
+                  the overview loads balances for every group in one go. */}
             </Link>
           </li>
         );
