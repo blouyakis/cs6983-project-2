@@ -92,11 +92,9 @@ export function GroupList({
     return names[userId] ?? "a former member";
   }
 
-  // Sends the delete, once. True when the item is gone.
+  // Sends the delete. confirmDelete makes sure it is sent once. True when the
+  // item is gone.
   async function remove(item: ListItem): Promise<boolean> {
-    if (deletingRef.current.has(item.id)) {
-      return false;
-    }
     markDeleting(item.id, true);
     clear();
     const { text } = splitLeadingEmoji(item.title);
