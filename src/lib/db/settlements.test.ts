@@ -6,6 +6,7 @@ import {
   confirmPayment,
   findOpenSettlement,
   findPayment,
+  findSettlement,
   insertSettlement,
   listClosedSettlements,
   listSettlementPayments,
@@ -182,6 +183,31 @@ describe("findOpenSettlement", () => {
     results = [{ data: null, error: { message: "boom" } }];
 
     await expect(findOpenSettlement(groupId)).rejects.toThrow("boom");
+  });
+});
+
+describe("findSettlement", () => {
+  it("returns the settlement in camelCase", async () => {
+    results = [{ data: settlementRow, error: null }];
+
+    const found = await findSettlement(settlementId);
+
+    expect(found?.id).toBe(settlementId);
+    expect(found?.startedBy).toBe(anaId);
+    expect(argsOf("from")).toEqual(["settlements"]);
+    expect(argsOf("eq")).toEqual(["id", settlementId]);
+  });
+
+  it("returns null for an unknown settlement", async () => {
+    results = [{ data: null, error: null }];
+
+    expect(await findSettlement(settlementId)).toBeNull();
+  });
+
+  it("throws on a database error", async () => {
+    results = [{ data: null, error: { message: "boom" } }];
+
+    await expect(findSettlement(settlementId)).rejects.toThrow("boom");
   });
 });
 
