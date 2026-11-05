@@ -67,6 +67,7 @@ export async function GroupDetail({ params }: GroupDetailProps) {
   const items = await listGroupListItems(userId, group.id);
   // The personal list shows this month's spending (#23). Every expense in the
   // personal space is the owner's alone, so it adds up the amounts.
+  // TODO(#77): take the month in the user's time zone, not UTC.
   const spentThisMonthCents = group.isPersonal
     ? spentInMonthCents(expenses, monthOf(new Date()))
     : null;
