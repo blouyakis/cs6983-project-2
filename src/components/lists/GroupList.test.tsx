@@ -372,6 +372,19 @@ describe("GroupList", () => {
     ).toBeInTheDocument();
   });
 
+  // Nobody else sees the personal space, so "for everyone" would be wrong.
+  it("asks about the user's own list in the personal space", () => {
+    setup({ isPersonal: true, items: [soap] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Dish soap" }));
+
+    expect(
+      screen.getByRole("dialog", {
+        name: "Delete Dish soap? It comes off your list.",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("keeps the item when Cancel is chosen, and returns focus to its Delete button", () => {
     setup();
     const remove = screen.getByRole("button", { name: "Delete Dish soap" });
