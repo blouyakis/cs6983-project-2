@@ -127,6 +127,20 @@ describe("ConfirmDialog", () => {
     expect(screen.getByRole("button", { name: "Delete…" })).toHaveFocus();
   });
 
+  // A browser fires close a task after dialog.close(). If the dialog was
+  // opened again in between, as a quick Escape then Enter does, that late
+  // event must not cancel the new question.
+  it("ignores a close event that arrives after it has opened again", () => {
+    const { onCancel } = renderDialog();
+
+    act(() => {
+      screen.getByRole("dialog").dispatchEvent(new Event("close"));
+    });
+
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
   it("disables the action while busy, so it isn't sent twice", () => {
     renderDialog({ busy: true });
 
