@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { AddExpenseButton } from "@/components/expenses/AddExpenseButton";
 import { GroupList } from "@/components/lists/GroupList";
 import { Badge } from "@/components/ui/Badge";
+import { NoticeProvider } from "@/components/ui/NoticeProvider";
 import { getSessionUserId } from "@/lib/auth/cookies";
 import { ForbiddenError } from "@/lib/http/errors";
 import {
@@ -58,40 +59,44 @@ export async function GroupDetail({ params }: GroupDetailProps) {
     group.members.map((member) => [member.userId, member.name]),
   );
 
+  // One notice for the whole page: logging a cost and changing the list each
+  // show theirs by their own button, and a new one clears the last.
   return (
-    <div className="flex flex-col gap-8">
-      <header className="flex flex-wrap items-center gap-3">
-        <GroupTile name={group.name} />
-        <h1 className="text-3xl font-bold">{group.name}</h1>
-        {group.readOnly ? <Badge>Read only</Badge> : null}
-      </header>
-      {group.isPersonal ? (
-        <p>Private · nothing here is split or visible to anyone.</p>
-      ) : (
-        <MemberList members={group.members} currentUserId={userId} />
-      )}
-      {group.readOnly ? (
-        <p>You can read this group&apos;s history, but not add to it.</p>
-      ) : null}
-      {group.readOnly ? null : (
-        <AddExpenseButton
-          groups={addableGroups}
+    <NoticeProvider>
+      <div className="flex flex-col gap-8">
+        <header className="flex flex-wrap items-center gap-3">
+          <GroupTile name={group.name} />
+          <h1 className="text-3xl font-bold">{group.name}</h1>
+          {group.readOnly ? <Badge>Read only</Badge> : null}
+        </header>
+        {group.isPersonal ? (
+          <p>Private · nothing here is split or visible to anyone.</p>
+        ) : (
+          <MemberList members={group.members} currentUserId={userId} />
+        )}
+        {group.readOnly ? (
+          <p>You can read this group&apos;s history, but not add to it.</p>
+        ) : null}
+        {group.readOnly ? null : (
+          <AddExpenseButton
+            groups={addableGroups}
+            currentUserId={userId}
+            defaultGroupId={group.id}
+          />
+        )}
+        {!group.isPersonal && !group.readOnly ? (
+          <InviteForm groupId={group.id} />
+        ) : null}
+        <GroupList
+          groupId={group.id}
+          isPersonal={group.isPersonal}
+          readOnly={group.readOnly}
+          items={items}
+          names={names}
           currentUserId={userId}
-          defaultGroupId={group.id}
+          entryGroups={addableGroups}
         />
-      )}
-      {!group.isPersonal && !group.readOnly ? (
-        <InviteForm groupId={group.id} />
-      ) : null}
-      <GroupList
-        groupId={group.id}
-        isPersonal={group.isPersonal}
-        readOnly={group.readOnly}
-        items={items}
-        names={names}
-        currentUserId={userId}
-        entryGroups={addableGroups}
-      />
-    </div>
+      </div>
+    </NoticeProvider>
   );
 }

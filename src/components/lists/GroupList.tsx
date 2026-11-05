@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { EntryForm, type EntryGroup } from "@/components/expenses/EntryForm";
 import { expenseNotice, planNotice } from "@/components/expenses/entry-notices";
+import { NOTICE_TONES, useNotice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { ListItem } from "@/lib/db/list-items";
 import { openEstimateTotalCents } from "@/lib/domain/list-stats";
@@ -49,7 +50,7 @@ export function GroupList({
   const [editing, setEditing] = useState<ListItem>();
   const [editOpen, setEditOpen] = useState(false);
   const [editCount, setEditCount] = useState(0);
-  const [notice, setNotice] = useState<string>();
+  const { notice, show, clear } = useNotice("list");
   // Items whose delete is on its way. The ref turns away a second click before
   // React has re-rendered the button as disabled.
   const deletingRef = useRef(new Set<string>());
@@ -83,13 +84,17 @@ export function GroupList({
       return;
     }
     markDeleting(item.id, true);
-    setNotice(undefined);
+    clear();
     const { text } = splitLeadingEmoji(item.title);
     const result = await deleteJson(
       `/api/groups/${groupId}/list-items/${item.id}`,
     );
     markDeleting(item.id, false);
-    setNotice(result.ok ? `Deleted ${text}.` : result.error.message);
+    if (result.ok) {
+      show(`Deleted ${text}.`, "done");
+    } else {
+      show(result.error.message, "problem");
+    }
     // On a 409 someone checked it off first, so the list is out of date too.
     router.refresh();
   }
@@ -136,15 +141,18 @@ export function GroupList({
       )}
       {/* The region stays in the page, so a notice is announced when it
           appears instead of being created along with its text. */}
-      <p role="status" className="font-semibold">
-        {notice}
+      <p
+        role="status"
+        className={`font-semibold ${notice ? NOTICE_TONES[notice.tone] : ""}`}
+      >
+        {notice?.text}
       </p>
       {readOnly ? null : (
         <>
           <div>
             <PrimaryButton
               onClick={() => {
-                setNotice(undefined);
+                clear();
                 setAdding(true);
               }}
             >
@@ -161,11 +169,11 @@ export function GroupList({
             // Either mode, and any group the picker chose, so the notice says
             // what went where.
             onPlanned={(item, group) => {
-              setNotice(planNotice(item, group));
+              show(planNotice(item, group), "done");
               router.refresh();
             }}
             onAdded={(expense, group) => {
-              setNotice(expenseNotice(expense, group));
+              show(expenseNotice(expense, group), "done");
               router.refresh();
             }}
           />

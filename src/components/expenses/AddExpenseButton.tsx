@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { NOTICE_TONES, useNotice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { EntryForm, type EntryGroup } from "./EntryForm";
 import { expenseNotice, planNotice } from "./entry-notices";
@@ -24,14 +25,14 @@ export function AddExpenseButton({
 }: AddExpenseButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [notice, setNotice] = useState<string>();
+  const { notice, show, clear } = useNotice("costs");
 
   return (
     <div className="flex flex-col gap-2">
       <div>
         <PrimaryButton
           onClick={() => {
-            setNotice(undefined);
+            clear();
             setOpen(true);
           }}
         >
@@ -40,8 +41,11 @@ export function AddExpenseButton({
       </div>
       {/* The region stays in the page, so a notice is announced when it
           appears instead of being created along with its text. */}
-      <p role="status" className="font-semibold text-action">
-        {notice}
+      <p
+        role="status"
+        className={`font-semibold ${notice ? NOTICE_TONES[notice.tone] : ""}`}
+      >
+        {notice?.text}
       </p>
       <EntryForm
         groups={groups}
@@ -50,13 +54,13 @@ export function AddExpenseButton({
         open={open}
         onClose={() => setOpen(false)}
         onAdded={(expense, group) => {
-          setNotice(expenseNotice(expense, group));
+          show(expenseNotice(expense, group), "done");
           router.refresh();
         }}
         // The form can switch to Plan it, so the list on the page needs the
         // refresh too.
         onPlanned={(item, group) => {
-          setNotice(planNotice(item, group));
+          show(planNotice(item, group), "done");
           router.refresh();
         }}
       />
