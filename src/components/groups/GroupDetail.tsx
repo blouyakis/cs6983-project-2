@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { AddExpenseButton } from "@/components/expenses/AddExpenseButton";
+import { GroupList } from "@/components/lists/GroupList";
 import { Badge } from "@/components/ui/Badge";
 import { getSessionUserId } from "@/lib/auth/cookies";
 import { ForbiddenError } from "@/lib/http/errors";
@@ -8,6 +9,7 @@ import {
   listGroups,
   type GroupDetails,
 } from "@/lib/services/group-service";
+import { listGroupListItems } from "@/lib/services/list-item-service";
 import { groupParamsSchema } from "@/lib/validation/group";
 import { GroupTile } from "./GroupTile";
 import { InviteForm } from "./InviteForm";
@@ -50,6 +52,12 @@ export async function GroupDetail({ params }: GroupDetailProps) {
           members,
         }));
 
+  // Access was checked by getGroup, and is checked again here.
+  const items = await listGroupListItems(userId, group.id);
+  const names = Object.fromEntries(
+    group.members.map((member) => [member.userId, member.name]),
+  );
+
   return (
     <div className="flex flex-col gap-8">
       <header className="flex flex-wrap items-center gap-3">
@@ -75,7 +83,15 @@ export async function GroupDetail({ params }: GroupDetailProps) {
       {!group.isPersonal && !group.readOnly ? (
         <InviteForm groupId={group.id} />
       ) : null}
-      {/* TODO(#11): show the group's list here. */}
+      <GroupList
+        groupId={group.id}
+        isPersonal={group.isPersonal}
+        readOnly={group.readOnly}
+        items={items}
+        names={names}
+        currentUserId={userId}
+        entryGroups={addableGroups}
+      />
     </div>
   );
 }
