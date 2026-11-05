@@ -130,6 +130,7 @@ function setup(props: Partial<Parameters<typeof GroupList>[0]> = {}) {
       names={{ [ana]: "Ana", [sam]: "Sam" }}
       currentUserId={ana}
       entryGroups={[flat]}
+      spentThisMonthCents={null}
       {...props}
     />,
     { wrapper: WithNotices },
@@ -249,6 +250,13 @@ describe("GroupList", () => {
     expect(edit).toHaveFocus();
   });
 
+  it("shows what was spent this month in the personal space (#23)", () => {
+    setup({ isPersonal: true, spentThisMonthCents: 600 });
+
+    expect(screen.getByText("Spent this month")).toBeInTheDocument();
+    expect(screen.getByText("$6.00")).toBeInTheDocument();
+  });
+
   it("says when each item was added in the personal space", () => {
     setup({ isPersonal: true, items: [soap] });
 
@@ -285,6 +293,7 @@ describe("GroupList", () => {
         names={{ [ana]: "Ana", [sam]: "Sam" }}
         currentUserId={ana}
         entryGroups={[flat]}
+        spentThisMonthCents={null}
       />,
     );
     fireEvent.click(

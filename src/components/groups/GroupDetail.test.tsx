@@ -349,6 +349,37 @@ describe("GroupDetail", () => {
       expect(groupListProps()).toMatchObject({ isPersonal: true });
     });
 
+    it("gives the personal list what was spent there this month (#23)", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-11-15T12:00:00Z"));
+      mocks.getGroup.mockResolvedValue(
+        details({ name: "Personal space", isPersonal: true }),
+      );
+      mocks.listGroupExpenses.mockResolvedValue([
+        { id: "a", amountCents: 400, spentOn: "2026-11-02" },
+        { id: "b", amountCents: 900, spentOn: "2026-10-28" },
+      ]);
+
+      try {
+        render(await detail());
+      } finally {
+        vi.useRealTimers();
+      }
+
+      expect(groupListProps()).toMatchObject({ spentThisMonthCents: 400 });
+    });
+
+    it("gives a shared group's list no spent this month", async () => {
+      mocks.getGroup.mockResolvedValue(details());
+      mocks.listGroupExpenses.mockResolvedValue([
+        { id: "a", amountCents: 400, spentOn: "2026-11-02" },
+      ]);
+
+      render(await detail());
+
+      expect(groupListProps()).toMatchObject({ spentThisMonthCents: null });
+    });
+
     it("shows a read-only group's list as read-only", async () => {
       mocks.getGroup.mockResolvedValue(details({ readOnly: true }));
 
