@@ -138,6 +138,27 @@ describe("PaymentCard", () => {
     expect(screen.getByRole("button", { name: /I paid this/ })).toBeDisabled();
   });
 
+  it("keeps the words but drops the button for a read-only viewer", () => {
+    render(
+      <PaymentCard
+        payment={suggested}
+        names={names}
+        currentUserId={anaId}
+        onAct={vi.fn()}
+        canAct={false}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "You → Sam" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByRole("listitem")).toHaveAttribute(
+      "data-needs-you",
+      "false",
+    );
+  });
+
   it("names a former member it can't find", () => {
     card({ ...suggested, toUserId: "gone" }, anaId);
 
