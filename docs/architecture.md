@@ -243,6 +243,7 @@ erDiagram
 
 - `status` is `open` or `done`. While `open`, `completed_by`, `completed_at` and `expense_id` are null. When `done`, `completed_by` and `completed_at` are set.
 - `estimated_cents` and `quantity` are optional and must be positive when present.
+- Any current member can edit or delete an open item, whoever added it (#11). A done item is linked to what it cost, so editing or deleting it is `409` until it is unchecked. The `status = 'open'` check is part of the same `update` or `delete`, so an item checked off between the service's access check and the write is left alone. Deleting an open item removes the row.
 - `expense_id` is null when the item was done with no cost. It must be an expense of the same group, and an expense belongs to one item at most. If that expense is deleted on its own, only `expense_id` becomes null and the item stays done.
 - Unchecking a done item reopens it: one transaction deletes its expense, if it has one, and sets `status` back to `open` with `completed_by`, `completed_at` and `expense_id` null. Only the member who checked it off (`completed_by`) can uncheck it; anyone else gets `403`. If its expense is settled, unchecking is `409`. A done item with no expense (checked off with no cost, or its expense was deleted on its own) has nothing to lock, so it just reopens. Unchecking an item that is already open is `409`, like checking off a done item.
 
@@ -272,7 +273,7 @@ erDiagram
 - `closed_at` is when it ended, by closing or by cancelling. It is set exactly when the status is not `open`, and is never before `started_at`.
 - `started_by` must be a member of the group.
 
-Every foreign key is `on delete restrict` except `expense_shares.expense_id` (`cascade`) and `list_items.expense_id` (`set null`, which clears only `expense_id`). Nothing else is ever hard-deleted, so history stays intact.
+Every foreign key is `on delete restrict` except `expense_shares.expense_id` (`cascade`) and `list_items.expense_id` (`set null`, which clears only `expense_id`). Only two kinds of row are ever hard-deleted: an unsettled expense, with its shares, and an open list item, which has no expense and no history to keep. Everything else stays, so history stays intact.
 
 ### Demo data
 
