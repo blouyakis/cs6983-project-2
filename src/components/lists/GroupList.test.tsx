@@ -487,6 +487,38 @@ describe("GroupList", () => {
     expect(listHeading()).toHaveFocus();
   });
 
+  // While the modal is open the rest of the page is inert, and a screen reader
+  // may skip a change to the notice line there. The notice comes once the
+  // dialog has closed.
+  it("says what happened only after the dialog has closed", async () => {
+    mocks.deleteJson.mockResolvedValue({ ok: true, data: undefined });
+    setup();
+    const remove = screen.getByRole("button", { name: "Delete Dish soap" });
+    remove.focus();
+    fireEvent.click(remove);
+    const dialog = confirmDialog();
+    const noticeAtClose: string[] = [];
+    const close = HTMLDialogElement.prototype.close;
+    const spy = vi
+      .spyOn(HTMLDialogElement.prototype, "close")
+      .mockImplementation(function (this: HTMLDialogElement) {
+        if (this === dialog) {
+          noticeAtClose.push(screen.getByRole("status").textContent ?? "");
+        }
+        close.call(this);
+      });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Deleted Dish soap.",
+      ),
+    );
+    spy.mockRestore();
+
+    expect(noticeAtClose).toEqual([""]);
+  });
+
   it("keeps the last notice when a delete is cancelled, since nothing changed", async () => {
     mocks.patchJson.mockResolvedValue({ ok: true, data: { item: soap } });
     setup();
