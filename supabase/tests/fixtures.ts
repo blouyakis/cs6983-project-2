@@ -81,6 +81,12 @@ export async function cleanUp(): Promise<void> {
     () => db.from("payments").delete().in("group_id", groupIds),
     () => db.from("expenses").delete().in("group_id", groupIds),
     () => db.from("settlements").delete().in("group_id", groupIds),
+  ];
+  // Another file's ensure_personal_spaces test can give one of these users a
+  // personal space between the groups step and the users step (#83). Each
+  // step is its own request, so no transaction shuts it out; when the users
+  // step hits the foreign key, these three run once more.
+  const userSteps = [
     () => db.from("group_members").delete().in("user_id", ids),
     () => db.from("groups").delete().in("created_by", ids),
     () => db.from("users").delete().in("id", ids),
@@ -90,6 +96,22 @@ export async function cleanUp(): Promise<void> {
     // Fail loudly: a new table that references users must be cleaned here too.
     if (error) {
       throw error;
+    }
+  }
+  for (const attempt of [1, 2]) {
+    let failed = null;
+    for (const step of userSteps) {
+      const { error } = await step();
+      if (error) {
+        failed = error;
+        break;
+      }
+    }
+    if (!failed) {
+      return;
+    }
+    if (attempt === 2 || failed.code !== "23503") {
+      throw failed;
     }
   }
 }
