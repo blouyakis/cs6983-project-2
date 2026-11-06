@@ -315,6 +315,7 @@ The earlier draft had only `pending` and `confirmed`. That could not tell "the a
 | Even split, leftover cents to the payer | `lib/domain/splits.ts` |
 | Custom split must equal the total | Zod and `lib/domain/splits.ts`; deferred trigger as a backstop |
 | Balances over unsettled expenses and confirmed payments | `lib/domain/balances.ts`, fed by `lib/db` queries for the current period |
+| The net across groups (overview, #10) | `lib/domain/overview.ts` sums the per-group balances that `getGroupPeriod` in the balance service returns; the personal space and read-only groups stay out. `listGroupStandings` in the overview service gives each current group's balance and open items to the overview, the Groups page and the sidebar |
 | Fewest payments, exact bitmask search, at most 12 members | `lib/domain/settle-up.ts`; member cap trigger |
 | One access check | `lib/services/access.ts` (`requireGroupAccess`) |
 | Only the payer edits, only while unsettled | Expense service; `409` once `settlement_id` is set. Unchecking a list item uses the same check, because it deletes the expense |
