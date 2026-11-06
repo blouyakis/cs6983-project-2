@@ -118,8 +118,19 @@ paths:
   /api/overview:
     get:
       summary: Personal total, share per group, net balance
-      description: Issue #10.
+      description: |
+        Issue #10. The landing screen's numbers for the session user. Each
+        group's balance comes from the same calculation as
+        `GET /api/groups/{groupId}/balances` (#9). The net covers only the
+        groups the user is in now: the personal space has no balance, and a
+        group the user left or that was archived is listed apart.
       responses:
+        "200":
+          description: The user's overview.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverviewResponse"
         "401":
           $ref: "#/components/responses/Error"
   /api/groups:
@@ -1332,6 +1343,88 @@ components:
       properties:
         group:
           $ref: "#/components/schemas/Group"
+    GroupStanding:
+      allOf:
+        - $ref: "#/components/schemas/GroupSummary"
+        - type: object
+          required: [balanceCents, shareThisPeriodCents, openItemCount]
+          properties:
+            balanceCents:
+              type: integer
+              description: |
+                The user's balance in the group this period. Positive means
+                the group owes them; negative means they owe the group.
+            shareThisPeriodCents:
+              type: integer
+              minimum: 0
+              description: The user's shares of the group's expenses this period.
+            openItemCount:
+              type: integer
+              minimum: 0
+    PersonalOverview:
+      type: object
+      required: [group, spentThisMonthCents, openEstimateCents, openItems]
+      properties:
+        group:
+          $ref: "#/components/schemas/GroupSummary"
+        spentThisMonthCents:
+          type: integer
+          minimum: 0
+          description: Expenses in the personal space dated this month (UTC).
+        openEstimateCents:
+          type: integer
+          minimum: 0
+          description: The estimates of the open items; an item with no estimate adds nothing.
+        openItems:
+          type: array
+          items:
+            $ref: "#/components/schemas/ListItem"
+    Overview:
+      type: object
+      required:
+        - netCents
+        - owingCents
+        - owedCents
+        - groupShareThisPeriodCents
+        - personal
+        - groups
+        - readOnlyGroups
+      properties:
+        netCents:
+          type: integer
+          description: owedCents minus owingCents, across the user's current groups.
+        owingCents:
+          type: integer
+          minimum: 0
+          description: The sum of the groups where the user owes, as a positive amount.
+        owedCents:
+          type: integer
+          minimum: 0
+          description: The sum of the groups where the user is owed.
+        groupShareThisPeriodCents:
+          type: integer
+          minimum: 0
+          description: The user's share of every current group's expenses this period.
+        personal:
+          allOf:
+            - $ref: "#/components/schemas/PersonalOverview"
+          nullable: true
+        groups:
+          type: array
+          description: The shared groups the user is in now, in the order they joined.
+          items:
+            $ref: "#/components/schemas/GroupStanding"
+        readOnlyGroups:
+          type: array
+          description: Groups the user left, and archived ones.
+          items:
+            $ref: "#/components/schemas/GroupSummary"
+    OverviewResponse:
+      type: object
+      required: [overview]
+      properties:
+        overview:
+          $ref: "#/components/schemas/Overview"
     GroupListResponse:
       type: object
       required: [groups]
