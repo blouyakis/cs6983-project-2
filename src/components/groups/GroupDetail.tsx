@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/Badge";
 import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import { getSessionUserId } from "@/lib/auth/cookies";
 import { monthOf, spentInMonthCents } from "@/lib/domain/list-stats";
-import { ForbiddenError } from "@/lib/http/errors";
+import { ForbiddenError, NotFoundError } from "@/lib/http/errors";
 import { getGroupBalances } from "@/lib/services/balance-service";
 import { listGroupExpenses } from "@/lib/services/expense-service";
+import { getCurrentSettleUp } from "@/lib/services/settlement-service";
 import {
   getGroup,
   listGroups,
@@ -65,6 +66,16 @@ export async function GroupDetail({ params }: GroupDetailProps) {
     ? undefined
     : await getGroupBalances(userId, group.id);
   const expenses = await listGroupExpenses(userId, group.id);
+  // While a settle-up is open, the costs in it are frozen (#86); the list
+  // shows them locked instead of offering an Edit that would get a 409.
+  const openSettleUp = group.isPersonal
+    ? null
+    : await getCurrentSettleUp(userId, group.id).catch((error: unknown) => {
+        if (error instanceof NotFoundError) {
+          return null;
+        }
+        throw error;
+      });
   const items = await listGroupListItems(userId, group.id);
   // The personal list shows this month's spending (#23). Every expense in the
   // personal space is the owner's alone, so it adds up the amounts.
@@ -131,6 +142,7 @@ export async function GroupDetail({ params }: GroupDetailProps) {
           currentUserId={userId}
           groupName={group.name}
           readOnly={group.readOnly}
+          settleUpStartedAt={openSettleUp?.startedAt ?? null}
         />
         {!group.isPersonal && !group.readOnly ? (
           <InviteForm groupId={group.id} />
