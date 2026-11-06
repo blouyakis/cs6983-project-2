@@ -127,6 +127,20 @@ describe("ConfirmDialog", () => {
     expect(screen.getByRole("button", { name: "Delete…" })).toHaveFocus();
   });
 
+  // A browser fires close a task after dialog.close(). If the dialog was
+  // opened again in between, as a quick Escape then Enter does, that late
+  // event must not cancel the new question.
+  it("ignores a close event that arrives after it has opened again", () => {
+    const { onCancel } = renderDialog();
+
+    act(() => {
+      screen.getByRole("dialog").dispatchEvent(new Event("close"));
+    });
+
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
   it("disables the action while busy, so it isn't sent twice", () => {
     renderDialog({ busy: true });
 
@@ -134,5 +148,39 @@ describe("ConfirmDialog", () => {
       screen.getByRole("button", { name: "Delete expense" }),
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  });
+
+  // The action is already on its way, so Cancel can't stop it. It says so
+  // with aria-disabled instead of disabled, so focus still has a place to
+  // stay inside the dialog while the action button is off.
+  it("marks Cancel unavailable while busy and does nothing when it is pressed", () => {
+    const { onCancel } = renderDialog({ busy: true });
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+
+    fireEvent.click(cancel);
+
+    expect(cancel).toHaveAttribute("aria-disabled", "true");
+    expect(cancel).toHaveFocus();
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  // The action button had focus when it was pressed, and turning it off sends
+  // focus to body in a browser. Cancel is the one control left in the dialog.
+  it("moves focus to Cancel when it becomes busy", () => {
+    const props = {
+      open: true,
+      message:
+        "Delete Groceries? Its $45.10 is removed from everyone's balance.",
+      confirmLabel: "Delete expense",
+      onConfirm: vi.fn(),
+      onCancel: vi.fn(),
+    };
+    const { rerender } = render(<ConfirmDialog {...props} busy={false} />);
+    const action = screen.getByRole("button", { name: "Delete expense" });
+    action.focus();
+
+    rerender(<ConfirmDialog {...props} busy />);
+
+    expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
   });
 });

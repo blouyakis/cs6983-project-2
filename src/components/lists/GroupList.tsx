@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EntryForm, type EntryGroup } from "@/components/expenses/EntryForm";
 import { expenseNotice, planNotice } from "@/components/expenses/entry-notices";
-import { useNotice } from "@/components/ui/NoticeProvider";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useNotice, type Notice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { ListItem } from "@/lib/db/list-items";
 import { openEstimateTotalCents } from "@/lib/domain/list-stats";
@@ -28,6 +29,12 @@ type GroupListProps = {
   // The groups the New entry form can add to, for its group picker.
   entryGroups: EntryGroup[];
 };
+
+// A failed delete with one of these codes means the refresh takes the row's
+// Delete button away: someone else deleted the item (404) or checked it off
+// (409) first, or the user can no longer change the list (403: they left in
+// another tab, or the group was archived).
+const DELETE_GOES_AWAY = new Set(["NOT_FOUND", "CONFLICT", "FORBIDDEN"]);
 
 // A group's or the personal space's list (user flow 2, DESIGN.md "Lists").
 // Any current member can add, edit or delete an open item. After a change the
@@ -56,6 +63,35 @@ export function GroupList({
   // React has re-rendered the button as disabled.
   const deletingRef = useRef(new Set<string>());
   const [deleting, setDeleting] = useState<ReadonlySet<string>>(new Set());
+  // The item whose Delete is waiting for the ConfirmDialog (#76).
+  const [confirming, setConfirming] = useState<ListItem>();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Set when a confirmed delete leaves the row without a Delete button to go
+  // back to: it stays disabled until the refresh removes a deleted item, and
+  // the refresh takes it away after some failures (DELETE_GOES_AWAY). The
+  // ConfirmDialog can't give it focus back, so the heading
+  // gets it instead.
+  const focusHeadingRef = useRef(false);
+  // What a confirmed delete did, held until the dialog has closed. While the
+  // modal is open the rest of the page is inert, and a screen reader may skip
+  // a change to the notice line there.
+  const deleteNoticeRef = useRef<Notice>(undefined);
+  // Runs after the dialog's own effect, which closes it and tries to give
+  // focus back to the row's Delete button.
+  useEffect(() => {
+    if (confirming !== undefined) {
+      return;
+    }
+    const notice = deleteNoticeRef.current;
+    if (notice !== undefined) {
+      deleteNoticeRef.current = undefined;
+      show(notice.text, notice.tone);
+    }
+    if (focusHeadingRef.current) {
+      focusHeadingRef.current = false;
+      headingRef.current?.focus();
+    }
+  }, [confirming, show]);
 
   function markDeleting(itemId: string, on: boolean) {
     const next = new Set(deletingRef.current);
@@ -77,12 +113,10 @@ export function GroupList({
     return names[userId] ?? "a former member";
   }
 
-  // TODO(#76): ask with ConfirmDialog first, as DESIGN.md says, once #72
-  // brings src/components/ui/ConfirmDialog.tsx to main.
-  async function remove(item: ListItem) {
-    if (deletingRef.current.has(item.id)) {
-      return;
-    }
+  // Sends the delete. confirmDelete makes sure it is sent once. True when the
+  // row loses its Delete button: the item is gone, or the failure is one in
+  // DELETE_GOES_AWAY.
+  async function remove(item: ListItem): Promise<boolean> {
     markDeleting(item.id, true);
     clear();
     const { text } = splitLeadingEmoji(item.title);
@@ -92,13 +126,37 @@ export function GroupList({
     if (result.ok) {
       // Delete stays off: the row is still shown until the refresh removes
       // it, and a second click would only get a 404.
-      show(`Deleted ${text}.`, "done");
+      deleteNoticeRef.current = { text: `Deleted ${text}.`, tone: "done" };
     } else {
       markDeleting(item.id, false);
-      show(result.error.message, "problem");
+      deleteNoticeRef.current = { text: result.error.message, tone: "problem" };
     }
     // On a 409 someone checked it off first, so the list is out of date too.
     router.refresh();
+    return result.ok || DELETE_GOES_AWAY.has(result.error.code);
+  }
+
+  // The dialog stays open until the answer comes back, so the notice and the
+  // list agree with what the user saw. On any other failure, such as the
+  // network, it hands focus back to the row's Delete button, which is on
+  // again.
+  async function confirmDelete() {
+    // A second confirm before the re-render is turned away here, so it can't
+    // close the dialog while the first delete is still on its way.
+    if (confirming === undefined || deletingRef.current.has(confirming.id)) {
+      return;
+    }
+    focusHeadingRef.current = await remove(confirming);
+    setConfirming(undefined);
+  }
+
+  // Once the DELETE is sent, Cancel and Escape would only hide that it is
+  // still going through, so they wait for the answer.
+  function cancelDelete() {
+    if (confirming !== undefined && deletingRef.current.has(confirming.id)) {
+      return;
+    }
+    setConfirming(undefined);
   }
 
   const openCount = items.filter((item) => item.status === "open").length;
@@ -110,7 +168,12 @@ export function GroupList({
         isPersonal={isPersonal}
       />
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="list-heading" className="text-xl font-bold">
+        <h2
+          id="list-heading"
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-xl font-bold"
+        >
           <span aria-hidden="true">📝 </span>To do &amp; buy
         </h2>
         <p className="font-semibold text-muted">{openCount} open</p>
@@ -138,7 +201,9 @@ export function GroupList({
                       setEditOpen(true);
                     }
               }
-              onDelete={readOnly ? undefined : remove}
+              // Asks first, since the list is shared. The notice stays until
+              // the delete is confirmed, as nothing has changed before that.
+              onDelete={readOnly ? undefined : setConfirming}
               deleting={deleting.has(item.id)}
             />
           ))}
@@ -173,6 +238,22 @@ export function GroupList({
               show(expenseNotice(expense, group), "done");
               router.refresh();
             }}
+          />
+          <ConfirmDialog
+            open={confirming !== undefined}
+            message={
+              confirming === undefined
+                ? ""
+                : `Delete ${splitLeadingEmoji(confirming.title).text}? ${
+                    isPersonal
+                      ? "It comes off your list."
+                      : "It comes off the list for everyone."
+                  }`
+            }
+            confirmLabel="Delete"
+            onConfirm={confirmDelete}
+            onCancel={cancelDelete}
+            busy={confirming !== undefined && deleting.has(confirming.id)}
           />
         </>
       )}

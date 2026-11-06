@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -140,6 +141,41 @@ function rows() {
   return within(screen.getByRole("list")).getAllByRole("listitem");
 }
 
+function confirmDialog() {
+  return screen.getByRole("dialog", {
+    name: /It comes off the list for everyone\.$/,
+  });
+}
+
+function pressEscape(target: Element) {
+  act(() => {
+    target.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+  });
+}
+
+// Delete on the row, then Delete in the ConfirmDialog it opens (#76). The
+// row's button gets focus first, as a click would give it in a browser, so
+// the dialog has somewhere to send focus back to.
+function deleteItem(text: string) {
+  const remove = screen.getByRole("button", { name: `Delete ${text}` });
+  remove.focus();
+  fireEvent.click(remove);
+  fireEvent.click(
+    within(confirmDialog()).getByRole("button", { name: "Delete" }),
+  );
+  return remove;
+}
+
+function listHeading() {
+  return screen.getByRole("heading", { name: "To do & buy" });
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
 });
@@ -194,13 +230,17 @@ describe("GroupList", () => {
     mocks.deleteJson.mockResolvedValue({ ok: true, data: undefined });
     setup();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Dish soap" }));
+    deleteItem("Dish soap");
 
-    await waitFor(() => expect(mocks.refresh).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Deleted Dish soap.",
+      ),
+    );
     expect(mocks.deleteJson).toHaveBeenCalledWith(
       `/api/groups/${groupId}/list-items/${soap.id}`,
     );
-    expect(screen.getByRole("status")).toHaveTextContent("Deleted Dish soap.");
+    expect(mocks.refresh).toHaveBeenCalled();
   });
 
   it("says why a delete failed, such as the item being checked off first", async () => {
@@ -213,7 +253,7 @@ describe("GroupList", () => {
     });
     setup();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Dish soap" }));
+    deleteItem("Dish soap");
 
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent(
@@ -297,13 +337,207 @@ describe("GroupList", () => {
   it("sends one delete however often Delete is pressed while it is on its way", () => {
     mocks.deleteJson.mockReturnValue(new Promise(() => {}));
     setup();
-    const remove = screen.getByRole("button", { name: "Delete Dish soap" });
 
-    fireEvent.click(remove);
-    fireEvent.click(remove);
+    const remove = deleteItem("Dish soap");
+    const confirm = within(confirmDialog()).getByRole("button", {
+      name: "Delete",
+    });
+    fireEvent.click(confirm);
 
     expect(mocks.deleteJson).toHaveBeenCalledTimes(1);
+    expect(confirm).toBeDisabled();
     expect(remove).toBeDisabled();
+  });
+
+  it("asks before deleting, naming the item", () => {
+    setup();
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Dish soap" }));
+
+    expect(
+      screen.getByRole("dialog", {
+        name: "Delete Dish soap? It comes off the list for everyone.",
+      }),
+    ).toBeInTheDocument();
+    expect(mocks.deleteJson).not.toHaveBeenCalled();
+  });
+
+  it("names the item without its emoji when it asks", () => {
+    setup();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete Paper towels" }),
+    );
+
+    expect(
+      screen.getByRole("dialog", {
+        name: "Delete Paper towels? It comes off the list for everyone.",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  // Nobody else sees the personal space, so "for everyone" would be wrong.
+  it("asks about the user's own list in the personal space", () => {
+    setup({ isPersonal: true, items: [soap] });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Dish soap" }));
+
+    expect(
+      screen.getByRole("dialog", {
+        name: "Delete Dish soap? It comes off your list.",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the item when Cancel is chosen, and returns focus to its Delete button", () => {
+    setup();
+    const remove = screen.getByRole("button", { name: "Delete Dish soap" });
+
+    remove.focus();
+    fireEvent.click(remove);
+    fireEvent.click(
+      within(confirmDialog()).getByRole("button", { name: "Cancel" }),
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(mocks.deleteJson).not.toHaveBeenCalled();
+    expect(screen.getByText("Dish soap")).toBeInTheDocument();
+    expect(remove).toHaveFocus();
+  });
+
+  it("keeps the item when Escape is pressed, and returns focus to its Delete button", () => {
+    setup();
+    const remove = screen.getByRole("button", { name: "Delete Dish soap" });
+
+    remove.focus();
+    fireEvent.click(remove);
+    pressEscape(confirmDialog());
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(mocks.deleteJson).not.toHaveBeenCalled();
+    expect(screen.getByText("Dish soap")).toBeInTheDocument();
+    expect(remove).toHaveFocus();
+  });
+
+  it("moves focus to the list heading once the item is deleted", async () => {
+    mocks.deleteJson.mockResolvedValue({ ok: true, data: undefined });
+    setup();
+
+    deleteItem("Dish soap");
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Deleted Dish soap.",
+      ),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(listHeading()).toHaveFocus();
+  });
+
+  // The DELETE is already sent, so closing the dialog would say the delete was
+  // cancelled while the item is deleted anyway.
+  it("stays open on Cancel or Escape while the delete is on its way, then says what happened", async () => {
+    let finish: (value: unknown) => void = () => {};
+    mocks.deleteJson.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    setup();
+
+    deleteItem("Dish soap");
+    pressEscape(confirmDialog());
+    fireEvent.click(
+      within(confirmDialog()).getByRole("button", { name: "Cancel" }),
+    );
+
+    expect(confirmDialog()).toBeInTheDocument();
+    await act(async () => {
+      finish({ ok: true, data: undefined });
+    });
+    expect(screen.getByRole("status")).toHaveTextContent("Deleted Dish soap.");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  // A second confirm that lands before React re-renders the button as busy is
+  // turned away by deletingRef. It must not close the dialog while the first
+  // DELETE is still on its way.
+  it("stays open when Delete is confirmed twice before a re-render, then moves focus to the heading", async () => {
+    let finish: (value: unknown) => void = () => {};
+    mocks.deleteJson.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    setup();
+    const remove = screen.getByRole("button", { name: "Delete Dish soap" });
+    remove.focus();
+    fireEvent.click(remove);
+    const confirm = within(confirmDialog()).getByRole("button", {
+      name: "Delete",
+    });
+
+    await act(async () => {
+      confirm.click();
+      confirm.click();
+    });
+
+    expect(mocks.deleteJson).toHaveBeenCalledTimes(1);
+    expect(confirmDialog()).toBeInTheDocument();
+    await act(async () => {
+      finish({ ok: true, data: undefined });
+    });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(listHeading()).toHaveFocus();
+  });
+
+  // While the modal is open the rest of the page is inert, and a screen reader
+  // may skip a change to the notice line there. The notice comes once the
+  // dialog has closed.
+  it("says what happened only after the dialog has closed", async () => {
+    mocks.deleteJson.mockResolvedValue({ ok: true, data: undefined });
+    setup();
+    const remove = screen.getByRole("button", { name: "Delete Dish soap" });
+    remove.focus();
+    fireEvent.click(remove);
+    const dialog = confirmDialog();
+    const noticeAtClose: string[] = [];
+    const close = HTMLDialogElement.prototype.close;
+    const spy = vi
+      .spyOn(HTMLDialogElement.prototype, "close")
+      .mockImplementation(function (this: HTMLDialogElement) {
+        if (this === dialog) {
+          noticeAtClose.push(screen.getByRole("status").textContent ?? "");
+        }
+        close.call(this);
+      });
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Deleted Dish soap.",
+      ),
+    );
+    spy.mockRestore();
+
+    expect(noticeAtClose).toEqual([""]);
+  });
+
+  it("keeps the last notice when a delete is cancelled, since nothing changed", async () => {
+    mocks.patchJson.mockResolvedValue({ ok: true, data: { item: soap } });
+    setup();
+    fireEvent.click(screen.getByRole("button", { name: "Edit Dish soap" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("Saved Dish soap."),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete Light bulbs" }));
+    fireEvent.click(
+      within(confirmDialog()).getByRole("button", { name: "Cancel" }),
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Saved Dish soap.");
   });
 
   it("says what was added to the list, and where", async () => {
@@ -364,7 +598,7 @@ describe("GroupList", () => {
     });
     setup();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Dish soap" }));
+    deleteItem("Dish soap");
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent(
         "Deleted Dish soap.",
@@ -372,7 +606,7 @@ describe("GroupList", () => {
     );
     expect(screen.getByRole("status")).toHaveClass("text-action");
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Light bulbs" }));
+    deleteItem("Light bulbs");
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent(
         "This item isn't on the list.",
@@ -384,9 +618,8 @@ describe("GroupList", () => {
   it("keeps Delete off after the item is deleted, until the refresh removes the row", async () => {
     mocks.deleteJson.mockResolvedValue({ ok: true, data: undefined });
     setup();
-    const remove = screen.getByRole("button", { name: "Delete Dish soap" });
 
-    fireEvent.click(remove);
+    const remove = deleteItem("Dish soap");
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent(
         "Deleted Dish soap.",
@@ -395,6 +628,7 @@ describe("GroupList", () => {
     fireEvent.click(remove);
 
     expect(remove).toBeDisabled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(mocks.deleteJson).toHaveBeenCalledTimes(1);
   });
 
@@ -407,17 +641,45 @@ describe("GroupList", () => {
       },
     });
     setup();
-    const remove = screen.getByRole("button", { name: "Delete Dish soap" });
 
-    fireEvent.click(remove);
+    const remove = deleteItem("Dish soap");
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent(
         "Something went wrong. Try again.",
       ),
     );
 
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(remove).toBeEnabled();
+    expect(remove).toHaveFocus();
   });
+
+  // Someone else deleted the item (404) or checked it off (409) first, or the
+  // user can no longer change the list (403: they left in another tab, or the
+  // group was archived). The refresh takes the row's Delete button away, and
+  // focus would fall to body.
+  it.each([
+    ["NOT_FOUND", "Not found."],
+    ["CONFLICT", "This item is done. Uncheck it first to change it."],
+    ["FORBIDDEN", "This group is archived and read-only."],
+  ])(
+    "moves focus to the list heading when the delete gets %s, since the refresh takes Delete away",
+    async (code, message) => {
+      mocks.deleteJson.mockResolvedValue({
+        ok: false,
+        error: { code, message },
+      });
+      setup();
+
+      deleteItem("Dish soap");
+      await waitFor(() =>
+        expect(screen.getByRole("status")).toHaveTextContent(message),
+      );
+
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(listHeading()).toHaveFocus();
+    },
+  );
 
   it("says what was saved after an edit", async () => {
     mocks.patchJson.mockResolvedValue({
@@ -438,7 +700,7 @@ describe("GroupList", () => {
   it("clears the last notice when the edit form opens", async () => {
     mocks.deleteJson.mockResolvedValue({ ok: true, data: undefined });
     setup();
-    fireEvent.click(screen.getByRole("button", { name: "Delete Light bulbs" }));
+    deleteItem("Light bulbs");
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent(
         "Deleted Light bulbs.",
