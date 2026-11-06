@@ -137,10 +137,10 @@ _Why: Money bugs hide here: lost cents, rounding drift, and the wrong person edi
    - Current members can read and write.
    - Former members can only **read** data created **before** their `left_at`.
    - Everyone else gets `403`. A personal space is visible only to its owner and cannot have invitations.
-7. **Editing:** only the payer can edit or delete an expense, and only while it is unsettled. The payer can't be changed; to fix a wrong payer, delete the expense and add it again. Settled expenses are locked: editing or deleting one is `409`, and anyone but the payer gets `403`. Unchecking a list item deletes its expense, so only the member who checked it off can uncheck it (`403` for anyone else), and a settled expense makes it `409`. A done item with no expense just reopens, and unchecking an item that is already open is `409`.
+7. **Editing:** only the payer can edit or delete an expense, and only while it is unsettled. The payer can't be changed; to fix a wrong payer, delete the expense and add it again. Settled expenses are locked: editing or deleting one is `409`, and anyone but the payer gets `403`. An expense in an open settle-up (created on or before its `started_at`) is locked the same way until the period closes or the settle-up is cancelled, so the suggested payments stay true to the balances they came from. Unchecking a list item deletes its expense, so only the member who checked it off can uncheck it (`403` for anyone else), and a settled expense makes it `409`. A done item with no expense just reopens, and unchecking an item that is already open is `409`.
 8. **Leaving:** a member can leave only with a zero balance. A group with one member keeps working; when the last member leaves, set `archived_at` and make it read-only.
 9. **Payments** are records of money sent outside the app. The app never moves money.
-10. **Settle-up periods:** a settle-up works on the balances at the moment it starts. Expenses and direct payments added while it is open belong to the next period. Any current member can cancel it while every payment in it is still suggested; once one is marked paid, it can only close.
+10. **Settle-up periods:** a settle-up works on the balances at the moment it starts: the app takes a cut-off from the database clock, reads the balances up to it, and `start_settlement` checks them against its own before storing the cut-off as `started_at`. Expenses and direct payments added while it is open belong to the next period, and the expenses in the period can't be edited or deleted until it closes (6.7). Any current member can cancel it while every payment in it is still suggested; once one is marked paid, it can only close.
 
 ---
 
@@ -208,6 +208,7 @@ Non-negotiable values, check them before opening a PR: bcrypt cost **12** · ses
 
 ## Changelog
 
+- 2026-11-05, Barbara: said in Section 6.7 that an expense in an open settle-up is locked like a settled one, and in Section 6.10 how the balances and `started_at` are taken from the same moment (#86). Ziye's review of #82 showed that without the first, an edit during a settle-up left the period's balances non-zero at close, and without the second, a cost added between reading the balances and starting could be settled without ever being paid.
 - 2026-11-04, Barbara: added `sprint-2/ planning` to the `docs/sprints/` line of the folder tree in Section 2 (#67), because the Sprint 2 planning notes now exist there. The notes were late: the Sprint 1 retrospective asked for them on 2026-10-31.
 - 2026-11-03, Ziye: said in Section 6.3 that a default share weight is a whole number from 1 to 100 (#6). Without a cap, a weight like 10⁹ makes `amount × total weight` unsafe in `splitByWeights`, which turns into a 500; the cap was only in architecture.md, and an agent reads this file first.
 - 2026-11-02, Ziye: said in Section 6.3 that a group's ratio reaches an expense through `SplitEditor` opening on Custom amounts, and that the server's even mode is always 1:1 (#8). The old sentence read as if the server applied the ratio, so an API client or an agent could expect `mode: "even"` in a 60/40 group to split 60/40, when it splits 50/50.

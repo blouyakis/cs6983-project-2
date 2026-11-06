@@ -496,7 +496,9 @@ paths:
         Issue #20. Replaces the description, amount, day and split together,
         in one transaction, and marks the expense edited (`editedAt`). Only
         the payer may edit (anyone else gets 403), and only while the expense
-        is unsettled (409 once it is in a closed settlement). The payer can't
+        is unsettled (409 once it is in a closed settlement) and not in an
+        open settle-up (409 while a settle-up started on or after its
+        `createdAt` is open, #86). The payer can't
         be changed: the body has no payer field, and one sent anyway is
         ignored (AGENTS.md Section 6.7). The payer must stay one of the
         sharers, or the request is 400 on `sharedBy`. A former member or an
@@ -532,7 +534,8 @@ paths:
       summary: Delete an unsettled expense
       description: |
         Issue #20. Only the payer, and only while the expense is unsettled
-        (409 once settled; anyone else gets 403). The shares go with it. A
+        (409 once settled, and 409 while it is in an open settle-up, #86;
+        anyone else gets 403). The shares go with it. A
         list item the expense came from stays checked off with no expense;
         unchecking the item is #12.
       parameters:
@@ -682,11 +685,15 @@ paths:
     post:
       summary: Start a settle-up and get suggested payments
       description: |
-        Issue #19. Any current member can start one. The app takes the
-        balances at this moment and suggests the fewest payments that zero
-        every balance, found with an exact subset search (AGENTS.md Section
-        6.5). Expenses and direct payments added afterwards belong to the
-        next period and don't change the suggested payments. With nothing
+        Issue #19. Any current member can start one. The app takes a
+        cut-off from the database clock, reads the balances up to it and
+        suggests the fewest payments that zero every balance, found with an
+        exact subset search (AGENTS.md Section 6.5); the database checks
+        those balances against its own as of the cut-off before storing the
+        settle-up, and the app reads again if a cost landed in between (#86).
+        Expenses and direct payments added afterwards belong to the next
+        period and don't change the suggested payments; the expenses in the
+        period are frozen until it closes. With nothing
         to pay, the settle-up is returned already closed and the period's
         rows are locked. A group can have one open settle-up at a time: 409
         while one is open. A personal space has nothing to settle: 409.
