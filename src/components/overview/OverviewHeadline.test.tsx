@@ -36,9 +36,9 @@ describe("OverviewHeadline", () => {
   it("gives the date and the totals owed each way", () => {
     render(<OverviewHeadline totals={totals(-2350, 4200, 1850)} now={now} />);
 
-    expect(
-      screen.getByText("Thu, Oct 29 · you owe $42.00 and are owed $18.50"),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/^Thu, Oct 29/)).toHaveTextContent(
+      "Thu, Oct 29 · you owe $42.00 and are owed $18.50",
+    );
   });
 
   it("holds the button it is given at the right", () => {

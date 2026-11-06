@@ -11,12 +11,13 @@ describe("SpendingStats", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: /Your spending/ }),
     ).toBeInTheDocument();
-    const cards = screen.getAllByRole("listitem");
-    expect(cards.map((card) => card.textContent)).toEqual([
-      "$96.00Personal, this month",
-      "$80.97Your share in groups, this period",
-      "$176.97Total",
-    ]);
+    // Each card's emoji is decorative, so only the words are checked.
+    const [personal, share, total] = screen.getAllByRole("listitem");
+    expect(personal).toHaveTextContent(/^\$96\.00.*Personal, this month$/);
+    expect(share).toHaveTextContent(
+      /^\$80\.97.*Your share in groups, this period$/,
+    );
+    expect(total).toHaveTextContent(/^\$176\.97.*Total$/);
   });
 
   it("shows $0.00 for a new user", () => {

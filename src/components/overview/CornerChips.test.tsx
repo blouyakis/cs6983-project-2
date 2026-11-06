@@ -68,6 +68,8 @@ describe("CornerChips", () => {
     );
 
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
-    expect(screen.getByText("$0.00 this month")).toBeInTheDocument();
+    expect(screen.getByText(/this month/)).toHaveTextContent(
+      "$0.00 this month",
+    );
   });
 });
