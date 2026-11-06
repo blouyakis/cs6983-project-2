@@ -123,6 +123,34 @@ test("start a settle-up, pay and confirm the one suggested payment, and the peri
   );
   expect(again.status()).toBe(409);
 
+  // While the settle-up is open, the cost it was built on is frozen (#86):
+  // the group page shows it locked, and the API refuses an edit.
+  await ana.page.goto(`/groups/${groupId}`);
+  const groceriesRow = ana.page
+    .getByRole("list")
+    .filter({ hasText: "Groceries" })
+    .getByRole("listitem")
+    .filter({ hasText: "Groceries" });
+  await expect(groceriesRow).toContainText("In the open settle-up");
+  await expect(groceriesRow.getByRole("button")).toHaveCount(0);
+  const listed = await ana.page.request.get(`/api/groups/${groupId}/expenses`);
+  const [frozen] = (await listed.json()).expenses;
+  const editWhileOpen = await ana.page.request.patch(
+    `/api/groups/${groupId}/expenses/${frozen.id}`,
+    {
+      data: {
+        description: "Groceries",
+        amountCents: 1000,
+        spentOn: frozen.spentOn,
+        mode: "even",
+        sharedBy: frozen.shares.map((s: { userId: string }) => s.userId),
+      },
+    },
+  );
+  expect(editWhileOpen.status()).toBe(409);
+  expect((await editWhileOpen.json()).error.message).toMatch(/settle-up/);
+  await ana.page.goto(settleUpUrl);
+
   // Sam sees the payment from his side and marks it paid.
   await sam.page.goto(settleUpUrl);
   const samCard = paymentCards(sam.page).first();
