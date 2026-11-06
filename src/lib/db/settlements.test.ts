@@ -181,9 +181,9 @@ describe("insertSettlement", () => {
       },
     ];
 
-    await expect(
-      insertSettlement(groupId, anaId, startedAt, [], []),
-    ).rejects.toThrow(BalancesChangedError);
+    const failure = insertSettlement(groupId, anaId, startedAt, [], []);
+    await expect(failure).rejects.toThrow(BalancesChangedError);
+    await expect(failure).rejects.toMatchObject({ status: 409 });
   });
 
   it("throws on any other database error", async () => {

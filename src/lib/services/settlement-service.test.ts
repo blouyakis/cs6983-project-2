@@ -73,7 +73,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   access.requireGroupAccess.mockResolvedValue({ group: flat, readUntil: null });
   db.dbNow.mockResolvedValue("2026-11-01T10:00:00+00:00");
-  balances.getGroupBalancesAtAt.mockResolvedValue([
+  balances.getGroupBalancesAt.mockResolvedValue([
     { userId: ana, balanceCents: 1500 },
     { userId: sam, balanceCents: -1500 },
   ]);
@@ -182,7 +182,11 @@ describe("startSettleUp", () => {
       new db.BalancesChangedError("changed"),
     );
 
-    await expect(startSettleUp(ana, groupId)).rejects.toThrow(ConflictError);
+    // The database's refusal is passed on as it is: a 409 (see
+    // lib/db/settlements.test.ts).
+    await expect(startSettleUp(ana, groupId)).rejects.toBeInstanceOf(
+      db.BalancesChangedError,
+    );
     expect(db.insertSettlement).toHaveBeenCalledTimes(3);
   });
 
