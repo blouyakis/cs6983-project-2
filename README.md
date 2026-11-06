@@ -44,7 +44,7 @@ The list follows the PRD's priorities. **Built** means it is on `main`; the rest
 - **Lists ([#11](https://github.com/blouyakis/cs6983-project-2/issues/11), [#12](https://github.com/blouyakis/cs6983-project-2/issues/12), [#13](https://github.com/blouyakis/cs6983-project-2/issues/13)):** add things to do or buy, and check them off with the actual cost and who shares it
 - **Expenses ([#7](https://github.com/blouyakis/cs6983-project-2/issues/7), [#8](https://github.com/blouyakis/cs6983-project-2/issues/8), [#20](https://github.com/blouyakis/cs6983-project-2/issues/20)):** log personal or group costs, split evenly or by custom amounts, and edit or delete until settled
 - **Balances (built, [#9](https://github.com/blouyakis/cs6983-project-2/issues/9)):** each member's net balance across unsettled expenses and confirmed payments, computed on the server per request, shown in words on the group page and served by `GET /api/groups/{groupId}/balances`
-- **Settle-up ([#19](https://github.com/blouyakis/cs6983-project-2/issues/19)):** the fewest payments that clear every balance, marked paid and confirmed by the recipient
+- **Settle-up (built, [#19](https://github.com/blouyakis/cs6983-project-2/issues/19)):** any member starts a settle-up on the balances at that moment, the app suggests the fewest payments that clear every balance (an exact subset search in `src/lib/domain/settle-up.ts`), the payer marks each one paid, the recipient confirms it, and when the last is confirmed the period closes and its expenses are locked. On `/groups/{groupId}/settle-up`; the Settle up tab that picks a group comes with [#68](https://github.com/blouyakis/cs6983-project-2/issues/68)
 - **Overview ([#10](https://github.com/blouyakis/cs6983-project-2/issues/10)):** personal total, share in each group, and net balance across groups
 
 **Should have:** estimated costs on list items ([#11](https://github.com/blouyakis/cs6983-project-2/issues/11)), direct payments between two members ([#14](https://github.com/blouyakis/cs6983-project-2/issues/14)), an itemized bill per member ([#21](https://github.com/blouyakis/cs6983-project-2/issues/21)), leaving a group with read-only history ([#22](https://github.com/blouyakis/cs6983-project-2/issues/22)), a default split ratio ([#8](https://github.com/blouyakis/cs6983-project-2/issues/8) splits by it and [#6](https://github.com/blouyakis/cs6983-project-2/issues/6) stores it; the screen to set it is [#63](https://github.com/blouyakis/cs6983-project-2/issues/63)), and filters by group, person, and date ([#15](https://github.com/blouyakis/cs6983-project-2/issues/15)).
@@ -99,7 +99,7 @@ Diagrams of the system, its layers, and a request are in [`docs/architecture.md`
     └── sprints/           # Sprint 1 retrospective, HW3 before/after test
 ```
 
-`src/lib/domain/` (splits, balances, settle-up) arrives with the expense issues. The target layout is in [`AGENTS.md`](./AGENTS.md) Section 2.
+`src/lib/domain/` holds the money rules as pure functions: splits ([#8](https://github.com/blouyakis/cs6983-project-2/issues/8)), balances ([#9](https://github.com/blouyakis/cs6983-project-2/issues/9)) and settle-up ([#19](https://github.com/blouyakis/cs6983-project-2/issues/19)). The target layout is in [`AGENTS.md`](./AGENTS.md) Section 2.
 
 ### Database schema
 

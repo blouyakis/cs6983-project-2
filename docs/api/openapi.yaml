@@ -592,33 +592,160 @@ paths:
       responses:
         "400":
           $ref: "#/components/responses/Error"
-  /api/groups/{groupId}/payments/{paymentId}/confirm:
+  /api/groups/{groupId}/payments/{paymentId}/paid:
     post:
-      summary: Recipient confirms a payment
-      description: Issues #14, #19.
+      summary: Sender marks a suggested payment paid
+      description: |
+        Issue #19. The person paying says they sent the money, for example
+        by Venmo. Only the sender may; the recipient and everyone else get
+        403. A payment that is already paid or confirmed is 409. Balances
+        don't change until the recipient confirms.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/PaymentId"
       responses:
+        "200":
+          description: The payment, now marked paid.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "400":
+          description: The group id or the payment id isn't a UUID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         "403":
           $ref: "#/components/responses/Error"
-  /api/groups/{groupId}/settlements:
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/groups/{groupId}/payments/{paymentId}/confirm:
     post:
-      summary: Start a settle-up and get suggested payments
-      description: Issue #19.
+      summary: Recipient confirms a payment
+      description: |
+        Issues #14, #19. The person receiving the money says it arrived.
+        Only the recipient may; the sender and everyone else get 403. A
+        payment that isn't marked paid is 409. When it was the last payment
+        of an open settle-up, the period closes in the same transaction:
+        `closed` is true, and the expenses created and direct payments
+        confirmed before the settle-up started are locked.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/PaymentId"
+      responses:
+        "200":
+          description: The confirmed payment, and whether the period closed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfirmPaymentResponse"
+        "400":
+          description: The group id or the payment id isn't a UUID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/groups/{groupId}/settlements:
+    get:
+      summary: Closed past periods
+      description: |
+        Issue #19. The group's closed settle-ups, newest first, each with
+        how many expenses and payments it settled (DESIGN.md "PastPeriods").
+        A former member only sees periods started before they left.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
+        "200":
+          description: The closed periods.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PeriodListResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+    post:
+      summary: Start a settle-up and get suggested payments
+      description: |
+        Issue #19. Any current member can start one. The app takes the
+        balances at this moment and suggests the fewest payments that zero
+        every balance, found with an exact subset search (AGENTS.md Section
+        6.5). Expenses and direct payments added afterwards belong to the
+        next period and don't change the suggested payments. With nothing
+        to pay, the settle-up is returned already closed and the period's
+        rows are locked. A group can have one open settle-up at a time: 409
+        while one is open. A personal space has nothing to settle: 409.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "201":
+          description: The new settle-up with its suggested payments.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettleUpResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/settlements/current:
     get:
       summary: Current settle-up and its payments
-      description: Issue #19.
+      description: |
+        Issue #19. The open settle-up with every payment it suggested and
+        each one's status. 404 when none is open, or for a former member
+        when it started after they left.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
+        "200":
+          description: The open settle-up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettleUpResponse"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
         "404":
+          $ref: "#/components/responses/Error"
+  /api/groups/{groupId}/settlements/current/cancel:
+    post:
+      summary: Cancel the open settle-up
+      description: |
+        Issue #19. Any current member can cancel while every payment is
+        still suggested. The suggested payments are deleted and the
+        expenses stay unsettled. Once a payment is marked paid, the
+        settle-up can only close: 409. 404 when none is open.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+      responses:
+        "204":
+          description: Cancelled.
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
           $ref: "#/components/responses/Error"
 components:
   securitySchemes:
@@ -840,6 +967,138 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Balance"
+    Payment:
+      type: object
+      description: |
+        Money sent outside the app (architecture.md "Payment lifecycle").
+        `suggested` by a settle-up, `paid` once the sender marks it, and
+        `confirmed` once the recipient does; only confirmed payments count
+        in balances.
+      required:
+        [
+          id,
+          groupId,
+          fromUserId,
+          toUserId,
+          amountCents,
+          status,
+          settlementId,
+          createdAt,
+          paidAt,
+          confirmedAt,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        groupId:
+          type: string
+          format: uuid
+        fromUserId:
+          type: string
+          format: uuid
+        toUserId:
+          type: string
+          format: uuid
+        amountCents:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [suggested, paid, confirmed]
+        settlementId:
+          type: string
+          format: uuid
+          nullable: true
+          description: The settle-up that suggested it, or that closed over a direct payment. Null for a direct payment in the current period.
+        createdAt:
+          type: string
+          format: date-time
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+        confirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+    PaymentResponse:
+      type: object
+      required: [payment]
+      properties:
+        payment:
+          $ref: "#/components/schemas/Payment"
+    ConfirmPaymentResponse:
+      type: object
+      required: [payment, closed]
+      properties:
+        payment:
+          $ref: "#/components/schemas/Payment"
+        closed:
+          type: boolean
+          description: True when this was the last payment of an open settle-up, which then closed.
+    Settlement:
+      type: object
+      description: One settle-up period (AGENTS.md Section 6.10).
+      required: [id, groupId, status, startedBy, startedAt, closedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        groupId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [open, closed, cancelled]
+        startedBy:
+          type: string
+          format: uuid
+        startedAt:
+          type: string
+          format: date-time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: When it closed or was cancelled. Null while open.
+    SettleUp:
+      allOf:
+        - $ref: "#/components/schemas/Settlement"
+        - type: object
+          required: [payments]
+          properties:
+            payments:
+              type: array
+              description: The payments it suggested, oldest first.
+              items:
+                $ref: "#/components/schemas/Payment"
+    SettleUpResponse:
+      type: object
+      required: [settleUp]
+      properties:
+        settleUp:
+          $ref: "#/components/schemas/SettleUp"
+    Period:
+      allOf:
+        - $ref: "#/components/schemas/Settlement"
+        - type: object
+          required: [expenseCount, paymentCount]
+          properties:
+            expenseCount:
+              type: integer
+              description: Expenses locked into this period.
+            paymentCount:
+              type: integer
+              description: Payments in this period, suggested by it or direct ones it closed over.
+    PeriodListResponse:
+      type: object
+      required: [periods]
+      properties:
+        periods:
+          type: array
+          items:
+            $ref: "#/components/schemas/Period"
     ListItemTitle:
       type: string
       description: Trimmed. An emoji at the start is shown as the item's emoji.

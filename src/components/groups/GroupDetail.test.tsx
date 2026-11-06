@@ -194,6 +194,28 @@ describe("GroupDetail", () => {
     expect(screen.getByRole("button", { name: "Invite" })).toBeInTheDocument();
   });
 
+  it("links to the group's settle-up page (#19)", async () => {
+    mocks.getGroup.mockResolvedValue(details());
+
+    render(await detail());
+
+    expect(
+      screen.getByRole("link", { name: "Settle up 🏠 Dorm 4B" }),
+    ).toHaveAttribute("href", `/groups/${groupId}/settle-up`);
+  });
+
+  it("has no settle-up link in the personal space, which has nothing to settle", async () => {
+    mocks.getGroup.mockResolvedValue(
+      details({ name: "Personal space", isPersonal: true }),
+    );
+
+    render(await detail());
+
+    expect(
+      screen.queryByRole("link", { name: /Settle up/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("has no invite form in the personal space", async () => {
     mocks.getGroup.mockResolvedValue(
       details({ name: "Personal space", isPersonal: true }),
