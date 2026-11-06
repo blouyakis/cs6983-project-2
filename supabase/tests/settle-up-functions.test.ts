@@ -34,10 +34,41 @@ async function addExpense(
   return data as string;
 }
 
-function start(groupId: string, startedBy: string, payments: Suggested[]) {
+// The balances the payments clear: what start_settlement checks against the
+// database as of the cut-off (#86). Every group here has balances that its
+// suggested payments settle exactly.
+function balancesCleared(payments: Suggested[]) {
+  const cents = new Map<string, number>();
+  for (const payment of payments) {
+    cents.set(
+      payment.from_user_id,
+      (cents.get(payment.from_user_id) ?? 0) - payment.amount_cents,
+    );
+    cents.set(
+      payment.to_user_id,
+      (cents.get(payment.to_user_id) ?? 0) + payment.amount_cents,
+    );
+  }
+  return Array.from(cents, ([user_id, balance_cents]) => ({
+    user_id,
+    balance_cents,
+  }));
+}
+
+async function start(
+  groupId: string,
+  startedBy: string,
+  payments: Suggested[],
+) {
+  const { data: now, error } = await db.rpc("db_now");
+  if (error) {
+    throw error;
+  }
   return db.rpc("start_settlement", {
     p_group_id: groupId,
     p_started_by: startedBy,
+    p_started_at: now as string,
+    p_balances: balancesCleared(payments),
     p_payments: payments,
   });
 }
@@ -157,6 +188,8 @@ describe("start_settlement", () => {
     const { error } = await anonDb().rpc("start_settlement", {
       p_group_id: groupId,
       p_started_by: memberIds[0],
+      p_started_at: new Date().toISOString(),
+      p_balances: [],
       p_payments: [payment],
     });
 
