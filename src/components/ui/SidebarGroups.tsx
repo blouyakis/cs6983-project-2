@@ -13,6 +13,8 @@ export async function SidebarGroups() {
   }
   const groups = await listGroups(userId);
   // Each shared group's balance comes from the server (#9), never the browser.
+  // TODO(#89): the layout isn't re-rendered on client navigation, so these
+  // stay as they were until the next refresh when another member changes them.
   const standings = await listGroupStandings(userId, groups);
   const balances = new Map(
     standings.map((group) => [group.id, group.balanceCents]),
