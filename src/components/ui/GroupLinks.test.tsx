@@ -55,4 +55,56 @@ describe("GroupLinks", () => {
 
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("writes each shared group's balance in words, and none for the personal space", () => {
+    render(
+      <GroupLinks
+        groups={[
+          {
+            id: "a",
+            name: "🏠 Dorm 4B",
+            isPersonal: false,
+            balanceCents: -3100,
+          },
+          {
+            id: "b",
+            name: "Saturday picnic",
+            isPersonal: false,
+            balanceCents: 1850,
+          },
+          { id: "c", name: "Date nights", isPersonal: false, balanceCents: 0 },
+          { id: "p", name: "Personal space", isPersonal: true },
+        ]}
+      />,
+    );
+
+    expect(screen.getAllByRole("link").map((link) => link.textContent)).toEqual(
+      [
+        "🏠 Dorm 4BYou owe $31.00",
+        "Saturday picnicYou are owed $18.50",
+        "Date nightsYou are all settled up",
+        "Personal space",
+      ],
+    );
+  });
+
+  it("keeps the open group's balance off the owe color, which is too dark on ink", () => {
+    mocks.usePathname.mockReturnValue("/groups/a");
+
+    render(
+      <GroupLinks
+        groups={[
+          {
+            id: "a",
+            name: "🏠 Dorm 4B",
+            isPersonal: false,
+            balanceCents: -3100,
+          },
+        ]}
+      />,
+    );
+
+    const amount = screen.getByText("$31.00");
+    expect(amount.closest("[data-on-ink]")).not.toBeNull();
+  });
 });

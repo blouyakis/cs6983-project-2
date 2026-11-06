@@ -296,4 +296,13 @@ describe("listGroupStandings", () => {
       },
     ]);
   });
+
+  it("uses the groups it is given instead of loading them again", async () => {
+    balanceService.getGroupPeriod.mockResolvedValue(period(1850, 0));
+
+    const standings = await listGroupStandings(ana, [personal, picnic]);
+
+    expect(groupService.listGroups).not.toHaveBeenCalled();
+    expect(standings.map((group) => group.balanceCents)).toEqual([1850]);
+  });
 });
