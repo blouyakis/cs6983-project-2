@@ -107,7 +107,7 @@ Writes that touch several tables (registering an account with its personal space
 | Former member (`left_at` set) | Rows created before their `left_at` | `403` |
 | Anyone else, including other users' personal spaces | `403` | `403` |
 
-A personal space is a group with `is_personal = true` and exactly one member, its owner. Invitations to it return `403`.
+A personal space is a group with `is_personal = true` and exactly one member, its owner. Invitations to it return `403`, and so do renaming it and setting its weights, because it has no name or split to change (#23).
 
 `requireGroupAccess` returns the group and `readUntil`: the former member's `left_at`, or null for a current member. A service that lists rows must show a former member only rows created before `readUntil`. A group that does not exist gets the same `403` as one the user is not in, so ids can't be probed. A `groupId` that is not a UUID is rejected with `400` by the route before the service runs. Pages answer both cases with `404` instead: the group page shows not found for a malformed id and for a group the user can't see, so a page never says whether a group exists either.
 
@@ -227,7 +227,7 @@ erDiagram
 
 **`groups`**: shared groups and personal spaces.
 
-- `is_personal` marks a user's personal space. Each user has exactly one, created at registration: `register_user(p_email, p_password_hash, p_name)` inserts the user (email trimmed and lowercase), the personal space and the owner's membership in one transaction and returns the user id. A partial unique index on `(created_by) where is_personal` enforces it.
+- `is_personal` marks a user's personal space. Each user has exactly one, created at registration: `register_user(p_email, p_password_hash, p_name)` inserts the user (email trimmed and lowercase), the personal space and the owner's membership in one transaction and returns the user id. A partial unique index on `(created_by) where is_personal` enforces it. Its only member is its owner: the trigger `enforce_personal_space_owner_only` on `group_members` refuses anyone else, on insert and when `group_id` or `user_id` changes (#23). On `groups`, `enforce_personal_space_fixed` keeps it that way: `is_personal` can't change, and a personal space's `name` and `created_by` can't either, so `update_group` can't rename it (#23).
 - `archived_at` is set when the last member leaves; the group is then read-only.
 - A shared group is created by `create_group(p_name, p_created_by)`, which inserts the group and the creator's membership at weight 1 in one transaction and returns the group id. A group has no emoji column: its tile shows the first character of `name` (#6).
 

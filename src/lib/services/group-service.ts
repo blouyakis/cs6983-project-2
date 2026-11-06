@@ -131,6 +131,13 @@ export async function updateGroup(
   input: UpdateGroupInput,
 ): Promise<GroupDetails> {
   const { group } = await requireGroupAccess(userId, groupId, "write");
+  // Its name is the fixed "Personal space" and its owner's weight only fills
+  // the column, so there is nothing to change (#23).
+  if (group.isPersonal) {
+    throw new ForbiddenError(
+      "A personal space has no name or split to change.",
+    );
+  }
   await writeGroupChanges(groupId, input);
   // Write access means a current member of an active group, so readUntil is
   // null and the access check doesn't need to run again.

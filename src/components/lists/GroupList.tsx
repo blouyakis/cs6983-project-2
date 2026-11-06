@@ -28,6 +28,8 @@ type GroupListProps = {
   currentUserId: string;
   // The groups the New entry form can add to, for its group picker.
   entryGroups: EntryGroup[];
+  // What the personal space spent this month, for ListStats. Null in a group.
+  spentThisMonthCents: number | null;
 };
 
 // A failed delete with one of these codes means the refresh takes the row's
@@ -47,6 +49,7 @@ export function GroupList({
   names,
   currentUserId,
   entryGroups,
+  spentThisMonthCents,
 }: GroupListProps) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
@@ -166,6 +169,7 @@ export function GroupList({
       <ListStats
         openEstimateCents={openEstimateTotalCents(items)}
         isPersonal={isPersonal}
+        spentThisMonthCents={spentThisMonthCents}
       />
       <div className="flex items-baseline justify-between gap-3">
         <h2

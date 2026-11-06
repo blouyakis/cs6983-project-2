@@ -387,4 +387,26 @@ describe("updateGroup", () => {
     ).rejects.toBeInstanceOf(ForbiddenError);
     expect(groups.updateGroup).not.toHaveBeenCalled();
   });
+
+  // A personal space has no name and no split (#23): its name is the fixed
+  // "Personal space", and its owner's weight of 1 only fills the column.
+  it("refuses to rename a personal space with 403, writing nothing", async () => {
+    grantAccess({ isPersonal: true });
+
+    await expect(updateGroup(userId, groupId, { name: "Me" })).rejects.toEqual(
+      new ForbiddenError("A personal space has no name or split to change."),
+    );
+    expect(groups.updateGroup).not.toHaveBeenCalled();
+  });
+
+  it("refuses to set weights in a personal space with 403, writing nothing", async () => {
+    grantAccess({ isPersonal: true });
+
+    await expect(
+      updateGroup(userId, groupId, {
+        memberWeights: [{ userId, weight: 2 }],
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(groups.updateGroup).not.toHaveBeenCalled();
+  });
 });
