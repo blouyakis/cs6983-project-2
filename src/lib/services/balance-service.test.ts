@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Group } from "@/lib/db/group-members";
 import { ForbiddenError } from "@/lib/http/errors";
-import { getGroupBalances } from "./balance-service";
+import { getGroupBalances, getGroupBalancesAt } from "./balance-service";
 
 const access = vi.hoisted(() => ({ requireGroupAccess: vi.fn() }));
 vi.mock("./access", () => access);
@@ -135,6 +135,48 @@ describe("getGroupBalances", () => {
     expect(balances).toEqual([
       { userId: ana, balanceCents: 0 },
       { userId: sam, balanceCents: 0 },
+    ]);
+  });
+});
+
+describe("getGroupBalancesAt", () => {
+  it("takes the period's rows up to the cut-off: expenses by created_at, payments by confirmed_at", async () => {
+    periods.listPeriodExpenses.mockResolvedValue([
+      {
+        payerId: ana,
+        amountCents: 3000,
+        shares: [
+          { userId: ana, shareCents: 1500 },
+          { userId: sam, shareCents: 1500 },
+        ],
+      },
+    ]);
+
+    const balances = await getGroupBalancesAt(
+      ana,
+      groupId,
+      "2026-11-01T10:00:00+00:00",
+    );
+
+    expect(access.requireGroupAccess).toHaveBeenCalledWith(
+      ana,
+      groupId,
+      "write",
+    );
+    expect(periods.listPeriodExpenses).toHaveBeenCalledWith(
+      groupId,
+      null,
+      "2026-11-01T10:00:00+00:00",
+    );
+    expect(periods.listPeriodConfirmedPayments).toHaveBeenCalledWith(
+      groupId,
+      null,
+      null,
+      "2026-11-01T10:00:00+00:00",
+    );
+    expect(balances).toEqual([
+      { userId: ana, balanceCents: 1500 },
+      { userId: sam, balanceCents: -1500 },
     ]);
   });
 });

@@ -17,10 +17,12 @@ import {
 const access = vi.hoisted(() => ({ requireGroupAccess: vi.fn() }));
 vi.mock("./access", () => access);
 
-const balances = vi.hoisted(() => ({ getGroupBalances: vi.fn() }));
+const balances = vi.hoisted(() => ({ getGroupBalancesAt: vi.fn() }));
 vi.mock("./balance-service", () => balances);
 
 const db = vi.hoisted(() => ({
+  BalancesChangedError: class BalancesChangedError extends Error {},
+  dbNow: vi.fn(),
   insertSettlement: vi.fn(),
   findSettlement: vi.fn(),
   findOpenSettlement: vi.fn(),
@@ -70,7 +72,8 @@ const payment: Payment = {
 beforeEach(() => {
   vi.resetAllMocks();
   access.requireGroupAccess.mockResolvedValue({ group: flat, readUntil: null });
-  balances.getGroupBalances.mockResolvedValue([
+  db.dbNow.mockResolvedValue("2026-11-01T10:00:00+00:00");
+  balances.getGroupBalancesAtAt.mockResolvedValue([
     { userId: ana, balanceCents: 1500 },
     { userId: sam, balanceCents: -1500 },
   ]);
@@ -90,15 +93,26 @@ describe("startSettleUp", () => {
       groupId,
       "write",
     );
-    expect(balances.getGroupBalances).toHaveBeenCalledWith(ana, groupId);
-    expect(db.insertSettlement).toHaveBeenCalledWith(groupId, ana, [
-      { fromUserId: sam, toUserId: ana, amountCents: 1500 },
-    ]);
+    expect(balances.getGroupBalancesAt).toHaveBeenCalledWith(
+      ana,
+      groupId,
+      "2026-11-01T10:00:00+00:00",
+    );
+    expect(db.insertSettlement).toHaveBeenCalledWith(
+      groupId,
+      ana,
+      "2026-11-01T10:00:00+00:00",
+      [
+        { userId: ana, balanceCents: 1500 },
+        { userId: sam, balanceCents: -1500 },
+      ],
+      [{ fromUserId: sam, toUserId: ana, amountCents: 1500 }],
+    );
     expect(settleUp).toEqual({ ...open, payments: [payment] });
   });
 
   it("uses an exact search, not a greedy match, for the payments", async () => {
-    balances.getGroupBalances.mockResolvedValue([
+    balances.getGroupBalancesAt.mockResolvedValue([
       { userId: ana, balanceCents: -600 },
       { userId: sam, balanceCents: -500 },
       { userId: jo, balanceCents: 200 },
@@ -108,12 +122,12 @@ describe("startSettleUp", () => {
 
     await startSettleUp(ana, groupId);
 
-    const [, , suggested] = db.insertSettlement.mock.calls[0];
+    const [, , , , suggested] = db.insertSettlement.mock.calls[0];
     expect(suggested).toHaveLength(3);
   });
 
   it("starts with no payments when everyone is settled up, so the period closes at once", async () => {
-    balances.getGroupBalances.mockResolvedValue([
+    balances.getGroupBalancesAt.mockResolvedValue([
       { userId: ana, balanceCents: 0 },
       { userId: sam, balanceCents: 0 },
     ]);
@@ -123,7 +137,8 @@ describe("startSettleUp", () => {
 
     const settleUp = await startSettleUp(ana, groupId);
 
-    expect(db.insertSettlement).toHaveBeenCalledWith(groupId, ana, []);
+    const [, , , , suggested] = db.insertSettlement.mock.calls[0];
+    expect(suggested).toEqual([]);
     expect(settleUp).toEqual({ ...closed, payments: [] });
   });
 
@@ -131,7 +146,7 @@ describe("startSettleUp", () => {
     db.findOpenSettlement.mockResolvedValue(open);
 
     await expect(startSettleUp(sam, groupId)).rejects.toThrow(ConflictError);
-    expect(balances.getGroupBalances).not.toHaveBeenCalled();
+    expect(balances.getGroupBalancesAt).not.toHaveBeenCalled();
     expect(db.insertSettlement).not.toHaveBeenCalled();
   });
 
@@ -139,6 +154,36 @@ describe("startSettleUp", () => {
     db.insertSettlement.mockRejectedValue(new ConflictError("already open"));
 
     await expect(startSettleUp(sam, groupId)).rejects.toThrow(ConflictError);
+  });
+
+  it("reads the balances again when a cost landed before the cut-off, then gives up", async () => {
+    db.insertSettlement
+      .mockRejectedValueOnce(new db.BalancesChangedError("changed"))
+      .mockRejectedValueOnce(new db.BalancesChangedError("changed"))
+      .mockResolvedValueOnce(settlementId);
+    db.dbNow
+      .mockResolvedValueOnce("2026-11-01T10:00:00+00:00")
+      .mockResolvedValueOnce("2026-11-01T10:00:01+00:00")
+      .mockResolvedValueOnce("2026-11-01T10:00:02+00:00");
+
+    const settleUp = await startSettleUp(ana, groupId);
+
+    expect(db.insertSettlement).toHaveBeenCalledTimes(3);
+    expect(balances.getGroupBalancesAt).toHaveBeenLastCalledWith(
+      ana,
+      groupId,
+      "2026-11-01T10:00:02+00:00",
+    );
+    expect(settleUp.id).toBe(settlementId);
+  });
+
+  it("is a conflict when the balances keep changing", async () => {
+    db.insertSettlement.mockRejectedValue(
+      new db.BalancesChangedError("changed"),
+    );
+
+    await expect(startSettleUp(ana, groupId)).rejects.toThrow(ConflictError);
+    expect(db.insertSettlement).toHaveBeenCalledTimes(3);
   });
 
   it("has nothing to settle in a personal space", async () => {
@@ -155,7 +200,7 @@ describe("startSettleUp", () => {
     access.requireGroupAccess.mockRejectedValue(new ForbiddenError());
 
     await expect(startSettleUp(ana, groupId)).rejects.toThrow(ForbiddenError);
-    expect(balances.getGroupBalances).not.toHaveBeenCalled();
+    expect(balances.getGroupBalancesAt).not.toHaveBeenCalled();
   });
 
   it("fails loudly when the settle-up it just started can't be loaded", async () => {

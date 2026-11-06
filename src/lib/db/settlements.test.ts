@@ -2,8 +2,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConflictError, NotFoundError } from "@/lib/http/errors";
 import {
+  BalancesChangedError,
   cancelOpenSettlement,
   confirmPayment,
+  dbNow,
   findOpenSettlement,
   findPayment,
   findSettlement,
@@ -114,11 +116,32 @@ beforeEach(() => {
   results = [];
 });
 
+describe("dbNow", () => {
+  it("asks the database for its clock", async () => {
+    results = [{ data: "2026-11-01T10:00:00+00:00", error: null }];
+
+    expect(await dbNow()).toBe("2026-11-01T10:00:00+00:00");
+    expect(argsOf("rpc")).toEqual(["db_now", {}]);
+  });
+
+  it("throws on a database error", async () => {
+    results = [{ data: null, error: { message: "boom" } }];
+
+    await expect(dbNow()).rejects.toThrow("boom");
+  });
+});
+
 describe("insertSettlement", () => {
-  it("starts a settle-up through start_settlement with the payments in columns", async () => {
+  const startedAt = "2026-11-01T10:00:00+00:00";
+  const balances = [
+    { userId: anaId, balanceCents: 1500 },
+    { userId: samId, balanceCents: -1500 },
+  ];
+
+  it("starts a settle-up through start_settlement with the cut-off, balances and payments in columns", async () => {
     results = [{ data: settlementId, error: null }];
 
-    const id = await insertSettlement(groupId, anaId, [
+    const id = await insertSettlement(groupId, anaId, startedAt, balances, [
       { fromUserId: samId, toUserId: anaId, amountCents: 1500 },
     ]);
 
@@ -128,6 +151,11 @@ describe("insertSettlement", () => {
       {
         p_group_id: groupId,
         p_started_by: anaId,
+        p_started_at: startedAt,
+        p_balances: [
+          { user_id: anaId, balance_cents: 1500 },
+          { user_id: samId, balance_cents: -1500 },
+        ],
         p_payments: [
           { from_user_id: samId, to_user_id: anaId, amount_cents: 1500 },
         ],
@@ -140,15 +168,30 @@ describe("insertSettlement", () => {
       { data: null, error: { message: "already open", code: "P0001" } },
     ];
 
-    await expect(insertSettlement(groupId, anaId, [])).rejects.toThrow(
-      ConflictError,
-    );
+    await expect(
+      insertSettlement(groupId, anaId, startedAt, [], []),
+    ).rejects.toThrow(ConflictError);
+  });
+
+  it("says when the balances changed, so the service can read them again", async () => {
+    results = [
+      {
+        data: null,
+        error: { message: "The balances changed while…", code: "P0001" },
+      },
+    ];
+
+    await expect(
+      insertSettlement(groupId, anaId, startedAt, [], []),
+    ).rejects.toThrow(BalancesChangedError);
   });
 
   it("throws on any other database error", async () => {
     results = [{ data: null, error: { message: "boom" } }];
 
-    await expect(insertSettlement(groupId, anaId, [])).rejects.toThrow("boom");
+    await expect(
+      insertSettlement(groupId, anaId, startedAt, [], []),
+    ).rejects.toThrow("boom");
   });
 });
 

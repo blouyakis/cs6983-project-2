@@ -141,6 +141,22 @@ describe("listPeriodExpenses", () => {
 });
 
 describe("listPeriodConfirmedPayments", () => {
+  it("stops at a cut-off by confirmed_at, for a settle-up's snapshot", async () => {
+    result = { data: [], error: null };
+
+    await listPeriodConfirmedPayments(
+      groupId,
+      null,
+      null,
+      "2026-11-01T10:00:00+00:00",
+    );
+
+    expect(argsOf("lte")).toEqual([
+      "confirmed_at",
+      "2026-11-01T10:00:00+00:00",
+    ]);
+  });
+
   it("loads only confirmed payments of the period", async () => {
     result = {
       data: [{ from_user_id: joId, to_user_id: demoId, amount_cents: 1000 }],
