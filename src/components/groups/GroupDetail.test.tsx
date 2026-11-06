@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ForbiddenError } from "@/lib/http/errors";
+import { ForbiddenError, NotFoundError } from "@/lib/http/errors";
 import type { GroupDetails, GroupSummary } from "@/lib/services/group-service";
 import { GroupDetail } from "./GroupDetail";
 
@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getGroup: vi.fn(),
   listGroups: vi.fn(),
   getGroupBalances: vi.fn(),
+  getCurrentSettleUp: vi.fn(),
   listGroupListItems: vi.fn(),
   listGroupExpenses: vi.fn(),
   redirect: vi.fn(),
@@ -23,6 +24,9 @@ vi.mock("@/lib/services/group-service", () => ({
 }));
 vi.mock("@/lib/services/balance-service", () => ({
   getGroupBalances: mocks.getGroupBalances,
+}));
+vi.mock("@/lib/services/settlement-service", () => ({
+  getCurrentSettleUp: mocks.getCurrentSettleUp,
 }));
 vi.mock("@/lib/services/list-item-service", () => ({
   listGroupListItems: mocks.listGroupListItems,
@@ -117,6 +121,7 @@ beforeEach(() => {
   mocks.getSessionUserId.mockResolvedValue(anaId);
   mocks.listGroups.mockResolvedValue([]);
   mocks.getGroupBalances.mockResolvedValue([]);
+  mocks.getCurrentSettleUp.mockRejectedValue(new NotFoundError("none"));
   mocks.listGroupListItems.mockResolvedValue([]);
   mocks.listGroupExpenses.mockResolvedValue([]);
 });
@@ -307,6 +312,36 @@ describe("GroupDetail", () => {
     mocks.getSessionUserId.mockResolvedValue(null);
 
     await expect(detail()).rejects.toThrow("NEXT_REDIRECT /login");
+  });
+
+  it("tells the cost list when a settle-up is open, so its costs show as locked (#86)", async () => {
+    mocks.getGroup.mockResolvedValue(details());
+    mocks.getCurrentSettleUp.mockResolvedValue({
+      id: "s",
+      status: "open",
+      startedAt: "2026-11-01T10:00:00+00:00",
+      payments: [],
+    });
+
+    render(await detail());
+
+    expect(mocks.getCurrentSettleUp).toHaveBeenCalledWith(anaId, groupId);
+    expect(expenseListProps().settleUpStartedAt).toBe(
+      "2026-11-01T10:00:00+00:00",
+    );
+  });
+
+  it("gives the cost list no settle-up when none is open, or in the personal space", async () => {
+    mocks.getGroup.mockResolvedValue(details());
+    render(await detail());
+    expect(expenseListProps().settleUpStartedAt).toBeNull();
+
+    mocks.getCurrentSettleUp.mockClear();
+    mocks.getGroup.mockResolvedValue(
+      details({ name: "Personal space", isPersonal: true }),
+    );
+    render(await detail());
+    expect(mocks.getCurrentSettleUp).not.toHaveBeenCalled();
   });
 
   it("does not hide other failures behind not found", async () => {
