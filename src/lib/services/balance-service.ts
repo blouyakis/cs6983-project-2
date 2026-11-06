@@ -32,3 +32,25 @@ export async function getGroupBalances(
     payments,
   );
 }
+
+// The balances a settle-up starts from (#86): the period's rows up to the
+// cut-off, expenses by created_at and payments by confirmed_at, which is
+// exactly what close_settlement later locks into it. Starting needs write
+// access, so a former member can't get here.
+export async function getGroupBalancesAt(
+  userId: string,
+  groupId: string,
+  until: string,
+): Promise<Balance[]> {
+  await requireGroupAccess(userId, groupId, "write");
+  const [members, expenses, payments] = await Promise.all([
+    listMembersAt(groupId, null),
+    listPeriodExpenses(groupId, null, until),
+    listPeriodConfirmedPayments(groupId, null, null, until),
+  ]);
+  return computeBalances(
+    members.map((member) => member.userId),
+    expenses,
+    payments,
+  );
+}

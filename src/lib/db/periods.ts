@@ -94,16 +94,22 @@ export async function listPeriodExpenses(
 
 // Only confirmed payments count (AGENTS.md Section 6.4): a suggested or paid
 // one is still waiting on the recipient.
+// `confirmedBefore` is a settle-up's cut-off (#86): only payments confirmed
+// by then count, which is what close_settlement will lock into the period.
 export async function listPeriodConfirmedPayments(
   groupId: string,
   openSettlementId: string | null,
   createdBefore: string | null,
+  confirmedBefore: string | null = null,
 ): Promise<ConfirmedPayment[]> {
-  const query = getDb()
+  let query = getDb()
     .from("payments")
     .select("from_user_id, to_user_id, amount_cents")
     .eq("group_id", groupId)
     .eq("status", "confirmed");
+  if (confirmedBefore !== null) {
+    query = query.lte("confirmed_at", confirmedBefore);
+  }
   const { data, error } = await createdUpTo(
     inPeriod(query, openSettlementId),
     createdBefore,
