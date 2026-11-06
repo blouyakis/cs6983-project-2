@@ -1,11 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GroupSummary } from "@/lib/services/group-service";
+import type { GroupStanding, Overview } from "@/lib/services/overview-service";
 import { GroupsList } from "./GroupsList";
 
 const mocks = vi.hoisted(() => ({
   getSessionUserId: vi.fn(),
-  listGroups: vi.fn(),
+  getOverview: vi.fn(),
   redirect: vi.fn((path: string) => {
     throw new Error(`NEXT_REDIRECT ${path}`);
   }),
@@ -13,10 +14,13 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/auth/cookies", () => ({
   getSessionUserId: mocks.getSessionUserId,
 }));
-vi.mock("@/lib/services/group-service", () => ({
-  listGroups: mocks.listGroups,
+vi.mock("@/lib/services/overview-service", () => ({
+  getOverview: mocks.getOverview,
 }));
-vi.mock("next/navigation", () => ({ redirect: mocks.redirect }));
+vi.mock("next/navigation", () => ({
+  redirect: mocks.redirect,
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 const anaId = "6f1c2d4e-1111-4222-8333-944455556666";
 
@@ -34,6 +38,39 @@ function group(overrides: Partial<GroupSummary>): GroupSummary {
   };
 }
 
+function standing(
+  overrides: Partial<GroupSummary>,
+  balanceCents = 0,
+  openItemCount = 0,
+): GroupStanding {
+  return {
+    ...group(overrides),
+    balanceCents,
+    shareThisPeriodCents: 0,
+    openItemCount,
+  };
+}
+
+const personal = group({ id: "p", name: "Personal space", isPersonal: true });
+
+function overview(overrides: Partial<Overview> = {}): Overview {
+  return {
+    netCents: 0,
+    owingCents: 0,
+    owedCents: 0,
+    groupShareThisPeriodCents: 0,
+    personal: {
+      group: personal,
+      spentThisMonthCents: 0,
+      openEstimateCents: 0,
+      openItems: [],
+    },
+    groups: [],
+    readOnlyGroups: [],
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.redirect.mockImplementation((path: string) => {
@@ -44,21 +81,26 @@ beforeEach(() => {
 describe("GroupsList", () => {
   it("shows the personal space, the shared groups and the read-only ones in sections", async () => {
     mocks.getSessionUserId.mockResolvedValue(anaId);
-    mocks.listGroups.mockResolvedValue([
-      group({ id: "p", name: "Personal space", isPersonal: true }),
-      group({ id: "a", name: "🏠 Dorm 4B" }),
-      group({ id: "b", name: "🧺 Saturday picnic" }),
-      group({
-        id: "c",
-        name: "🏖️ Cape weekend",
-        readOnly: true,
-        leftAt: "2026-09-02T15:00:00Z",
+    mocks.getOverview.mockResolvedValue(
+      overview({
+        groups: [
+          standing({ id: "a", name: "🏠 Dorm 4B" }),
+          standing({ id: "b", name: "🧺 Saturday picnic" }),
+        ],
+        readOnlyGroups: [
+          group({
+            id: "c",
+            name: "🏖️ Cape weekend",
+            readOnly: true,
+            leftAt: "2026-09-02T15:00:00Z",
+          }),
+        ],
       }),
-    ]);
+    );
 
     render(await GroupsList());
 
-    expect(mocks.listGroups).toHaveBeenCalledWith(anaId);
+    expect(mocks.getOverview).toHaveBeenCalledWith(anaId);
     expect(
       screen.getByRole("heading", { level: 2, name: "Just you" }),
     ).toBeInTheDocument();
@@ -74,9 +116,45 @@ describe("GroupsList", () => {
     expect(screen.getByText("Read only")).toBeInTheDocument();
   });
 
+  it("gives each shared group its balance in words and its open items", async () => {
+    mocks.getSessionUserId.mockResolvedValue(anaId);
+    mocks.getOverview.mockResolvedValue(
+      overview({
+        groups: [standing({ id: "a", name: "🏠 Dorm 4B" }, -3100, 3)],
+      }),
+    );
+
+    render(await GroupsList());
+
+    expect(screen.getByText(/You owe/)).toHaveTextContent("You owe $31.00");
+    expect(screen.getByText("3 open on the list")).toBeInTheDocument();
+  });
+
+  it("gives the personal space its open items and this month's spending", async () => {
+    mocks.getSessionUserId.mockResolvedValue(anaId);
+    mocks.getOverview.mockResolvedValue(
+      overview({
+        personal: {
+          group: personal,
+          spentThisMonthCents: 9600,
+          openEstimateCents: 0,
+          openItems: [],
+        },
+      }),
+    );
+
+    render(await GroupsList());
+
+    expect(screen.getByText(/Private/)).toHaveTextContent(
+      "Private · 0 open items · $96.00 spent this month",
+    );
+  });
+
   it("says one group, not one groups", async () => {
     mocks.getSessionUserId.mockResolvedValue(anaId);
-    mocks.listGroups.mockResolvedValue([group({ id: "a" })]);
+    mocks.getOverview.mockResolvedValue(
+      overview({ groups: [standing({ id: "a" })] }),
+    );
 
     render(await GroupsList());
 
@@ -87,7 +165,7 @@ describe("GroupsList", () => {
 
   it("invites the user to create a first group when there is none", async () => {
     mocks.getSessionUserId.mockResolvedValue(anaId);
-    mocks.listGroups.mockResolvedValue([]);
+    mocks.getOverview.mockResolvedValue(overview({ personal: null }));
 
     render(await GroupsList());
 
@@ -101,6 +179,6 @@ describe("GroupsList", () => {
     mocks.getSessionUserId.mockResolvedValue(null);
 
     await expect(GroupsList()).rejects.toThrow("NEXT_REDIRECT /login");
-    expect(mocks.listGroups).not.toHaveBeenCalled();
+    expect(mocks.getOverview).not.toHaveBeenCalled();
   });
 });
