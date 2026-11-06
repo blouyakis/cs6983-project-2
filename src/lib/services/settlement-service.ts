@@ -1,6 +1,8 @@
 import "server-only";
 import {
+  BalancesChangedError,
   cancelOpenSettlement,
+  dbNow,
   findOpenSettlement,
   findSettlement,
   insertSettlement,
@@ -13,7 +15,7 @@ import {
 import { suggestPayments } from "@/lib/domain/settle-up";
 import { ConflictError, NotFoundError } from "@/lib/http/errors";
 import { requireGroupAccess } from "./access";
-import { getGroupBalances } from "./balance-service";
+import { getGroupBalancesAt } from "./balance-service";
 
 export type { ClosedPeriod, Payment, Settlement };
 
@@ -31,10 +33,11 @@ async function loadSettleUp(settlementId: string): Promise<SettleUp> {
   };
 }
 
-// Any current member can start one. The balances at this moment are turned
+// Any current member can start one. The balances at the cut-off are turned
 // into the fewest payments in lib/domain and stored with the settlement;
-// what is added afterwards belongs to the next period. With nothing to pay,
-// the database closes the period at once.
+// what is added afterwards belongs to the next period, and what is in the
+// period is frozen until it closes (Section 6.7). With nothing to pay, the
+// database closes the period at once.
 export async function startSettleUp(
   userId: string,
   groupId: string,
@@ -46,9 +49,29 @@ export async function startSettleUp(
   if (await findOpenSettlement(groupId)) {
     throw new ConflictError("A settle-up is already open in this group.");
   }
-  const payments = suggestPayments(await getGroupBalances(userId, groupId));
-  const settlementId = await insertSettlement(groupId, userId, payments);
-  return loadSettleUp(settlementId);
+  // The cut-off comes from the database clock, the balances are read up to
+  // it, and start_settlement checks them against its own as of that moment
+  // (#86). A cost that landed in between fails the check, so the read is
+  // done again from a fresh cut-off, a couple of times.
+  for (let attempt = 1; ; attempt += 1) {
+    const startedAt = await dbNow();
+    const balances = await getGroupBalancesAt(userId, groupId, startedAt);
+    const payments = suggestPayments(balances);
+    try {
+      const settlementId = await insertSettlement(
+        groupId,
+        userId,
+        startedAt,
+        balances,
+        payments,
+      );
+      return loadSettleUp(settlementId);
+    } catch (error) {
+      if (!(error instanceof BalancesChangedError) || attempt === 3) {
+        throw error;
+      }
+    }
+  }
 }
 
 // The group's open settle-up. A former member only sees one started before

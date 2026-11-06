@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import type { Balance } from "./balances";
+import { MAX_CENTS } from "./splits";
 import { suggestPayments, type SuggestedPayment } from "./settle-up";
 
 function balances(cents: Record<string, number>): Balance[] {
@@ -143,6 +144,24 @@ describe("suggestPayments", () => {
       expectCleared(before, payments);
       expect(payments.length).toBeLessThanOrEqual(11);
     }
+  });
+
+  it("keeps exact sums for balances near the cap, where 32-bit integers would wrap", () => {
+    // A balance is a sum of expenses, so it can pass MAX_CENTS. Here d owes
+    // exactly 2^32, which an Int32Array wraps to 0: {d} alone would look
+    // zero-sum, and so would {a, b, c}, so nobody would be asked to pay
+    // (#86). The one right answer is three payments to d's creditors.
+    const before = balances({
+      a: MAX_CENTS,
+      b: MAX_CENTS,
+      c: 2,
+      d: -(2 * MAX_CENTS + 2),
+    });
+
+    const payments = suggestPayments(before);
+
+    expect(payments).toHaveLength(3);
+    expectCleared(before, payments);
   });
 
   it("refuses balances that don't add up to zero", () => {

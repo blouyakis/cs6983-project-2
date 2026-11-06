@@ -1,6 +1,6 @@
 import "server-only";
 import type { Share } from "@/lib/domain/splits";
-import { ConflictError } from "@/lib/http/errors";
+import { ConflictError, NotFoundError } from "@/lib/http/errors";
 import { getDb } from "./client";
 
 export type NewExpense = {
@@ -129,7 +129,10 @@ export async function createExpense(expense: NewExpense): Promise<string> {
 // Raised by update_expense when the expense has a settlement. The service
 // checks first, so this is the backstop for a settle-up that claimed the
 // expense between that check and this call.
-const SETTLED_ERROR_CODE = "P0001";
+// raise_exception and no_data_found, the codes update_expense and
+// delete_expense use.
+const REFUSED_ERROR_CODE = "P0001";
+const NOT_FOUND_ERROR_CODE = "P0002";
 
 // Replaces an unsettled expense's description, amount, day and shares in one
 // transaction through update_expense (#20), and marks it edited. The payer
@@ -149,10 +152,13 @@ export async function updateExpense(
     })),
   });
   if (error) {
-    if (error.code === SETTLED_ERROR_CODE) {
-      throw new ConflictError(
-        "This expense has been settled, so it can't be changed.",
-      );
+    if (error.code === REFUSED_ERROR_CODE) {
+      // Settled, or in a settle-up that is still open (#86): the function's
+      // message says which.
+      throw new ConflictError(error.message);
+    }
+    if (error.code === NOT_FOUND_ERROR_CODE) {
+      throw new NotFoundError("This expense doesn't exist.");
     }
     throw new Error(`Could not update the expense: ${error.message}`);
   }
@@ -160,9 +166,19 @@ export async function updateExpense(
 
 // Removes an expense. Its shares cascade, and a list item it came from keeps
 // its done state with no expense (architecture.md Section 5).
+// delete_expense makes the same checks as update_expense (#86): a settled
+// expense or one in an open settle-up is refused. The shares cascade.
 export async function deleteExpense(expenseId: string): Promise<void> {
-  const { error } = await getDb().from("expenses").delete().eq("id", expenseId);
+  const { error } = await getDb().rpc("delete_expense", {
+    p_expense_id: expenseId,
+  });
   if (error) {
+    if (error.code === REFUSED_ERROR_CODE) {
+      throw new ConflictError(error.message);
+    }
+    if (error.code === NOT_FOUND_ERROR_CODE) {
+      throw new NotFoundError("This expense doesn't exist.");
+    }
     throw new Error(`Could not delete the expense: ${error.message}`);
   }
 }

@@ -37,12 +37,17 @@ function expense(overrides: Partial<Expense>): Expense {
   };
 }
 
-function setup(expenses: Expense[], readOnly = false) {
+function setup(
+  expenses: Expense[],
+  readOnly = false,
+  settleUpStartedAt: string | null = null,
+) {
   return render(
     <ExpenseList
       expenses={expenses}
       members={members}
       currentUserId={ana}
+      settleUpStartedAt={settleUpStartedAt}
       groupName="🏠 Flat"
       readOnly={readOnly}
     />,
@@ -103,6 +108,30 @@ describe("ExpenseList", () => {
       within(rows[0]).getByText("Only Sam can edit this"),
     ).toBeInTheDocument();
     expect(within(rows[1]).getByText("Settled")).toBeInTheDocument();
+  });
+
+  it("locks the user's own expenses that are in an open settle-up, and says so (#86)", () => {
+    setup(
+      [
+        expense({ id: "before", description: "Rent" }),
+        expense({
+          id: "after",
+          description: "Pizza",
+          createdAt: "2026-10-13T10:00:00+00:00",
+        }),
+      ],
+      false,
+      "2026-10-12T20:00:00+00:00",
+    );
+
+    const rows = within(screen.getByRole("list")).getAllByRole("listitem");
+    expect(within(rows[0]).queryByRole("button")).toBeNull();
+    expect(
+      within(rows[0]).getByText("In the open settle-up"),
+    ).toBeInTheDocument();
+    expect(
+      within(rows[1]).getByRole("button", { name: /Edit Pizza/ }),
+    ).toBeInTheDocument();
   });
 
   it("offers no Edit in a read-only group, even on the user's own", () => {

@@ -13,6 +13,9 @@ type ExpenseListProps = {
   groupName: string;
   // A group the user left, or an archived one: nothing can be edited.
   readOnly: boolean;
+  // When a settle-up is open, its started_at: costs created on or before it
+  // are frozen until the period closes (#86). Null otherwise.
+  settleUpStartedAt: string | null;
 };
 
 // The group's costs, newest first, with a pencil on the ones the user can
@@ -25,6 +28,7 @@ export function ExpenseList({
   currentUserId,
   groupName,
   readOnly,
+  settleUpStartedAt,
 }: ExpenseListProps) {
   const names = new Map(members.map((member) => [member.userId, member.name]));
   const payerName = (payerId: string) =>
@@ -41,7 +45,11 @@ export function ExpenseList({
         <ul className="flex flex-col divide-y-2 divide-dashed divide-divider rounded-2xl border-4 border-ink bg-surface px-4">
           {expenses.map((expense) => {
             const own = expense.payerId === currentUserId;
-            const editable = own && !expense.settled && !readOnly;
+            const inSettleUp =
+              settleUpStartedAt !== null &&
+              expense.createdAt <= settleUpStartedAt;
+            const editable =
+              own && !expense.settled && !inSettleUp && !readOnly;
             return (
               <li
                 key={expense.id}
@@ -73,9 +81,11 @@ export function ExpenseList({
                       <span aria-hidden="true">🔒 </span>
                       {expense.settled
                         ? "Settled"
-                        : own
-                          ? "Read only"
-                          : `Only ${names.get(expense.payerId) ?? "the payer"} can edit this`}
+                        : inSettleUp && own
+                          ? "In the open settle-up"
+                          : own
+                            ? "Read only"
+                            : `Only ${names.get(expense.payerId) ?? "the payer"} can edit this`}
                     </span>
                   )}
                 </div>

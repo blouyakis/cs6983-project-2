@@ -42,8 +42,10 @@ export function suggestPayments(
   const count = people.length;
   const full = (1 << count) - 1;
 
-  // sums[mask]: the total balance of the people in the mask.
-  const sums = new Int32Array(full + 1);
+  // sums[mask]: the total balance of the people in the mask. A balance is a
+  // sum of expenses, so it can pass 2^31; Float64Array is exact to 2^53,
+  // where an Int32Array would wrap and a wrapped sum could read as zero.
+  const sums = new Float64Array(full + 1);
   for (let mask = 1; mask <= full; mask += 1) {
     const lowest = mask & -mask;
     const index = 31 - Math.clz32(lowest);

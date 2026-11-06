@@ -1,4 +1,5 @@
 import "server-only";
+import type { Balance } from "@/lib/domain/balances";
 import type { SuggestedPayment } from "@/lib/domain/settle-up";
 import { ConflictError, NotFoundError } from "@/lib/http/errors";
 import { getDb } from "./client";
@@ -96,17 +97,41 @@ function toPayment(row: PaymentRow): Payment {
   };
 }
 
-// Starts a settle-up with the payments lib/domain suggested. The function
-// locks the group, so the second of two members starting at once gets the
-// conflict.
+// The database's clock, for a cut-off every later check agrees on (#86).
+export async function dbNow(): Promise<string> {
+  const { data, error } = await getDb().rpc("db_now", {});
+  if (error) {
+    throw new Error(`Could not read the database clock: ${error.message}`);
+  }
+  return data as string;
+}
+
+// start_settlement refused the balances: a cost landed before the cut-off
+// after the service read them. The service reads again from a new cut-off.
+export class BalancesChangedError extends ConflictError {}
+
+const BALANCES_CHANGED = /balances changed/i;
+
+// Starts a settle-up at `startedAt`, the cut-off the balances were read at,
+// with the payments lib/domain suggested from them. The function locks the
+// group, checks the balances against its own as of the cut-off, and stores
+// the cut-off as started_at, so the period's rows and the suggestions agree
+// (#86). The second of two members starting at once gets the conflict.
 export async function insertSettlement(
   groupId: string,
   startedBy: string,
+  startedAt: string,
+  balances: readonly Balance[],
   payments: readonly SuggestedPayment[],
 ): Promise<string> {
   const { data, error } = await getDb().rpc("start_settlement", {
     p_group_id: groupId,
     p_started_by: startedBy,
+    p_started_at: startedAt,
+    p_balances: balances.map((balance) => ({
+      user_id: balance.userId,
+      balance_cents: balance.balanceCents,
+    })),
     p_payments: payments.map((payment) => ({
       from_user_id: payment.fromUserId,
       to_user_id: payment.toUserId,
@@ -114,8 +139,11 @@ export async function insertSettlement(
     })),
   });
   if (error) {
+    if (error.code === CONFLICT_CODE && BALANCES_CHANGED.test(error.message)) {
+      throw new BalancesChangedError(error.message);
+    }
     if (error.code === CONFLICT_CODE) {
-      throw new ConflictError("A settle-up is already open in this group.");
+      throw new ConflictError(error.message);
     }
     throw new Error(`Could not start the settle-up: ${error.message}`);
   }

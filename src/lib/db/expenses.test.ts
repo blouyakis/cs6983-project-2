@@ -262,7 +262,7 @@ describe("updateExpense", () => {
     ]);
   });
 
-  it("turns the database's settled refusal into a 409", async () => {
+  it("turns the database's refusal into a 409 with its message", async () => {
     result = {
       data: null,
       error: { message: "A settled expense can't be changed.", code: "P0001" },
@@ -270,6 +270,7 @@ describe("updateExpense", () => {
 
     await expect(updateExpense(expenseId, edit)).rejects.toMatchObject({
       status: 409,
+      message: "A settled expense can't be changed.",
     });
   });
 
@@ -287,17 +288,38 @@ describe("deleteExpense", () => {
     result = { data: null, error: null };
   });
 
-  it("deletes the expense row; its shares cascade and a list item keeps its done state", async () => {
+  it("deletes through delete_expense, which checks the settle-up state too", async () => {
     await deleteExpense(expenseId);
 
-    expect(queries).toEqual([
-      { method: "from", args: ["expenses"] },
-      { method: "delete", args: [] },
-      { method: "eq", args: ["id", expenseId] },
+    expect(calls).toEqual([
+      { name: "delete_expense", args: { p_expense_id: expenseId } },
     ]);
   });
 
-  it("throws when the database rejects it", async () => {
+  it("turns the database's refusal into a 409 with its message", async () => {
+    result = {
+      data: null,
+      error: {
+        message: "This expense is in a settle-up that is still open.",
+        code: "P0001",
+      },
+    };
+
+    await expect(deleteExpense(expenseId)).rejects.toMatchObject({
+      status: 409,
+      message: "This expense is in a settle-up that is still open.",
+    });
+  });
+
+  it("is not found for an unknown expense", async () => {
+    result = { data: null, error: { message: "none", code: "P0002" } };
+
+    await expect(deleteExpense(expenseId)).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
+  it("throws when the database rejects it for any other reason", async () => {
     result = { data: null, error: { message: "boom" } };
 
     await expect(deleteExpense(expenseId)).rejects.toThrow(
