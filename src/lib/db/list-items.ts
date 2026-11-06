@@ -182,3 +182,27 @@ export async function deleteOpenListItem(
   }
   return data.length > 0;
 }
+
+// How many items are open on each group's list, for "3 open on the list" on a
+// GroupCard (#10). Every group asked about gets a count, 0 if it has none.
+// Only ever called for groups the user is in now, so there's no cut-off.
+export async function countOpenListItems(
+  groupIds: readonly string[],
+): Promise<Map<string, number>> {
+  const counts = new Map(groupIds.map((groupId) => [groupId, 0]));
+  if (groupIds.length === 0) {
+    return counts;
+  }
+  const { data, error } = await getDb()
+    .from("list_items")
+    .select("group_id")
+    .eq("status", "open")
+    .in("group_id", groupIds);
+  if (error) {
+    throw new Error(`Could not count the open list items: ${error.message}`);
+  }
+  for (const row of data as { group_id: string }[]) {
+    counts.set(row.group_id, (counts.get(row.group_id) ?? 0) + 1);
+  }
+  return counts;
+}
