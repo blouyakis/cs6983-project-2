@@ -6,6 +6,7 @@ import {
   findListItem,
   insertListItem,
   listListItems,
+  listOpenListItems,
   updateOpenListItem,
 } from "./list-items";
 
@@ -316,6 +317,40 @@ describe("countOpenListItems", () => {
 
     await expect(countOpenListItems([groupId])).rejects.toThrow(
       "Could not count the open list items: boom",
+    );
+  });
+});
+
+describe("listOpenListItems", () => {
+  it("asks only for the group's open items, newest first", async () => {
+    result = { data: [row], error: null };
+
+    expect(await listOpenListItems(groupId, null)).toEqual([item]);
+    expect(called("eq").map((query) => query.args)).toEqual([
+      ["group_id", groupId],
+      ["status", "open"],
+    ]);
+    expect(called("order").map((query) => query.args)).toEqual([
+      ["created_at", { ascending: false }],
+    ]);
+    expect(called("lte")).toHaveLength(0);
+  });
+
+  it("limits a former member to items added before they left", async () => {
+    result = { data: [], error: null };
+
+    await listOpenListItems(groupId, "2026-11-01T00:00:00Z");
+
+    expect(called("lte").map((query) => query.args)).toEqual([
+      ["created_at", "2026-11-01T00:00:00Z"],
+    ]);
+  });
+
+  it("throws when the query fails", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(listOpenListItems(groupId, null)).rejects.toThrow(
+      "Could not load the list: boom",
     );
   });
 });
