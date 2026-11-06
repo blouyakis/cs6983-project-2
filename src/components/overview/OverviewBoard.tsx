@@ -75,7 +75,7 @@ export async function OverviewBoard() {
             personalThisMonthCents={personal?.spentThisMonthCents ?? 0}
             groupShareCents={overview.groupShareThisPeriodCents}
           />
-          {/* The ExpenseTable and its filters are #15. */}
+          {/* TODO(#15): add the ExpenseTable and its filters here. */}
         </div>
 
         {/* Phone: the balances, the corners with Just me first, and the
