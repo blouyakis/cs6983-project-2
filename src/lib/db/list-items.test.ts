@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  countOpenListItems,
   deleteOpenListItem,
   findListItem,
   insertListItem,
@@ -21,6 +22,7 @@ function queryBuilder() {
     "update",
     "delete",
     "eq",
+    "in",
     "lte",
     "order",
   ]) {
@@ -263,6 +265,57 @@ describe("deleteOpenListItem", () => {
 
     await expect(deleteOpenListItem(groupId, itemId)).rejects.toThrow(
       "Could not delete the list item: boom",
+    );
+  });
+});
+
+describe("countOpenListItems", () => {
+  const otherGroupId = "1c8f9b21-3333-4444-8555-b66677778888";
+
+  it("counts the open items of each group, and gives 0 to a group with none", async () => {
+    result = {
+      data: [
+        { group_id: groupId },
+        { group_id: groupId },
+        { group_id: otherGroupId },
+      ],
+      error: null,
+    };
+    const thirdGroupId = "2d9a0c32-4444-4555-8666-c77788889999";
+
+    const counts = await countOpenListItems([
+      groupId,
+      otherGroupId,
+      thirdGroupId,
+    ]);
+
+    expect(counts).toEqual(
+      new Map([
+        [groupId, 2],
+        [otherGroupId, 1],
+        [thirdGroupId, 0],
+      ]),
+    );
+    expect(called("from")[0].args).toEqual(["list_items"]);
+    expect(called("select")[0].args).toEqual(["group_id"]);
+    expect(called("eq").map((query) => query.args)).toEqual([
+      ["status", "open"],
+    ]);
+    expect(called("in").map((query) => query.args)).toEqual([
+      ["group_id", [groupId, otherGroupId, thirdGroupId]],
+    ]);
+  });
+
+  it("asks the database nothing for no groups", async () => {
+    expect(await countOpenListItems([])).toEqual(new Map());
+    expect(queries).toHaveLength(0);
+  });
+
+  it("throws when the query fails", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(countOpenListItems([groupId])).rejects.toThrow(
+      "Could not count the open list items: boom",
     );
   });
 });
