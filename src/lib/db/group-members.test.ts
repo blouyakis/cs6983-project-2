@@ -1,12 +1,17 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ConflictError } from "@/lib/http/errors";
 import {
   findMembership,
   listCurrentMemberWeights,
   listMembersAt,
+  rejoinMember,
 } from "./group-members";
 
-type Result = { data: unknown; error: { message: string } | null };
+type Result = {
+  data: unknown;
+  error: { message: string; code?: string } | null;
+};
 
 const calls: { method: string; args: unknown[] }[] = [];
 let result: Result;
@@ -33,6 +38,10 @@ vi.mock("./client", () => ({
     from: (table: string) => {
       calls.push({ method: "from", args: [table] });
       return queryBuilder();
+    },
+    rpc: async (fn: string, args: unknown) => {
+      calls.push({ method: "rpc", args: [fn, args] });
+      return result;
     },
   }),
 }));
@@ -218,5 +227,32 @@ describe("listMembersAt", () => {
         memberRow("eve-id", leftAt, null),
       ]),
     ).toEqual([userId, "eve-id"]);
+  });
+});
+
+describe("rejoinMember", () => {
+  it("asks the database to rejoin, so joined_at comes from its clock (#75)", async () => {
+    await rejoinMember(groupId, userId);
+
+    expect(calls).toEqual([
+      {
+        method: "rpc",
+        args: ["rejoin_member", { p_group_id: groupId, p_user_id: userId }],
+      },
+    ]);
+  });
+
+  it("turns a 13th current member into a ConflictError", async () => {
+    result = {
+      data: null,
+      error: {
+        code: "23514",
+        message: "A group can have at most 12 current members.",
+      },
+    };
+
+    await expect(rejoinMember(groupId, userId)).rejects.toEqual(
+      new ConflictError("A group can have at most 12 members."),
+    );
   });
 });

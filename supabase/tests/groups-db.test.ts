@@ -1,6 +1,6 @@
 // lib/db functions for groups (#6), against the real database: the joins,
 // rejoining, and the Postgres errors they turn into typed errors.
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import {
   addMember,
   listCurrentMembers,
@@ -20,6 +20,14 @@ async function nameUser(userId: string, name: string): Promise<void> {
   if (error) {
     throw error;
   }
+}
+
+async function dbNow(): Promise<string> {
+  const { data, error } = await db.rpc("db_now");
+  if (error) {
+    throw error;
+  }
+  return data as string;
 }
 
 async function leave(groupId: string, userId: string): Promise<void> {
@@ -270,6 +278,31 @@ describe("rejoinMember", () => {
     expect(new Date(after.joined_at).getTime()).toBeGreaterThanOrEqual(
       new Date(before.left_at!).getTime(),
     );
+  });
+
+  describe("with this machine's clock wrong", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("takes joined_at from the database's clock (#75)", async () => {
+      const { groupId, memberIds } = await createGroupWithMembers(2);
+      const [, ben] = memberIds;
+      await leave(groupId, ben);
+      const start = await dbNow();
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2000-01-01T00:00:00Z"));
+
+      await rejoinMember(groupId, ben);
+
+      vi.useRealTimers();
+      const end = await dbNow();
+      const joinedAt = Date.parse(
+        (await membershipRow(groupId, ben)).joined_at,
+      );
+      expect(joinedAt).toBeGreaterThanOrEqual(Date.parse(start));
+      expect(joinedAt).toBeLessThanOrEqual(Date.parse(end));
+    });
   });
 
   it("turns a 13th current member into a ConflictError", async () => {
