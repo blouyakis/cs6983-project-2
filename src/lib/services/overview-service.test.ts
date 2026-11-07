@@ -1,6 +1,5 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Expense } from "@/lib/db/expenses";
 import type { ListItem } from "@/lib/db/list-items";
 import type { GroupSummary } from "./group-service";
 import { getOverview, listGroupStandings } from "./overview-service";
@@ -11,10 +10,14 @@ vi.mock("./group-service", () => groupService);
 const balanceService = vi.hoisted(() => ({ getGroupPeriod: vi.fn() }));
 vi.mock("./balance-service", () => balanceService);
 
-const expenseService = vi.hoisted(() => ({ listGroupExpenses: vi.fn() }));
+const expenseService = vi.hoisted(() => ({
+  listGroupExpensesSpentBetween: vi.fn(),
+}));
 vi.mock("./expense-service", () => expenseService);
 
-const listItemService = vi.hoisted(() => ({ listGroupListItems: vi.fn() }));
+const listItemService = vi.hoisted(() => ({
+  listGroupOpenListItems: vi.fn(),
+}));
 vi.mock("./list-item-service", () => listItemService);
 
 const listItems = vi.hoisted(() => ({ countOpenListItems: vi.fn() }));
@@ -61,19 +64,8 @@ const left = summary(leftId, "🍝 Date nights", {
   leftAt: "2026-09-02T15:00:00+00:00",
 });
 
-function expense(spentOn: string, amountCents: number): Expense {
-  return {
-    id: `expense-${spentOn}-${amountCents}`,
-    groupId: personalId,
-    description: "Something",
-    amountCents,
-    payerId: ana,
-    spentOn,
-    settled: false,
-    createdAt: `${spentOn}T10:00:00+00:00`,
-    editedAt: null,
-    shares: [{ userId: ana, shareCents: amountCents }],
-  };
+function expense(spentOn: string, amountCents: number) {
+  return { spentOn, amountCents };
 }
 
 function item(
@@ -120,8 +112,8 @@ function period(balanceCents: number, shareCents: number) {
 beforeEach(() => {
   vi.resetAllMocks();
   groupService.listGroups.mockResolvedValue([personal]);
-  expenseService.listGroupExpenses.mockResolvedValue([]);
-  listItemService.listGroupListItems.mockResolvedValue([]);
+  expenseService.listGroupExpensesSpentBetween.mockResolvedValue([]);
+  listItemService.listGroupOpenListItems.mockResolvedValue([]);
   listItems.countOpenListItems.mockImplementation(async (ids: string[]) => {
     return new Map(ids.map((id) => [id, 0]));
   });
@@ -212,27 +204,38 @@ describe("getOverview", () => {
     expect(balanceService.getGroupPeriod).toHaveBeenCalledTimes(1);
   });
 
-  it("counts as personal spending only expenses dated this month in the personal space", async () => {
-    expenseService.listGroupExpenses.mockResolvedValue([
+  it("asks only for this month's personal expenses and adds them up", async () => {
+    expenseService.listGroupExpensesSpentBetween.mockResolvedValue([
       expense("2026-11-01", 3500),
       expense("2026-11-04", 6100),
-      expense("2026-10-31", 9900),
-      expense("2025-11-05", 1200),
     ]);
 
     const overview = await getOverview(ana, now);
 
-    expect(expenseService.listGroupExpenses).toHaveBeenCalledWith(
+    expect(expenseService.listGroupExpensesSpentBetween).toHaveBeenCalledWith(
       ana,
       personalId,
+      "2026-11-01",
+      "2026-12-01",
     );
     expect(overview.personal?.spentThisMonthCents).toBe(9600);
+  });
+
+  it("asks for January of the next year's range in December", async () => {
+    await getOverview(ana, new Date("2026-12-31T23:00:00Z"));
+
+    expect(expenseService.listGroupExpensesSpentBetween).toHaveBeenCalledWith(
+      ana,
+      personalId,
+      "2026-12-01",
+      "2027-01-01",
+    );
   });
 
   it("leaves the personal space out of the net and of the share in groups", async () => {
     groupService.listGroups.mockResolvedValue([personal, dorm]);
     balanceService.getGroupPeriod.mockResolvedValue(period(0, 0));
-    expenseService.listGroupExpenses.mockResolvedValue([
+    expenseService.listGroupExpensesSpentBetween.mockResolvedValue([
       expense("2026-11-02", 4000),
     ]);
 
@@ -246,20 +249,19 @@ describe("getOverview", () => {
     );
   });
 
-  it("shows the personal space's open items and their estimated total", async () => {
+  it("asks only for the personal space's open items and shows their estimated total", async () => {
     const haircut = item("💇 Haircut", 3500);
     const stamps = item("📮 Stamps", 400);
     const card = item("Birthday card", null);
-    listItemService.listGroupListItems.mockResolvedValue([
+    listItemService.listGroupOpenListItems.mockResolvedValue([
       haircut,
       stamps,
       card,
-      item("🥛 Milk", 450, "done"),
     ]);
 
     const overview = await getOverview(ana, now);
 
-    expect(listItemService.listGroupListItems).toHaveBeenCalledWith(
+    expect(listItemService.listGroupOpenListItems).toHaveBeenCalledWith(
       ana,
       personalId,
     );
@@ -274,8 +276,8 @@ describe("getOverview", () => {
     const overview = await getOverview(ana, now);
 
     expect(overview.personal).toBeNull();
-    expect(expenseService.listGroupExpenses).not.toHaveBeenCalled();
-    expect(listItemService.listGroupListItems).not.toHaveBeenCalled();
+    expect(expenseService.listGroupExpensesSpentBetween).not.toHaveBeenCalled();
+    expect(listItemService.listGroupOpenListItems).not.toHaveBeenCalled();
   });
 });
 
