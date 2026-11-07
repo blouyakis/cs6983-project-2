@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   findOpenSettlementId,
+  findOpenSettlementGroupIds,
   listPeriodConfirmedPayments,
   listPeriodExpenses,
 } from "./periods";
@@ -13,7 +14,7 @@ let result: Result;
 
 function queryBuilder() {
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "is", "or", "lte", "order"]) {
+  for (const method of ["select", "eq", "in", "is", "or", "lte", "order"]) {
     builder[method] = (...args: unknown[]) => {
       queries.push({ method, args });
       return builder;
@@ -78,6 +79,37 @@ describe("findOpenSettlementId", () => {
     result = { data: null, error: { message: "boom" } };
 
     await expect(findOpenSettlementId(groupId)).rejects.toThrow("boom");
+  });
+});
+
+describe("findOpenSettlementGroupIds", () => {
+  it("returns a set of group ids with an open settlement", async () => {
+    result = { data: [{ group_id: "g1" }, { group_id: "g3" }], error: null };
+
+    const open = await findOpenSettlementGroupIds(["g1", "g2", "g3"]);
+    expect(open).toEqual(new Set(["g1", "g3"]));
+    expect(queries.find((q) => q.method === "in")?.args).toEqual([
+      "group_id",
+      ["g1", "g2", "g3"],
+    ]);
+    expect(queries.find((q) => q.method === "eq")?.args).toEqual([
+      "status",
+      "open",
+    ]);
+  });
+
+  it("returns an empty set without querying when given no group ids", async () => {
+    const open = await findOpenSettlementGroupIds([]);
+    expect(open).toEqual(new Set());
+    expect(queries.find((q) => q.method === "from")).toBeUndefined();
+  });
+
+  it("throws on a database error", async () => {
+    result = { data: null, error: { message: "db failure" } };
+
+    await expect(findOpenSettlementGroupIds(["g1"])).rejects.toThrow(
+      "db failure",
+    );
   });
 });
 
