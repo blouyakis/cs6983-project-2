@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { MoneyText } from "@/components/ui/MoneyText";
 import type { BalanceSummary as Totals } from "@/lib/domain/overview";
 
@@ -32,7 +33,12 @@ export function BalanceSummary({ totals }: { totals: Totals }) {
           Net across all groups:{" "}
           <MoneyText cents={totals.netCents} as="balance" />
         </p>
-        {/* TODO(#68): add the Settle button, linking to /settle-up. */}
+        <Link
+          href="/settle-up"
+          className="rounded-lg border-2 border-ink bg-surface px-3 py-1.5 font-semibold shadow-[2px_2px_0_0_var(--color-ink)]"
+        >
+          <span aria-hidden="true">🤝 </span>Settle
+        </Link>
       </div>
     </section>
   );

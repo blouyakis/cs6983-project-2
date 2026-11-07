@@ -9,11 +9,10 @@ export type NavItem = {
 };
 
 // The four places in the sidebar and the tab bar (DESIGN.md "Navigation").
-// TODO(#68): link Lists and Settle up once those pages exist.
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/", label: "Overview", emoji: "🧭", built: true },
-  { href: "/lists", label: "Lists", emoji: "📝", built: false },
-  { href: "/settle-up", label: "Settle up", emoji: "🤝", built: false },
+  { href: "/lists", label: "Lists", emoji: "📝", built: true },
+  { href: "/settle-up", label: "Settle up", emoji: "🤝", built: true },
   { href: "/groups", label: "Groups", emoji: "👥", built: true },
 ];
 
