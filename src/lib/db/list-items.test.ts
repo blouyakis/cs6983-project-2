@@ -1,15 +1,21 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ConflictError, ForbiddenError } from "@/lib/http/errors";
 import {
+  completeOpenListItem,
   countOpenListItems,
   deleteOpenListItem,
   findListItem,
   insertListItem,
   listListItems,
+  reopenDoneListItem,
   updateOpenListItem,
 } from "./list-items";
 
-type Result = { data: unknown; error: { message: string } | null };
+type Result = {
+  data: unknown;
+  error: { message: string; code?: string } | null;
+};
 
 const queries: { method: string; args: unknown[] }[] = [];
 let result: Result;
@@ -47,6 +53,10 @@ vi.mock("./client", () => ({
     from: (table: string) => {
       queries.push({ method: "from", args: [table] });
       return queryBuilder();
+    },
+    rpc: async (fn: string, args: unknown) => {
+      queries.push({ method: "rpc", args: [fn, args] });
+      return result;
     },
   }),
 }));
@@ -316,6 +326,125 @@ describe("countOpenListItems", () => {
 
     await expect(countOpenListItems([groupId])).rejects.toThrow(
       "Could not count the open list items: boom",
+    );
+  });
+});
+
+describe("completeOpenListItem", () => {
+  const expenseId = "5e4f3a2b-5555-4666-8777-d88899990000";
+
+  it("checks the item off with the shares as a JSON object, not a string", async () => {
+    result = { data: expenseId, error: null };
+
+    expect(
+      await completeOpenListItem(groupId, itemId, anaId, {
+        amountCents: 1234,
+        shares: { [anaId]: 1234 },
+      }),
+    ).toBe(true);
+    expect(called("rpc")).toEqual([
+      {
+        method: "rpc",
+        args: [
+          "complete_list_item",
+          {
+            item_id: itemId,
+            user_id: anaId,
+            group_id: groupId,
+            amount_cents: 1234,
+            shares: { [anaId]: 1234 },
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("is false when no open item in the group has this id", async () => {
+    result = {
+      data: null,
+      error: { message: "Item not found", code: "P0002" },
+    };
+
+    expect(
+      await completeOpenListItem(groupId, itemId, anaId, {
+        amountCents: 0,
+        shares: {},
+      }),
+    ).toBe(false);
+  });
+
+  it("is a 403 when the database says the caller can't", async () => {
+    result = { data: null, error: { message: "Not a member", code: "42501" } };
+
+    await expect(
+      completeOpenListItem(groupId, itemId, anaId, {
+        amountCents: 0,
+        shares: {},
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("throws when the call fails", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(
+      completeOpenListItem(groupId, itemId, anaId, {
+        amountCents: 0,
+        shares: {},
+      }),
+    ).rejects.toThrow("Could not check off the list item: boom");
+  });
+});
+
+describe("reopenDoneListItem", () => {
+  it("unchecks the item", async () => {
+    result = { data: null, error: null };
+
+    expect(await reopenDoneListItem(groupId, itemId, anaId)).toBe(true);
+    expect(called("rpc")).toEqual([
+      {
+        method: "rpc",
+        args: [
+          "reopen_list_item",
+          { item_id: itemId, user_id: anaId, group_id: groupId },
+        ],
+      },
+    ]);
+  });
+
+  it("is false when no done item in the group has this id", async () => {
+    result = {
+      data: null,
+      error: { message: "Item not found", code: "P0002" },
+    };
+
+    expect(await reopenDoneListItem(groupId, itemId, anaId)).toBe(false);
+  });
+
+  it("is a 403 for someone other than the member who checked it off", async () => {
+    result = { data: null, error: { message: "Only them", code: "42501" } };
+
+    await expect(
+      reopenDoneListItem(groupId, itemId, anaId),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("is a 409 with the database's reason for a locked expense", async () => {
+    const message = "A settled expense can't be deleted.";
+    result = { data: null, error: { message, code: "P0001" } };
+
+    const error = await reopenDoneListItem(groupId, itemId, anaId).catch(
+      (caught: unknown) => caught,
+    );
+    expect(error).toBeInstanceOf(ConflictError);
+    expect((error as ConflictError).message).toBe(message);
+  });
+
+  it("throws when the call fails", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(reopenDoneListItem(groupId, itemId, anaId)).rejects.toThrow(
+      "Could not uncheck the list item: boom",
     );
   });
 });

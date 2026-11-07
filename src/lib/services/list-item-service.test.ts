@@ -9,9 +9,11 @@ import {
 } from "@/lib/http/errors";
 import {
   addListItem,
+  completeListItem,
   editListItem,
   listGroupListItems,
   removeListItem,
+  reopenListItem,
 } from "./list-item-service";
 
 const access = vi.hoisted(() => ({ requireGroupAccess: vi.fn() }));
@@ -23,6 +25,8 @@ const listItems = vi.hoisted(() => ({
   findListItem: vi.fn(),
   updateOpenListItem: vi.fn(),
   deleteOpenListItem: vi.fn(),
+  completeOpenListItem: vi.fn(),
+  reopenDoneListItem: vi.fn(),
 }));
 vi.mock("@/lib/db/list-items", () => listItems);
 
@@ -229,5 +233,110 @@ describe("removeListItem", () => {
       ForbiddenError,
     );
     expect(listItems.deleteOpenListItem).not.toHaveBeenCalled();
+  });
+});
+
+describe("completeListItem", () => {
+  const checkOff = { amountCents: 1234, shares: { [ana]: 1234 } };
+
+  it("needs write access, then checks the item off and returns it", async () => {
+    listItems.completeOpenListItem.mockResolvedValue(true);
+    listItems.findListItem.mockResolvedValue(doneMilk);
+
+    expect(await completeListItem(ana, groupId, itemId, checkOff)).toEqual(
+      doneMilk,
+    );
+    expect(access.requireGroupAccess).toHaveBeenCalledWith(
+      ana,
+      groupId,
+      "write",
+    );
+    expect(listItems.completeOpenListItem).toHaveBeenCalledWith(
+      groupId,
+      itemId,
+      ana,
+      checkOff,
+    );
+  });
+
+  it("is a 409 for an item that is already done", async () => {
+    listItems.completeOpenListItem.mockResolvedValue(false);
+    listItems.findListItem.mockResolvedValue(doneMilk);
+
+    await expect(
+      completeListItem(ana, groupId, itemId, checkOff),
+    ).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it("is a 404 for an item that isn't in the group", async () => {
+    listItems.completeOpenListItem.mockResolvedValue(false);
+    listItems.findListItem.mockResolvedValue(null);
+
+    await expect(
+      completeListItem(ana, groupId, itemId, checkOff),
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("passes on a 403 for a former member or an archived group without writing", async () => {
+    access.requireGroupAccess.mockRejectedValue(new ForbiddenError());
+
+    await expect(
+      completeListItem(ana, groupId, itemId, checkOff),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(listItems.completeOpenListItem).not.toHaveBeenCalled();
+  });
+});
+
+describe("reopenListItem", () => {
+  it("needs write access, then unchecks the item and returns it", async () => {
+    listItems.reopenDoneListItem.mockResolvedValue(true);
+    listItems.findListItem.mockResolvedValue(milk);
+
+    expect(await reopenListItem(ana, groupId, itemId)).toEqual(milk);
+    expect(access.requireGroupAccess).toHaveBeenCalledWith(
+      ana,
+      groupId,
+      "write",
+    );
+    expect(listItems.reopenDoneListItem).toHaveBeenCalledWith(
+      groupId,
+      itemId,
+      ana,
+    );
+  });
+
+  it("is a 409 for an item that is already open", async () => {
+    listItems.reopenDoneListItem.mockResolvedValue(false);
+    listItems.findListItem.mockResolvedValue(milk);
+
+    await expect(reopenListItem(ana, groupId, itemId)).rejects.toBeInstanceOf(
+      ConflictError,
+    );
+  });
+
+  it("is a 404 for an item that isn't in the group", async () => {
+    listItems.reopenDoneListItem.mockResolvedValue(false);
+    listItems.findListItem.mockResolvedValue(null);
+
+    await expect(reopenListItem(ana, groupId, itemId)).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
+
+  it("passes on the database's 403 for someone who didn't check it off", async () => {
+    listItems.reopenDoneListItem.mockRejectedValue(new ForbiddenError());
+
+    await expect(reopenListItem(ana, groupId, itemId)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+  });
+
+  it("passes on a 403 for a former member or an archived group without writing", async () => {
+    access.requireGroupAccess.mockRejectedValue(new ForbiddenError());
+
+    await expect(reopenListItem(ana, groupId, itemId)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(listItems.reopenDoneListItem).not.toHaveBeenCalled();
   });
 });
