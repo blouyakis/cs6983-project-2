@@ -1,38 +1,28 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { cleanUp, createUser, db } from "./fixtures";
+import { cleanUp, createGroupWithMembers, db } from "./fixtures";
 
 afterAll(cleanUp);
 
 describe("List item complete/reopen (#12)", () => {
   it("completes a list item and creates an expense with a split", async () => {
-    const userId = await createUser();
-    const { data: group } = await db
-      .from("groups")
-      .insert({ name: "Test", is_personal: false, created_by: userId })
-      .select("id")
-      .single();
+    const { groupId, memberIds } = await createGroupWithMembers(1);
+    const userId = memberIds[0];
 
-    if (!group) throw new Error("Failed to create group");
-
-    await db
-      .from("group_members")
-      .insert({ group_id: group.id, user_id: userId, joined_at: new Date() });
-
-    const { data: item } = await db
+    const { data: item, error: itemError } = await db
       .from("list_items")
-      .insert({ group_id: group.id, title: "Milk", added_by: userId })
+      .insert({ group_id: groupId, title: "Milk", added_by: userId })
       .select("id")
       .single();
 
-    if (!item) throw new Error("Failed to create item");
+    if (itemError || !item) throw new Error(`Failed to create item: ${itemError?.message}`);
 
     // Call the complete_list_item function
     const { data: result, error } = await db.rpc("complete_list_item", {
       item_id: item.id,
       user_id: userId,
-      group_id: group.id,
+      group_id: groupId,
       amount_cents: 1234,
-      shares: JSON.stringify({ [userId]: 1234 }),
+      shares: { [userId]: 1234 },
     });
 
     expect(error).toBeNull();
@@ -51,34 +41,24 @@ describe("List item complete/reopen (#12)", () => {
   });
 
   it("completes an item with no cost and creates no expense", async () => {
-    const userId = await createUser();
-    const { data: group } = await db
-      .from("groups")
-      .insert({ name: "Test", is_personal: false, created_by: userId })
-      .select("id")
-      .single();
+    const { groupId, memberIds } = await createGroupWithMembers(1);
+    const userId = memberIds[0];
 
-    if (!group) throw new Error("Failed to create group");
-
-    await db
-      .from("group_members")
-      .insert({ group_id: group.id, user_id: userId, joined_at: new Date() });
-
-    const { data: item } = await db
+    const { data: item, error: itemError } = await db
       .from("list_items")
-      .insert({ group_id: group.id, title: "Milk", added_by: userId })
+      .insert({ group_id: groupId, title: "Milk", added_by: userId })
       .select("id")
       .single();
 
-    if (!item) throw new Error("Failed to create item");
+    if (itemError || !item) throw new Error(`Failed to create item: ${itemError?.message}`);
 
     // Call with 0 cost
     const { error } = await db.rpc("complete_list_item", {
       item_id: item.id,
       user_id: userId,
-      group_id: group.id,
+      group_id: groupId,
       amount_cents: 0,
-      shares: JSON.stringify({}),
+      shares: {},
     });
 
     expect(error).toBeNull();
@@ -94,41 +74,31 @@ describe("List item complete/reopen (#12)", () => {
   });
 
   it("reopens a completed item and deletes its expense", async () => {
-    const userId = await createUser();
-    const { data: group } = await db
-      .from("groups")
-      .insert({ name: "Test", is_personal: false, created_by: userId })
-      .select("id")
-      .single();
+    const { groupId, memberIds } = await createGroupWithMembers(1);
+    const userId = memberIds[0];
 
-    if (!group) throw new Error("Failed to create group");
-
-    await db
-      .from("group_members")
-      .insert({ group_id: group.id, user_id: userId, joined_at: new Date() });
-
-    const { data: item } = await db
+    const { data: item, error: itemError } = await db
       .from("list_items")
-      .insert({ group_id: group.id, title: "Milk", added_by: userId })
+      .insert({ group_id: groupId, title: "Milk", added_by: userId })
       .select("id")
       .single();
 
-    if (!item) throw new Error("Failed to create item");
+    if (itemError || !item) throw new Error(`Failed to create item: ${itemError?.message}`);
 
     // Complete it first
     await db.rpc("complete_list_item", {
       item_id: item.id,
       user_id: userId,
-      group_id: group.id,
+      group_id: groupId,
       amount_cents: 1234,
-      shares: JSON.stringify({ [userId]: 1234 }),
+      shares: { [userId]: 1234 },
     });
 
     // Reopen it
     const { error } = await db.rpc("reopen_list_item", {
       item_id: item.id,
       user_id: userId,
-      group_id: group.id,
+      group_id: groupId,
     });
 
     expect(error).toBeNull();
