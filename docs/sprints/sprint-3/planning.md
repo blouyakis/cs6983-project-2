@@ -37,7 +37,7 @@ The milestone holds seventeen open issues. Points use the Fibonacci scale (1, 2,
 
 ## 3. Load and risks
 
-**Load.** Sixteen issues and 67 points in six days, for two people, before a deadline that can't move (2026-11-13). The Sprint 2 retrospective found its scope too large, so the slip order below matters.
+**Load.** Sixteen issues and 67 points for two people, before a deadline that can't move (2026-11-13). The Sprint 2 retrospective found its scope too large, so the slip order below matters.
 
 **Order of work.**
 
