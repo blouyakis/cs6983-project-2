@@ -1,10 +1,8 @@
 # Sprint 3 planning
 
-**Milestone:** [Sprint 3 v.03](https://github.com/blouyakis/cs6983-project-2/milestone/3), 2026-11-08 to 2026-11-13
+**Milestone:** [Sprint 3 v.03](https://github.com/blouyakis/cs6983-project-2/milestone/3), 2026-11-06 to 2026-11-13
 **Sprint goal (proposed):** finish the Should Haves and ship the final submission: direct payments, the itemized bill, leaving a group, expense history with filters and the default split screen, with the API docs, the end-to-end suite in CI and the demo video.
 **Product Owner:** Barbara · **Scrum Master:** Ziye
-
-> Drafted on 2026-11-07 by Ziye, as Scrum Master, from the milestone, the board and the pull requests (#99). It is a draft for the planning meeting with Barbara: the sprint goal, the story points and the owners marked "to decide" are proposals until both partners agree on them (P2: "Sprint planning done jointly"). Statuses are as of 2026-11-07. The Sprint 3 retrospective is #103.
 
 ## 1. The issues
 
@@ -30,8 +28,6 @@ The milestone holds seventeen open issues. Points use the Fibonacci scale (1, 2,
 | [#103](https://github.com/blouyakis/cs6983-project-2/issues/103) Write the Sprint 3 retrospective and bring the final docs up to date | Ziye | high | 3 | Sprint ToDo |
 | [#54](https://github.com/blouyakis/cs6983-project-2/issues/54) Export the filtered expense list as CSV (Could Have) | — | low | 3 | Out of scope unless time is left (section 2) |
 
-**Committed: 67 points** in sixteen issues, without #54. Three are in progress (#12, #90 and this one) and thirteen are still to do. #13 (a duplicate of #12), #18 (its remainder is #103) and #83 are already closed in this milestone.
-
 ## 2. Moves made during planning
 
 - **#12, #89 and #90 carry over from Sprint 2.** #12 slipped as the Sprint 2 planning notes expected (section 3 there) and is in draft PR #98. #89 and #90 came out of the review of #10 on 2026-11-06, one day before Sprint 2 ended; the Sprint 2 retrospective already lists them for Sprint 3.
@@ -46,8 +42,8 @@ The milestone holds seventeen open issues. Points use the Fibonacci scale (1, 2,
 **Order of work.**
 
 1. **#12, #90 and #75 first.** #12 and #90 are nearly done. #75 is one point and #22 needs it: a former member's `left_at` must come from the database clock.
-2. **Then the features: #14, #21, #22, #15 and #63.** #17's flows 6, 7 and 8 need #14, #21 and #22. #54 needs #15.
-3. **#16, #17 and #100 as the routes land.** #17's CI job is a change to `ci.yml`, which a partner makes (AGENTS.md Section 7).
+2. **Then the features: #14, #21, #22, #15 and #63, with #89 beside them.** #17's flows 6, 7 and 8 need #14, #21 and #22. #54 needs #15. #89 depends on nothing else in the sprint.
+3. **#16, #17 and #100 as the routes land, and #101 at any point.** #17's CI job is a change to `ci.yml`, which a partner makes (AGENTS.md Section 7). #101 touches only the developer setup.
 4. **#102 and #103 last**, after the feature pull requests merge. The demo video should be recorded no later than 2026-11-12, so a re-take still fits.
 
 **What slips first if the sprint runs late:** #54 (not committed), then #101, then #63. #101 is a developer convenience. #63 is the largest Should Have left, and expenses can already be split by custom amounts without it.
@@ -73,4 +69,3 @@ The milestone holds seventeen open issues. Points use the Fibonacci scale (1, 2,
 
 - Agree on the sprint goal, the points and the owners marked "to decide" at the planning meeting, then add each issue's points to the issue itself (#99).
 - Sprint 1 has a retrospective but no planning notes, although `p2-from-zero-checklist.md` checks them off, and the checklist also checks off estimates that Sprints 1 and 2 didn't have. Correct the checklist in #102.
-- Fix the failing `e2e/lists.spec.ts` test in #98 before it leaves draft.
