@@ -30,10 +30,12 @@ async function dbNow(): Promise<string> {
   return data as string;
 }
 
+// left_at from the database's clock, the one that stamps the next join's
+// joined_at, so the two can't tie or cross (#75).
 async function leave(groupId: string, userId: string): Promise<void> {
   const { error } = await db
     .from("group_members")
-    .update({ left_at: new Date().toISOString() })
+    .update({ left_at: await dbNow() })
     .eq("group_id", groupId)
     .eq("user_id", userId);
   if (error) {
