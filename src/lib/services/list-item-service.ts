@@ -1,13 +1,14 @@
 import "server-only";
 import {
+  completeOpenListItem,
   deleteOpenListItem,
   findListItem,
   insertListItem,
   listListItems,
+  reopenDoneListItem,
   updateOpenListItem,
   type ListItem,
 } from "@/lib/db/list-items";
-import { getDb } from "@/lib/db/client";
 import { ConflictError, NotFoundError } from "@/lib/http/errors";
 import type {
   CreateListItemInput,
@@ -42,13 +43,29 @@ export async function listGroupListItems(
   return listListItems(groupId, readUntil);
 }
 
-// The write already skipped a done item, so this only decides which error to
-// give: 409 for a done item, 404 for one that isn't in the group.
-async function refuse(groupId: string, itemId: string): Promise<never> {
+const NOT_ON_LIST = "This item isn't on the list.";
+
+// The write already skipped an item in the wrong state, so this only decides
+// which error to give: 409 with `conflict` for an item in the group, 404 for
+// one that isn't.
+async function refuse(
+  groupId: string,
+  itemId: string,
+  conflict = UNCHECK_FIRST,
+): Promise<never> {
   if (await findListItem(groupId, itemId)) {
-    throw new ConflictError(UNCHECK_FIRST);
+    throw new ConflictError(conflict);
   }
-  throw new NotFoundError("This item isn't on the list.");
+  throw new NotFoundError(NOT_ON_LIST);
+}
+
+// The item as it is after a write that succeeded.
+async function reload(groupId: string, itemId: string): Promise<ListItem> {
+  const item = await findListItem(groupId, itemId);
+  if (!item) {
+    throw new NotFoundError(NOT_ON_LIST);
+  }
+  return item;
 }
 
 export async function editListItem(
@@ -73,6 +90,7 @@ export async function removeListItem(
   }
 }
 
+// The current user pays, never an id from the request (user flow 2).
 export async function completeListItem(
   userId: string,
   groupId: string,
@@ -80,59 +98,22 @@ export async function completeListItem(
   input: CompleteItemInput,
 ): Promise<ListItem> {
   await requireGroupAccess(userId, groupId, "write");
-  const db = getDb();
-
-  const { error } = await db.rpc("complete_list_item", {
-    item_id: itemId,
-    user_id: userId,
-    group_id: groupId,
-    amount_cents: input.amountCents,
-    shares: JSON.stringify(input.shares),
-  });
-
-  if (error) {
-    if (error.message.includes("409")) {
-      throw new ConflictError(
-        "This item is already completed or doesn't exist.",
-      );
-    }
-    throw error;
+  if (!(await completeOpenListItem(groupId, itemId, userId, input))) {
+    await refuse(groupId, itemId, "This item is already checked off.");
   }
-
-  const item = await findListItem(groupId, itemId);
-  if (!item) {
-    throw new NotFoundError("This item isn't on the list.");
-  }
-  return item;
+  return reload(groupId, itemId);
 }
 
+// Only the member who checked it off may, while its expense can still be
+// deleted; the database checks both (AGENTS.md Section 6.7).
 export async function reopenListItem(
   userId: string,
   groupId: string,
   itemId: string,
 ): Promise<ListItem> {
   await requireGroupAccess(userId, groupId, "write");
-  const db = getDb();
-
-  const { error } = await db.rpc("reopen_list_item", {
-    item_id: itemId,
-    user_id: userId,
-    group_id: groupId,
-  });
-
-  if (error) {
-    if (error.message.includes("403")) {
-      throw new Error("Only the member who checked it off can uncheck it.");
-    }
-    if (error.message.includes("409")) {
-      throw new ConflictError("This item is not completed or doesn't exist.");
-    }
-    throw error;
+  if (!(await reopenDoneListItem(groupId, itemId, userId))) {
+    await refuse(groupId, itemId, "This item is already open.");
   }
-
-  const item = await findListItem(groupId, itemId);
-  if (!item) {
-    throw new NotFoundError("This item isn't on the list.");
-  }
-  return item;
+  return reload(groupId, itemId);
 }

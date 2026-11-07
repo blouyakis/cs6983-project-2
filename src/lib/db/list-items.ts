@@ -1,5 +1,6 @@
 import "server-only";
 import type { ListItemStatus } from "@/lib/domain/list-stats";
+import { ConflictError, ForbiddenError } from "@/lib/http/errors";
 import { getDb } from "./client";
 
 // Things to do or buy, in a group or a personal space (#11). Checking an item
@@ -181,6 +182,79 @@ export async function deleteOpenListItem(
     throw new Error(`Could not delete the list item: ${error.message}`);
   }
   return data.length > 0;
+}
+
+// What an item cost when it was checked off and who shares it: each sharer's
+// user id and share in cents (#12). No cost is 0 with no shares.
+export type CheckOff = {
+  amountCents: number;
+  shares: Record<string, number>;
+};
+
+// The codes complete_list_item and reopen_list_item raise: raise_exception
+// (from delete_expense), no_data_found and insufficient_privilege.
+const REFUSED_ERROR_CODE = "P0001";
+const NOT_FOUND_ERROR_CODE = "P0002";
+const NOT_ALLOWED_ERROR_CODE = "42501";
+
+// Marks an open item done and, with a cost, writes its expense paid by the
+// user, in one transaction. False when no open item in the group has this id.
+export async function completeOpenListItem(
+  groupId: string,
+  itemId: string,
+  userId: string,
+  checkOff: CheckOff,
+): Promise<boolean> {
+  const { error } = await getDb().rpc("complete_list_item", {
+    item_id: itemId,
+    user_id: userId,
+    group_id: groupId,
+    amount_cents: checkOff.amountCents,
+    // An object, never JSON.stringify(...): a string reaches Postgres as a
+    // jsonb string, not an object, and the function can't read the shares.
+    shares: checkOff.shares,
+  });
+  if (error) {
+    if (error.code === NOT_FOUND_ERROR_CODE) {
+      return false;
+    }
+    if (error.code === NOT_ALLOWED_ERROR_CODE) {
+      throw new ForbiddenError();
+    }
+    throw new Error(`Could not check off the list item: ${error.message}`);
+  }
+  return true;
+}
+
+// Reopens a done item and deletes its expense, if it has one, in one
+// transaction (AGENTS.md Section 6.7). False when no done item in the group
+// has this id.
+export async function reopenDoneListItem(
+  groupId: string,
+  itemId: string,
+  userId: string,
+): Promise<boolean> {
+  const { error } = await getDb().rpc("reopen_list_item", {
+    item_id: itemId,
+    user_id: userId,
+    group_id: groupId,
+  });
+  if (error) {
+    if (error.code === NOT_FOUND_ERROR_CODE) {
+      return false;
+    }
+    if (error.code === NOT_ALLOWED_ERROR_CODE) {
+      throw new ForbiddenError(
+        "Only the member who checked it off can uncheck it.",
+      );
+    }
+    if (error.code === REFUSED_ERROR_CODE) {
+      // Settled, or in a settle-up that is still open: the message says which.
+      throw new ConflictError(error.message);
+    }
+    throw new Error(`Could not uncheck the list item: ${error.message}`);
+  }
+  return true;
 }
 
 // How many items are open on each group's list, for "3 open on the list" on a
