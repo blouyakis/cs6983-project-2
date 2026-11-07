@@ -15,6 +15,9 @@ type ListItemRowProps = {
   onDelete?: (item: ListItem) => void;
   // True while its delete is on its way, so it can't be sent twice.
   deleting?: boolean;
+  // Triggered when checkbox is clicked. For open items, opens check-off form.
+  // For done items, opens reopen confirmation (#12).
+  onCheckChange?: (item: ListItem) => void;
 };
 
 function details(item: ListItem, addedByName: string, isPersonal: boolean) {
@@ -39,19 +42,18 @@ export function ListItemRow({
   onEdit,
   onDelete,
   deleting = false,
+  onCheckChange,
 }: ListItemRowProps) {
   const { emoji, text } = splitLeadingEmoji(item.title);
   const done = item.status === "done";
 
   return (
     <li className="flex items-start gap-3 border-b-2 border-dashed border-divider py-3">
-      {/* TODO(#12): checking off opens the check-off form, and unchecking a
-          done row opens a ConfirmDialog. */}
       <input
         type="checkbox"
         checked={done}
-        disabled
-        readOnly
+        disabled={!onCheckChange}
+        onChange={() => onCheckChange?.(item)}
         aria-label={done ? `${text} is done` : `Check off ${text}`}
         className="mt-1 size-6 shrink-0 accent-action"
       />
@@ -64,7 +66,6 @@ export function ListItemRow({
           ) : null}
         </p>
         {done ? (
-          // TODO(#12): add the actual cost once the list response carries it.
           <p className="text-sm font-semibold text-muted">
             ✔ {completedByName ?? "a former member"} ·{" "}
             {item.completedAt ? formatDay(item.completedAt) : ""}
