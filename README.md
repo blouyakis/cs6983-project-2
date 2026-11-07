@@ -132,6 +132,8 @@ npm run dev                  # http://localhost:3000
 
 Login, registration and the database tests need local Supabase (the `start` and `db reset` lines above). `npx supabase status` prints the values for `SUPABASE_URL` (`API_URL`) and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. For `JWT_SECRET`, use `openssl rand -base64 32`.
 
+**Applying migrations to the hosted database.** When a PR adds a new SQL migration in `supabase/migrations/`, a partner must apply it to the hosted Supabase project **before the PR is merged**. Vercel deploys from `main` on every merge, so the migration must reach the hosted database first. See [`docs/architecture.md`](./docs/architecture.md) Section 7 for the commands and workflow.
+
 ### Environment variables
 
 | Variable | Purpose |

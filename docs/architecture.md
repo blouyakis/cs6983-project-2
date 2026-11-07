@@ -335,7 +335,29 @@ Positive means the group owes _m_; negative means _m_ owes. Balances in a group 
 |---|---|---|
 | Local | `npm run dev` | `npx supabase start` (Docker), migrations applied with `npx supabase db reset` |
 | CI | GitHub Actions jobs in [ci.yml](../.github/workflows/ci.yml) | Local Supabase started inside the `db-test` job, which runs `npm run test:db` |
-| Preview and production | Vercel (a preview per pull request, production from `main`) | Hosted Supabase project |
+| Preview and production | Vercel (a preview per pull request, production from `main`) | Hosted Supabase project at `https://kytgqdgcurqqjrzhjxcq.supabase.co` |
+
+**Hosted database setup.** The Supabase project and environment variables `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are stored in Vercel (production environment) and GitHub secrets. Migrations are applied manually to the hosted database with `SUPABASE_ACCESS_TOKEN` (generated in Supabase → Settings → Access Tokens):
+
+```bash
+# Link to the hosted project
+SUPABASE_ACCESS_TOKEN=sbp_... npx supabase link --project-ref kytgqdgcurqqjrzhjxcq
+
+# Check what migrations are pending (dry run, no changes)
+SUPABASE_ACCESS_TOKEN=sbp_... npx supabase db push --dry-run
+
+# Apply all pending migrations to production
+SUPABASE_ACCESS_TOKEN=sbp_... npx supabase db push --linked
+```
+
+Migrations must be applied to the hosted database **before** the PR containing new migrations is merged to `main`, because Vercel deploys `main` on every merge. Preview deploys also use the same hosted database. The workflow:
+
+1. A PR with a new migration is created and tests pass locally.
+2. A partner (not an agent) runs the migration commands above to apply it to the hosted database.
+3. The partner verifies that a preview URL works (register, create a group, add an expense).
+4. The PR is merged and Vercel deploys to production.
+
+Seed data stays in `supabase/seed.sql` and is never loaded into the hosted database; CI loads it for local tests.
 
 Variables are listed in [.env.example](../.env.example). `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are read only in `lib/db`; `JWT_SECRET` only in `lib/auth`. None has a `NEXT_PUBLIC_` prefix.
 
