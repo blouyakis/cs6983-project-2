@@ -68,11 +68,8 @@ function expense(spentOn: string, amountCents: number) {
   return { spentOn, amountCents };
 }
 
-function item(
-  title: string,
-  estimatedCents: number | null,
-  status: "open" | "done" = "open",
-): ListItem {
+// An open item: the overview only ever gets open ones (#90).
+function item(title: string, estimatedCents: number | null): ListItem {
   return {
     id: `item-${title}`,
     groupId: personalId,
@@ -80,10 +77,10 @@ function item(
     quantity: null,
     note: null,
     estimatedCents,
-    status,
+    status: "open",
     addedBy: ana,
-    completedBy: status === "done" ? ana : null,
-    completedAt: status === "done" ? "2026-11-03T10:00:00+00:00" : null,
+    completedBy: null,
+    completedAt: null,
     createdAt: "2026-11-01T10:00:00+00:00",
   };
 }
