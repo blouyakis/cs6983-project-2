@@ -7,10 +7,12 @@ import {
   updateOpenListItem,
   type ListItem,
 } from "@/lib/db/list-items";
+import { getDb } from "@/lib/db/client";
 import { ConflictError, NotFoundError } from "@/lib/http/errors";
 import type {
   CreateListItemInput,
   UpdateListItemInput,
+  CompleteItemInput,
 } from "@/lib/validation/list-item";
 import { requireGroupAccess } from "./access";
 
@@ -69,4 +71,66 @@ export async function removeListItem(
   if (!(await deleteOpenListItem(groupId, itemId))) {
     await refuse(groupId, itemId);
   }
+}
+
+export async function completeListItem(
+  userId: string,
+  groupId: string,
+  itemId: string,
+  input: CompleteItemInput,
+): Promise<ListItem> {
+  await requireGroupAccess(userId, groupId, "write");
+  const db = getDb();
+
+  const { error } = await db.rpc("complete_list_item", {
+    item_id: itemId,
+    user_id: userId,
+    group_id: groupId,
+    amount_cents: input.amountCents,
+    shares: JSON.stringify(input.shares),
+  });
+
+  if (error) {
+    if (error.message.includes("409")) {
+      throw new ConflictError("This item is already completed or doesn't exist.");
+    }
+    throw error;
+  }
+
+  const item = await findListItem(groupId, itemId);
+  if (!item) {
+    throw new NotFoundError("This item isn't on the list.");
+  }
+  return item;
+}
+
+export async function reopenListItem(
+  userId: string,
+  groupId: string,
+  itemId: string,
+): Promise<ListItem> {
+  await requireGroupAccess(userId, groupId, "write");
+  const db = getDb();
+
+  const { error } = await db.rpc("reopen_list_item", {
+    item_id: itemId,
+    user_id: userId,
+    group_id: groupId,
+  });
+
+  if (error) {
+    if (error.message.includes("403")) {
+      throw new Error("Only the member who checked it off can uncheck it.");
+    }
+    if (error.message.includes("409")) {
+      throw new ConflictError("This item is not completed or doesn't exist.");
+    }
+    throw error;
+  }
+
+  const item = await findListItem(groupId, itemId);
+  if (!item) {
+    throw new NotFoundError("This item isn't on the list.");
+  }
+  return item;
 }

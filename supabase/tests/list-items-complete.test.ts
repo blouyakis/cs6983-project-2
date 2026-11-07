@@ -12,6 +12,8 @@ describe("List item complete/reopen (#12)", () => {
       .select("id")
       .single();
 
+    if (!group) throw new Error("Failed to create group");
+
     await db
       .from("group_members")
       .insert({ group_id: group.id, user_id: userId, joined_at: new Date() });
@@ -21,6 +23,8 @@ describe("List item complete/reopen (#12)", () => {
       .insert({ group_id: group.id, title: "Milk", added_by: userId })
       .select("id")
       .single();
+
+    if (!item) throw new Error("Failed to create item");
 
     // Call the complete_list_item function
     const { data: result, error } = await db.rpc("complete_list_item", {
@@ -54,6 +58,8 @@ describe("List item complete/reopen (#12)", () => {
       .select("id")
       .single();
 
+    if (!group) throw new Error("Failed to create group");
+
     await db
       .from("group_members")
       .insert({ group_id: group.id, user_id: userId, joined_at: new Date() });
@@ -63,6 +69,8 @@ describe("List item complete/reopen (#12)", () => {
       .insert({ group_id: group.id, title: "Milk", added_by: userId })
       .select("id")
       .single();
+
+    if (!item) throw new Error("Failed to create item");
 
     // Call with 0 cost
     const { error } = await db.rpc("complete_list_item", {
@@ -93,6 +101,8 @@ describe("List item complete/reopen (#12)", () => {
       .select("id")
       .single();
 
+    if (!group) throw new Error("Failed to create group");
+
     await db
       .from("group_members")
       .insert({ group_id: group.id, user_id: userId, joined_at: new Date() });
@@ -102,6 +112,8 @@ describe("List item complete/reopen (#12)", () => {
       .insert({ group_id: group.id, title: "Milk", added_by: userId })
       .select("id")
       .single();
+
+    if (!item) throw new Error("Failed to create item");
 
     // Complete it first
     await db.rpc("complete_list_item", {
