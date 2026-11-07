@@ -69,6 +69,7 @@ export function ConfirmDialog({
 
   // Escape closes this layer only: preventDefault tells an enclosing
   // FormSheet that this Escape was used (see its handleKeyDown).
+  // While busy, ignore Escape to prevent the dialog closing mid-request.
   function handleKeyDown(event: KeyboardEvent<HTMLDialogElement>) {
     if (event.key === "Escape") {
       if (event.nativeEvent.isComposing) {
@@ -76,7 +77,9 @@ export function ConfirmDialog({
       }
       event.preventDefault();
       event.stopPropagation();
-      onCancel();
+      if (!busy) {
+        onCancel();
+      }
     } else if (event.key === "Tab") {
       const buttons = Array.from(
         event.currentTarget.querySelectorAll<HTMLButtonElement>(
@@ -100,7 +103,9 @@ export function ConfirmDialog({
 
   function handleCancel(event: SyntheticEvent<HTMLDialogElement>) {
     event.preventDefault();
-    onCancel();
+    if (!busy) {
+      onCancel();
+    }
   }
 
   // A browser fires close a task after dialog.close(). If the dialog was
