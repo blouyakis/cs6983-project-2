@@ -28,4 +28,15 @@ describe("BalanceSummary", () => {
       "Net across all groups: You are all settled up",
     );
   });
+
+  it("links to the /settle-up page", () => {
+    render(
+      <BalanceSummary
+        totals={{ netCents: -2350, owingCents: 4200, owedCents: 1850 }}
+      />,
+    );
+
+    const settleLink = screen.getByRole("link", { name: /Settle/ });
+    expect(settleLink).toHaveAttribute("href", "/settle-up");
+  });
 });
