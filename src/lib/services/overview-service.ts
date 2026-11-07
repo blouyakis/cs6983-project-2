@@ -4,6 +4,7 @@ import {
   monthOf,
   monthRange,
   openEstimateTotalCents,
+  spentInMonthCents,
 } from "@/lib/domain/list-stats";
 import {
   shareOfExpensesCents,
@@ -83,18 +84,18 @@ async function personalOverview(
 ): Promise<PersonalOverview> {
   // Only this month's expenses and the open items are loaded, not the whole
   // history (#90). TODO(#77): take the month in the user's time zone, not UTC.
-  const { from, before } = monthRange(monthOf(now));
+  const month = monthOf(now);
+  const { from, before } = monthRange(month);
   const [expenses, openItems] = await Promise.all([
     listGroupExpensesSpentBetween(userId, group.id, from, before),
     listGroupOpenListItems(userId, group.id),
   ]);
   return {
     group,
-    // Every expense in the personal space is the owner's alone (#23).
-    spentThisMonthCents: expenses.reduce(
-      (total, expense) => total + expense.amountCents,
-      0,
-    ),
+    // Every expense in the personal space is the owner's alone (#23). The
+    // query already kept this month, so the sum is the same rule the personal
+    // space page uses.
+    spentThisMonthCents: spentInMonthCents(expenses, month),
     openEstimateCents: openEstimateTotalCents(openItems),
     openItems,
   };

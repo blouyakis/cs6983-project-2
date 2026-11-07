@@ -125,7 +125,7 @@ export async function listListItems(
   return (data as ListItemRow[]).map(toListItem);
 }
 
-// Only the open items, newest first, for the overview's My list (#10).
+// Only the open items, newest first, for the overview's My list (#90).
 // `createdBefore` is a former member's left_at, as in listListItems.
 export async function listOpenListItems(
   groupId: string,

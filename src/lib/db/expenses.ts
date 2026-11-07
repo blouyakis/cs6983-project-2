@@ -184,7 +184,7 @@ export async function deleteExpense(expenseId: string): Promise<void> {
 }
 
 // Just the day and amount of the group's expenses dated from `from` up to,
-// not including, `before`, for spending totals (#10), so a long history
+// not including, `before`, for spending totals (#90), so a long history
 // isn't loaded to add up one month. `createdBefore` is a former member's
 // left_at, as in listExpenses.
 export async function listExpensesSpentBetween(
