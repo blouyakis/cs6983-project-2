@@ -148,10 +148,9 @@ describe("SettleUpBoard", () => {
     render(await SettleUpBoard());
 
     expect(screen.getByText(/There is nothing to settle/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Create a group" })).toHaveAttribute(
-      "href",
-      "/groups",
-    );
+    expect(
+      screen.getByRole("link", { name: "Create a group" }),
+    ).toHaveAttribute("href", "/groups");
     expect(screen.queryByText("Personal space")).not.toBeInTheDocument();
   });
 });
