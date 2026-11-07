@@ -131,8 +131,17 @@ test("the personal space has its own list", async ({ browser }) => {
   );
 });
 
-// Checking one off is #12. A checked item's cost becomes an expense, split
-// among the sharers. Unchecking reopens the item and deletes the expense.
+// User flow 2, the buying half (#12): checking an item off with a cost logs an
+// expense split among the sharers and moves the balances. Unchecking it, once
+// confirmed, reopens the item, deletes the expense and puts the balances back.
+function memberRow(page: Page, name: string) {
+  return page
+    .getByRole("heading", { name: /^Members/ })
+    .locator("..")
+    .getByRole("listitem")
+    .filter({ hasText: name });
+}
+
 test("check off an item with a cost and split, then uncheck it", async ({
   browser,
 }) => {
@@ -145,69 +154,115 @@ test("check off an item with a cost and split, then uncheck it", async ({
   await expect(ana.page.getByText("Sam joined the group.")).toBeVisible();
 
   await addToList(ana.page, "🛒 Groceries", "50");
-  await expect(list(ana.page)).toContainText("Groceries");
-
-  // Check off the item and enter the actual cost
-  const checkbox = list(ana.page).getByRole("checkbox");
-  await checkbox.click();
-  const checkOffForm = ana.page.getByRole("dialog", {
-    name: "Check off: 🛒 Groceries",
+  await list(ana.page)
+    .getByRole("checkbox", { name: "Check off Groceries" })
+    .click();
+  const checkOff = ana.page.getByRole("dialog", {
+    name: "Check off Groceries",
   });
-  await expect(checkOffForm).toBeVisible();
+  await checkOff.getByLabel("Actual cost").fill("47.99");
+  // Shared by everyone, evenly, unless Ana changes it.
+  await checkOff.getByRole("button", { name: "Check off" }).click();
+  await expect(checkOff).toBeHidden();
 
-  // Enter the actual cost
-  await checkOffForm.getByLabel("Cost").fill("47.99");
-
-  // The split should default to everyone
   await expect(
-    checkOffForm.getByRole("region", { name: "How is it split?" }),
+    ana.page.getByText("Checked off Groceries for $47.99."),
   ).toBeVisible();
+  const row = list(ana.page)
+    .getByRole("listitem")
+    .filter({ hasText: "Groceries" });
+  await expect(
+    row.getByRole("checkbox", { name: "Uncheck Groceries" }),
+  ).toBeChecked();
+  await expect(row).toContainText("✔ You paid $47.99");
+  // $47.99 between two: Sam's half is $23.99, and the leftover cent is Ana's.
+  await expect(memberRow(ana.page, "Sam")).toContainText("Sam owes $23.99");
 
-  // Submit the check-off
-  await checkOffForm.getByRole("button", { name: "Done" }).click();
-  await expect(checkOffForm).toBeHidden();
-
-  // The item should now show as done
-  const doneItem = list(ana.page).getByRole("listitem").filter({
-    hasText: "Groceries",
+  await row.getByRole("checkbox", { name: "Uncheck Groceries" }).click();
+  const confirm = ana.page.getByRole("dialog", {
+    name: "Uncheck Groceries? This deletes its $47.99 expense.",
   });
-  await expect(doneItem.getByRole("checkbox")).toBeChecked();
-  await expect(doneItem).toContainText("✔ You");
+  await confirm.getByRole("button", { name: "Uncheck and delete" }).click();
+  await expect(confirm).toBeHidden();
 
-  // Uncheck the item and confirm deletion
-  const checkbox2 = doneItem.getByRole("checkbox");
-  await checkbox2.click();
-  const confirmDialog = ana.page.getByRole("dialog", {
-    name: /uncheck|reopen/i,
-  });
-  if (await confirmDialog.isVisible()) {
-    await confirmDialog
-      .getByRole("button", { name: /delete|uncheck/i })
-      .click();
-  }
+  await expect(
+    ana.page.getByText("Unchecked Groceries and deleted its $47.99 expense."),
+  ).toBeVisible();
+  await expect(
+    row.getByRole("checkbox", { name: "Check off Groceries" }),
+  ).not.toBeChecked();
+  await expect(memberRow(ana.page, "Sam")).toContainText(
+    "Sam is all settled up",
+  );
 
-  // The item should be back to open
-  await expect(doneItem.getByRole("checkbox")).not.toBeChecked();
-  await expect(doneItem).not.toContainText("✔");
+  // Sam can't uncheck what Ana checked off.
+  await list(ana.page)
+    .getByRole("checkbox", { name: "Check off Groceries" })
+    .click();
+  await ana.page
+    .getByRole("dialog", { name: "Check off Groceries" })
+    .getByRole("button", { name: "Check off" })
+    .click();
+  await sam.page.goto(ana.page.url());
+  await expect(
+    list(sam.page).getByRole("checkbox", { name: "Groceries is done" }),
+  ).toBeDisabled();
 });
 
-// Checking off with zero cost should not create an expense
+// With no cost, the item is only marked done: no expense, nothing to split.
 test("check off an item with no cost", async ({ browser }) => {
   const ana = await newUser(browser, "Ana");
   await createGroup(ana.page, "🏠 Dorm 4B");
 
   await addToList(ana.page, "Take out recycling");
-  const checkbox = list(ana.page).getByRole("checkbox");
-  await checkbox.click();
-  const checkOffForm = ana.page.getByRole("dialog");
-  await expect(checkOffForm).toBeVisible();
+  await list(ana.page)
+    .getByRole("checkbox", { name: "Check off Take out recycling" })
+    .click();
+  const checkOff = ana.page.getByRole("dialog", {
+    name: "Check off Take out recycling",
+  });
+  await checkOff.getByRole("button", { name: "Check off" }).click();
+  await expect(checkOff).toBeHidden();
 
-  // Leave cost empty (0)
-  await checkOffForm.getByRole("button", { name: "Done" }).click();
-  await expect(checkOffForm).toBeHidden();
+  await expect(
+    list(ana.page).getByRole("checkbox", {
+      name: "Uncheck Take out recycling",
+    }),
+  ).toBeChecked();
+  await expect(
+    ana.page.getByText("Checked off Take out recycling."),
+  ).toBeVisible();
+});
 
-  // The item should be checked off
-  await expect(list(ana.page).getByRole("checkbox")).toBeChecked();
+// In the personal space, checking off logs a personal expense with no split
+// (#12, #23).
+test("check off a personal item and see it logged as a personal expense", async ({
+  browser,
+}) => {
+  const ana = await newUser(browser, "Ana");
+  await ana.page.goto("/groups");
+  await ana.page
+    .getByRole("main")
+    .getByRole("link", { name: /Personal space/ })
+    .first()
+    .click();
+  await addToList(ana.page, "💇 Haircut", "35");
+
+  await list(ana.page)
+    .getByRole("checkbox", { name: "Check off Haircut" })
+    .click();
+  const checkOff = ana.page.getByRole("dialog", { name: "Check off Haircut" });
+  await expect(checkOff.getByText("How is it split?")).toHaveCount(0);
+  await checkOff.getByLabel("Actual cost").fill("32");
+  await checkOff.getByRole("button", { name: "Check off" }).click();
+
+  const row = list(ana.page).getByRole("listitem").filter({
+    hasText: "Haircut",
+  });
+  await expect(row).toContainText("Logged as personal expense", {
+    ignoreCase: true,
+  });
+  await expect(ana.page.getByText("Spent this month")).toBeVisible();
 });
 
 // The form body scrolls in a fixed-height column, so a Toggle that may shrink

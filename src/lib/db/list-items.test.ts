@@ -7,6 +7,7 @@ import {
   deleteOpenListItem,
   findListItem,
   insertListItem,
+  listCheckOffExpenses,
   listListItems,
   reopenDoneListItem,
   updateOpenListItem,
@@ -76,6 +77,7 @@ const row = {
   added_by: anaId,
   completed_by: null,
   completed_at: null,
+  expense_id: null,
   created_at: "2026-11-04T18:00:00+00:00",
 };
 
@@ -90,6 +92,7 @@ const item = {
   addedBy: anaId,
   completedBy: null,
   completedAt: null,
+  expenseId: null,
   createdAt: "2026-11-04T18:00:00+00:00",
 };
 
@@ -446,5 +449,67 @@ describe("reopenDoneListItem", () => {
     await expect(reopenDoneListItem(groupId, itemId, anaId)).rejects.toThrow(
       "Could not uncheck the list item: boom",
     );
+  });
+});
+
+describe("listCheckOffExpenses", () => {
+  const milkExpense = "5e4f3a2b-5555-4666-8777-d88899990000";
+  const breadExpense = "6f5a4b3c-5555-4666-8777-d88899990000";
+
+  it("loads the cost, settlement and creation time of each expense asked about (#12)", async () => {
+    result = {
+      data: [
+        {
+          id: milkExpense,
+          amount_cents: 1234,
+          settlement_id: null,
+          created_at: "2026-11-04T19:00:00+00:00",
+        },
+        {
+          id: breadExpense,
+          amount_cents: 300,
+          settlement_id: "7a6b5c4d-5555-4666-8777-d88899990000",
+          created_at: "2026-11-01T09:00:00+00:00",
+        },
+      ],
+      error: null,
+    };
+
+    const expenses = await listCheckOffExpenses([milkExpense, breadExpense]);
+
+    expect(called("from")).toEqual([{ method: "from", args: ["expenses"] }]);
+    expect(called("select")[0].args).toEqual([
+      "id, amount_cents, settlement_id, created_at",
+    ]);
+    expect(called("in")[0].args).toEqual(["id", [milkExpense, breadExpense]]);
+    expect(expenses.get(milkExpense)).toEqual({
+      amountCents: 1234,
+      settled: false,
+      createdAt: "2026-11-04T19:00:00+00:00",
+    });
+    expect(expenses.get(breadExpense)?.settled).toBe(true);
+  });
+
+  it("asks the database nothing for no expenses", async () => {
+    expect((await listCheckOffExpenses([])).size).toBe(0);
+    expect(queries).toHaveLength(0);
+  });
+
+  it("throws when the query fails", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(listCheckOffExpenses([milkExpense])).rejects.toThrow(
+      "Could not load the list's expenses: boom",
+    );
+  });
+});
+
+describe("the list item columns", () => {
+  it("include the expense an item was checked off with", async () => {
+    result = { data: [row], error: null };
+
+    await listListItems(groupId, null);
+
+    expect(String(called("select")[0].args[0])).toContain("expense_id");
   });
 });

@@ -43,6 +43,7 @@ const milk: ListItem = {
   addedBy: "6f1c2d4e-1111-4222-8333-944455556666",
   completedBy: null,
   completedAt: null,
+  expenseId: null,
   createdAt: "2026-11-04T18:00:00+00:00",
 };
 
