@@ -128,6 +128,9 @@ test("the personal space has its own list", async ({ browser }) => {
   await expect(list(ana.page)).toContainText("Haircut");
   await expect(list(ana.page)).toContainText(
     /Added \w{3} \d+ · est\. \$35\.00/,
+  );
+});
+
 // Checking one off is #12. A checked item's cost becomes an expense, split
 // among the sharers. Unchecking reopens the item and deletes the expense.
 test("check off an item with a cost and split, then uncheck it", async ({
@@ -204,7 +207,7 @@ test("check off an item with no cost", async ({ browser }) => {
 
   // The item should be checked off
   await expect(list(ana.page).getByRole("checkbox")).toBeChecked();
-}););
+});
 
 // The form body scrolls in a fixed-height column, so a Toggle that may shrink
 // is squashed to its borders once the cost form is taller than the dialog.
