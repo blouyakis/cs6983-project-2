@@ -92,7 +92,9 @@ export async function completeListItem(
 
   if (error) {
     if (error.message.includes("409")) {
-      throw new ConflictError("This item is already completed or doesn't exist.");
+      throw new ConflictError(
+        "This item is already completed or doesn't exist.",
+      );
     }
     throw error;
   }

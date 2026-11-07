@@ -6,7 +6,11 @@ import { SplitEditor } from "@/components/expenses/SplitEditor";
 import type { Member } from "@/lib/db/group-members";
 import type { ListItem } from "@/lib/db/list-items";
 import { formatCents, parseDollars } from "@/lib/domain/money";
-import { chooseMode, chooseSharers, initialSplitState, resolveSplit, type SplitState } from "@/components/expenses/split-state";
+import {
+  initialSplitState,
+  resolveSplit,
+  type SplitState,
+} from "@/components/expenses/split-state";
 import { useState } from "react";
 
 type CheckOffFormProps = {
@@ -37,17 +41,22 @@ export function CheckOffForm({
 }: CheckOffFormProps) {
   const [amountText, setAmountText] = useState("");
   const [splitState, setSplitState] = useState<SplitState>(() =>
-    initialSplitState(members)
+    initialSplitState(members),
   );
 
   const amountCents = amountText ? parseDollars(amountText) : null;
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit() {
     if (!item || amountCents === null) {
       return;
     }
 
-    const resolved = resolveSplit(splitState, members, currentUserId, amountCents);
+    const resolved = resolveSplit(
+      splitState,
+      members,
+      currentUserId,
+      amountCents,
+    );
     if ("fieldErrors" in resolved) {
       // Errors are displayed by the error prop
       return;

@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { formatCents } from "@/lib/domain/money";
 import { MAX_CENTS } from "@/lib/domain/splits";
-import { splitSchema } from "./splits";
 
 // The bodies of POST and PATCH /api/groups/{groupId}/list-items (#11). There
 // is no addedBy: the item is always added by the current user, and an addedBy
@@ -78,7 +77,9 @@ export const completeItemSchema = z.object({
     .number({ error: "Enter an amount." })
     .int({ error: "Amount must be in whole cents." })
     .min(0, { error: "Amount must be 0 or more." })
-    .max(MAX_CENTS, { error: `Amount must be at most ${formatCents(MAX_CENTS)}.` }),
+    .max(MAX_CENTS, {
+      error: `Amount must be at most ${formatCents(MAX_CENTS)}.`,
+    }),
   shares: z.record(z.string().uuid(), z.number().int().min(0)),
 });
 

@@ -139,7 +139,6 @@ test("check off an item with a cost and split, then uncheck it", async ({
   const sam = await newUser(browser, "Sam");
   const ana = await newUser(browser, "Ana");
   await createGroup(ana.page, "🏠 Dorm 4B");
-  const groupUrl = ana.page.url();
   const invite = ana.page.getByRole("form", { name: "Invite a member" });
   await invite.getByLabel("Email").fill(sam.email);
   await invite.getByRole("button", { name: "Invite" }).click();
@@ -182,7 +181,9 @@ test("check off an item with a cost and split, then uncheck it", async ({
     name: /uncheck|reopen/i,
   });
   if (await confirmDialog.isVisible()) {
-    await confirmDialog.getByRole("button", { name: /delete|uncheck/i }).click();
+    await confirmDialog
+      .getByRole("button", { name: /delete|uncheck/i })
+      .click();
   }
 
   // The item should be back to open
