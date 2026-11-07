@@ -14,7 +14,8 @@ describe("List item complete/reopen (#12)", () => {
       .select("id")
       .single();
 
-    if (itemError || !item) throw new Error(`Failed to create item: ${itemError?.message}`);
+    if (itemError || !item)
+      throw new Error(`Failed to create item: ${itemError?.message}`);
 
     // Call the complete_list_item function
     const { data: result, error } = await db.rpc("complete_list_item", {
@@ -50,7 +51,8 @@ describe("List item complete/reopen (#12)", () => {
       .select("id")
       .single();
 
-    if (itemError || !item) throw new Error(`Failed to create item: ${itemError?.message}`);
+    if (itemError || !item)
+      throw new Error(`Failed to create item: ${itemError?.message}`);
 
     // Call with 0 cost
     const { error } = await db.rpc("complete_list_item", {
@@ -83,7 +85,8 @@ describe("List item complete/reopen (#12)", () => {
       .select("id")
       .single();
 
-    if (itemError || !item) throw new Error(`Failed to create item: ${itemError?.message}`);
+    if (itemError || !item)
+      throw new Error(`Failed to create item: ${itemError?.message}`);
 
     // Complete it first
     await db.rpc("complete_list_item", {
