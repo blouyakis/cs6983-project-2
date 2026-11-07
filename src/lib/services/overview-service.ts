@@ -2,8 +2,8 @@ import "server-only";
 import { countOpenListItems, type ListItem } from "@/lib/db/list-items";
 import {
   monthOf,
+  monthRange,
   openEstimateTotalCents,
-  spentInMonthCents,
 } from "@/lib/domain/list-stats";
 import {
   shareOfExpensesCents,
@@ -11,9 +11,9 @@ import {
   type BalanceSummary,
 } from "@/lib/domain/overview";
 import { getGroupPeriod } from "./balance-service";
-import { listGroupExpenses } from "./expense-service";
+import { listGroupExpensesSpentBetween } from "./expense-service";
 import { listGroups, type GroupSummary } from "./group-service";
-import { listGroupListItems } from "./list-item-service";
+import { listGroupOpenListItems } from "./list-item-service";
 
 // A shared group the user is in now, with where they stand in it.
 export type GroupStanding = GroupSummary & {
@@ -81,16 +81,20 @@ async function personalOverview(
   group: GroupSummary,
   now: Date,
 ): Promise<PersonalOverview> {
-  const [expenses, items] = await Promise.all([
-    listGroupExpenses(userId, group.id),
-    listGroupListItems(userId, group.id),
+  // Only this month's expenses and the open items are loaded, not the whole
+  // history (#90). TODO(#77): take the month in the user's time zone, not UTC.
+  const { from, before } = monthRange(monthOf(now));
+  const [expenses, openItems] = await Promise.all([
+    listGroupExpensesSpentBetween(userId, group.id, from, before),
+    listGroupOpenListItems(userId, group.id),
   ]);
-  const openItems = items.filter((item) => item.status === "open");
   return {
     group,
     // Every expense in the personal space is the owner's alone (#23).
-    // TODO(#77): take the month in the user's time zone, not UTC.
-    spentThisMonthCents: spentInMonthCents(expenses, monthOf(now)),
+    spentThisMonthCents: expenses.reduce(
+      (total, expense) => total + expense.amountCents,
+      0,
+    ),
     openEstimateCents: openEstimateTotalCents(openItems),
     openItems,
   };
