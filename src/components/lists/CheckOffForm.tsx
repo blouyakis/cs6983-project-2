@@ -1,109 +1,172 @@
 "use client";
 
-import { FormSheet } from "@/components/ui/FormSheet";
-import { TextField } from "@/components/ui/TextField";
+import { useState } from "react";
 import { SplitEditor } from "@/components/expenses/SplitEditor";
-import type { Member } from "@/lib/db/group-members";
-import type { ListItem } from "@/lib/db/list-items";
-import { formatCents, parseDollars } from "@/lib/domain/money";
 import {
   initialSplitState,
   resolveSplit,
+  type SplitFields,
   type SplitState,
 } from "@/components/expenses/split-state";
-import { useState } from "react";
+import { FormSheet } from "@/components/ui/FormSheet";
+import { TextField } from "@/components/ui/TextField";
+import type { Member } from "@/lib/db/group-members";
+import type { ListItem } from "@/lib/db/list-items";
+import { splitLeadingEmoji } from "@/lib/domain/leading-emoji";
+import { parseDollars } from "@/lib/domain/money";
+import { postJson } from "@/lib/http/api-client";
+import { ValidationError } from "@/lib/http/errors";
+import {
+  completeItemSchema,
+  type CompleteItemInput,
+} from "@/lib/validation/list-item";
+import { parseInput } from "@/lib/validation/parse";
 
 type CheckOffFormProps = {
+  // An open item.
+  item: ListItem;
   open: boolean;
-  item: ListItem | null;
+  groupId: string;
+  isPersonal: boolean;
+  // The group's current members, who can share the cost. Not used in the
+  // personal space, where the owner is the only sharer (#23).
   members: Member[];
   currentUserId: string;
   onClose: () => void;
-  onSubmit: (
-    itemId: string,
-    amountCents: number,
-    shares: Record<string, number>,
-  ) => Promise<void>;
-  submitting?: boolean;
-  error?: string;
+  // The item is done; costCents is what was entered, 0 for no cost.
+  onCheckedOff: (item: ListItem, costCents: number) => void;
+  // The server refused the check-off as a whole, such as a 409 because
+  // someone checked it off first, or a 404 because someone deleted it. The
+  // list on the page is out of date then. Not called for a field error.
+  onRefused: () => void;
 };
 
-// Form for checking off a list item with a cost and split (#12)
+const ENTER_COST =
+  "Enter the cost in dollars and cents, such as 12.34, or leave it blank if it cost nothing.";
+
+// Checks an open item off (user flow 2, #12): the actual cost and who shares
+// it, with SplitEditor, as when adding an expense. The member checking it off
+// pays, so there is no payer field. A blank cost checks it off with no
+// expense. Render it with a key per opening, so it starts empty each time.
 export function CheckOffForm({
-  open,
   item,
+  open,
+  groupId,
+  isPersonal,
   members,
   currentUserId,
   onClose,
-  onSubmit,
-  submitting = false,
-  error,
+  onCheckedOff,
+  onRefused,
 }: CheckOffFormProps) {
-  const [amountText, setAmountText] = useState("");
-  const [splitState, setSplitState] = useState<SplitState>(() =>
+  const [costText, setCostText] = useState("");
+  const [split, setSplit] = useState<SplitState>(() =>
     initialSplitState(members),
   );
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string>();
+  const [submitting, setSubmitting] = useState(false);
 
-  const amountCents = amountText ? parseDollars(amountText) : null;
+  const blank = costText.trim() === "";
+  const amountCents = blank ? 0 : parseDollars(costText);
+  const { text } = splitLeadingEmoji(item.title);
+
+  // Changing a field clears the error that was shown next to it.
+  function clearErrors(...fields: string[]) {
+    setErrors((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([field]) => !fields.includes(field)),
+      ),
+    );
+  }
 
   async function handleSubmit() {
-    if (!item || amountCents === null) {
+    if (amountCents === null) {
+      setErrors({ amountCents: ENTER_COST });
+      setFormError(undefined);
+      return;
+    }
+    // Nothing is split when it cost nothing, or in the personal space.
+    const only: SplitFields = { mode: "even", sharedBy: [currentUserId] };
+    const resolved =
+      isPersonal || amountCents === 0
+        ? null
+        : resolveSplit(split, members, currentUserId, amountCents);
+    if (resolved && "fieldErrors" in resolved) {
+      setErrors(resolved.fieldErrors);
+      setFormError(undefined);
       return;
     }
 
-    const resolved = resolveSplit(
-      splitState,
-      members,
-      currentUserId,
-      amountCents,
-    );
-    if ("fieldErrors" in resolved) {
-      // Errors are displayed by the error prop
-      return;
-    }
-
-    const shares: Record<string, number> = {};
-    for (const share of resolved.shares) {
-      shares[share.userId] = share.shareCents;
-    }
-
+    let body: CompleteItemInput;
     try {
-      await onSubmit(item.id, amountCents, shares);
-      setAmountText("");
-      setSplitState(initialSplitState(members));
-    } catch {
-      // Error is displayed via the error prop
+      body = parseInput(completeItemSchema, {
+        amountCents,
+        ...(resolved ? resolved.fields : only),
+      });
+    } catch (error) {
+      if (!(error instanceof ValidationError)) {
+        throw error;
+      }
+      setErrors(error.fields ?? {});
+      setFormError(undefined);
+      return;
+    }
+
+    setSubmitting(true);
+    const result = await postJson<{ item: ListItem }>(
+      `/api/groups/${groupId}/list-items/${item.id}/complete`,
+      body,
+    );
+    setSubmitting(false);
+    if (result.ok) {
+      onCheckedOff(item, amountCents);
+      onClose();
+      return;
+    }
+    setErrors(result.error.fields ?? {});
+    setFormError(result.error.fields ? undefined : result.error.message);
+    if (!result.error.fields) {
+      onRefused();
     }
   }
 
   return (
     <FormSheet
-      open={open && item !== null}
-      title={item ? `Check off: ${item.title}` : "Check off"}
-      primaryLabel="Done"
+      open={open}
+      title={`Check off ${text}`}
+      primaryLabel="Check off"
       onSubmit={handleSubmit}
       onClose={onClose}
       submitting={submitting}
-      error={error}
+      error={formError}
     >
       <TextField
-        label="Cost"
-        name="amountCents"
-        type="text"
+        label="Actual cost"
+        name="amount"
         inputMode="decimal"
-        value={amountText}
-        onChange={(e) => setAmountText(e.currentTarget.value)}
-        placeholder={`e.g. ${formatCents(1499)}`}
-        error={amountText && amountCents === null ? "Enter a valid amount" : ""}
+        autoComplete="off"
+        hint="In dollars, such as 12.34. Leave it blank if it cost nothing."
+        value={costText}
+        onChange={(event) => {
+          setCostText(event.target.value);
+          clearErrors("amountCents");
+        }}
+        error={errors.amountCents}
       />
-
-      <SplitEditor
-        members={members}
-        payerId={currentUserId}
-        amountCents={amountCents}
-        state={splitState}
-        onChange={setSplitState}
-      />
+      {isPersonal ? null : (
+        <SplitEditor
+          members={members}
+          payerId={currentUserId}
+          amountCents={blank ? null : amountCents}
+          state={split}
+          onChange={(next) => {
+            setSplit(next);
+            clearErrors("sharedBy", "amountsCents", "mode");
+          }}
+          error={errors.sharedBy ?? errors.amountsCents ?? errors.mode}
+        />
+      )}
     </FormSheet>
   );
 }

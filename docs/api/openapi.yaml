@@ -305,8 +305,10 @@ paths:
         Issues #11, #12. Open items first, then done items, newest first in
         each. `addedBy` is a user id; the page names them from the group's
         members. A former member only sees what was added before they left.
-        Whether each done item's expense is settled, so the client can
-        disable unchecking it, comes with #12.
+        Each item also has `costCents`, what a done item cost, and
+        `expenseLock`, whether its expense is settled or in the open
+        settle-up (#12, #86), so the client never offers an uncheck that
+        would get a 409.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
@@ -419,7 +421,16 @@ paths:
   /api/groups/{groupId}/list-items/{itemId}/complete:
     post:
       summary: Check off an item and create the expense
-      description: Issues #12, #13. An item that is already done is 409.
+      description: |
+        Issue #12. The current user is the payer and the one who completed
+        it. The body is the actual cost and the same split fields as adding
+        an expense (`Split`); the server works out the shares. With a cost,
+        the expense is created and linked to the item in one transaction;
+        with a cost of 0 the item is only marked done and the split is
+        ignored. In the personal space the owner is the only sharer, whatever
+        split is sent (#23). An item that is already done is 409, one that
+        isn't in the group is 404, and a former member or an archived group
+        gets 403.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ItemId"
@@ -428,16 +439,13 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [amountCents, shares]
-              properties:
-                amountCents:
-                  $ref: "#/components/schemas/AmountCents"
-                shares:
-                  type: object
-                  description: Each sharer's share in cents, keyed by user id.
-                  additionalProperties:
-                    $ref: "#/components/schemas/AmountCents"
+              allOf:
+                - type: object
+                  required: [amountCents]
+                  properties:
+                    amountCents:
+                      $ref: "#/components/schemas/AmountCents"
+                - $ref: "#/components/schemas/Split"
       responses:
         "200":
           description: Item checked off. Expense created if amountCents > 0.
@@ -450,14 +458,18 @@ paths:
                     $ref: "#/components/schemas/ListItem"
         "400":
           $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         "403":
+          $ref: "#/components/responses/Error"
+        "404":
           $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/list-items/{itemId}/reopen:
     post:
       summary: Uncheck an item and delete its expense
-      description: Issue #12. Only the member who checked the item off; anyone else gets 403. A settled expense is 409. A done item with no expense just reopens. An item that is already open is 409.
+      description: Issue #12. Only the member who checked the item off; anyone else gets 403. An expense that is settled or in the open settle-up is 409 (#86). A done item with no expense just reopens. An item that is already open is 409, and one that isn't in the group is 404.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ItemId"
@@ -471,7 +483,11 @@ paths:
                 properties:
                   item:
                     $ref: "#/components/schemas/ListItem"
+        "401":
+          $ref: "#/components/responses/Error"
         "403":
+          $ref: "#/components/responses/Error"
+        "404":
           $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
@@ -1208,6 +1224,7 @@ components:
           addedBy,
           completedBy,
           completedAt,
+          expenseId,
           createdAt,
         ]
       properties:
@@ -1244,9 +1261,30 @@ components:
           type: string
           format: date-time
           nullable: true
+        expenseId:
+          type: string
+          format: uuid
+          nullable: true
+          description: The expense it was checked off with (#12). Null while open, for no cost, or once that expense was deleted on its own.
         createdAt:
           type: string
           format: date-time
+    ListedItem:
+      description: An item in the list response (#12).
+      allOf:
+        - $ref: "#/components/schemas/ListItem"
+        - type: object
+          required: [costCents, expenseLock]
+          properties:
+            costCents:
+              type: integer
+              nullable: true
+              description: What a done item cost. Null while open or for no cost.
+            expenseLock:
+              type: string
+              enum: [settled, settle-up]
+              nullable: true
+              description: Why its expense can't be deleted, so it can't be unchecked (#86). Null when it can.
     ListItemResponse:
       type: object
       required: [item]
@@ -1260,7 +1298,7 @@ components:
         items:
           type: array
           items:
-            $ref: "#/components/schemas/ListItem"
+            $ref: "#/components/schemas/ListedItem"
     RegisterRequest:
       type: object
       required: [name, email, password]

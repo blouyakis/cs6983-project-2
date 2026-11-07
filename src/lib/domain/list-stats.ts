@@ -9,7 +9,7 @@ type EstimatedItem = {
 };
 
 // "Still to buy": the estimates of the open items. An item with no estimate
-// adds nothing. Spent and spent versus estimate need done items (#12).
+// adds nothing.
 export function openEstimateTotalCents(items: EstimatedItem[]): number {
   return items.reduce(
     (total, item) =>
@@ -18,6 +18,39 @@ export function openEstimateTotalCents(items: EstimatedItem[]): number {
         : total,
     0,
   );
+}
+
+type CheckedOffItem = EstimatedItem & {
+  // What the item cost when it was checked off; null for no cost, or when its
+  // expense was later deleted on its own.
+  costCents: number | null;
+};
+
+export type CheckedOffTotals = {
+  // "Spent": what the done items cost.
+  spentCents: number;
+  // "Spent versus estimate": how far the done items that had an estimate came
+  // over it (positive) or under it (negative). Null when none had one.
+  overEstimateCents: number | null;
+};
+
+// The two numbers a shared group's ListStats adds once items are checked off
+// (#12). An item checked off with no cost counts as $0.00 against its
+// estimate. Items with no estimate are spent but not compared.
+export function checkedOffTotals(items: CheckedOffItem[]): CheckedOffTotals {
+  let spentCents = 0;
+  let overEstimateCents: number | null = null;
+  for (const item of items) {
+    if (item.status !== "done") {
+      continue;
+    }
+    const cost = item.costCents ?? 0;
+    spentCents += cost;
+    if (item.estimatedCents !== null) {
+      overEstimateCents = (overEstimateCents ?? 0) + cost - item.estimatedCents;
+    }
+  }
+  return { spentCents, overEstimateCents };
 }
 
 type DatedExpense = {

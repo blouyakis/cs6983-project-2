@@ -1,4 +1,5 @@
 import "server-only";
+import type { ExpenseLock } from "@/lib/domain/expense-lock";
 import type { ListItemStatus } from "@/lib/domain/list-stats";
 import { ConflictError, ForbiddenError } from "@/lib/http/errors";
 import { getDb } from "./client";
@@ -17,6 +18,7 @@ type ListItemRow = {
   added_by: string;
   completed_by: string | null;
   completed_at: string | null;
+  expense_id: string | null;
   created_at: string;
 };
 
@@ -32,7 +34,18 @@ export type ListItem = {
   addedBy: string;
   completedBy: string | null;
   completedAt: string | null;
+  // The expense it was checked off with (#12). Null when open, checked off
+  // with no cost, or when that expense was later deleted on its own.
+  expenseId: string | null;
   createdAt: string;
+};
+
+// An item as the list service sends it (#12): with the actual cost of a done
+// item, and whether its expense is locked, so the client never offers an
+// uncheck that would get a 409 (DESIGN.md "ListItemRow").
+export type ListedItem = ListItem & {
+  costCents: number | null;
+  expenseLock: ExpenseLock | null;
 };
 
 export type NewListItem = {
@@ -52,7 +65,7 @@ export type ListItemChanges = Partial<{
 }>;
 
 const LIST_ITEM_COLUMNS =
-  "id, group_id, title, quantity, note, estimated_cents, status, added_by, completed_by, completed_at, created_at";
+  "id, group_id, title, quantity, note, estimated_cents, status, added_by, completed_by, completed_at, expense_id, created_at";
 
 function toListItem(row: ListItemRow): ListItem {
   return {
@@ -66,6 +79,7 @@ function toListItem(row: ListItemRow): ListItem {
     addedBy: row.added_by,
     completedBy: row.completed_by,
     completedAt: row.completed_at,
+    expenseId: row.expense_id,
     createdAt: row.created_at,
   };
 }
@@ -182,6 +196,45 @@ export async function deleteOpenListItem(
     throw new Error(`Could not delete the list item: ${error.message}`);
   }
   return data.length > 0;
+}
+
+export type CheckOffExpense = {
+  amountCents: number;
+  settled: boolean;
+  createdAt: string;
+};
+
+type CheckOffExpenseRow = {
+  id: string;
+  amount_cents: number;
+  settlement_id: string | null;
+  created_at: string;
+};
+
+// The expenses done items were checked off with, by id: what each cost, and
+// what it takes to tell whether it is locked (lib/domain/expense-lock.ts).
+export async function listCheckOffExpenses(
+  expenseIds: readonly string[],
+): Promise<Map<string, CheckOffExpense>> {
+  const expenses = new Map<string, CheckOffExpense>();
+  if (expenseIds.length === 0) {
+    return expenses;
+  }
+  const { data, error } = await getDb()
+    .from("expenses")
+    .select("id, amount_cents, settlement_id, created_at")
+    .in("id", expenseIds);
+  if (error) {
+    throw new Error(`Could not load the list's expenses: ${error.message}`);
+  }
+  for (const row of data as CheckOffExpenseRow[]) {
+    expenses.set(row.id, {
+      amountCents: row.amount_cents,
+      settled: row.settlement_id !== null,
+      createdAt: row.created_at,
+    });
+  }
+  return expenses;
 }
 
 // What an item cost when it was checked off and who shares it: each sharer's

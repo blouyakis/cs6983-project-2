@@ -4,11 +4,15 @@ import {
   deleteOpenListItem,
   findListItem,
   insertListItem,
+  listCheckOffExpenses,
   listListItems,
   reopenDoneListItem,
   updateOpenListItem,
+  type ListedItem,
   type ListItem,
 } from "@/lib/db/list-items";
+import { findOpenSettlement } from "@/lib/db/settlements";
+import { expenseLock } from "@/lib/domain/expense-lock";
 import { ConflictError, NotFoundError } from "@/lib/http/errors";
 import type {
   CreateListItemInput,
@@ -16,6 +20,7 @@ import type {
   CompleteItemInput,
 } from "@/lib/validation/list-item";
 import { requireGroupAccess } from "./access";
+import { sharesOfNewCost } from "./shares";
 
 // A group's list of things to do or buy (#11). Any current member can add,
 // edit or delete an open item. A done item is linked to what it cost, so it
@@ -34,13 +39,40 @@ export async function addListItem(
 }
 
 // A former member only sees what was added before they left (AGENTS.md
-// Section 6.6).
+// Section 6.6). Each done item comes with what it cost and whether its expense
+// is locked (#12), so the list can show the cost and offer an uncheck only
+// when it would work.
 export async function listGroupListItems(
   userId: string,
   groupId: string,
-): Promise<ListItem[]> {
+): Promise<ListedItem[]> {
   const { readUntil } = await requireGroupAccess(userId, groupId, "read");
-  return listListItems(groupId, readUntil);
+  const items = await listListItems(groupId, readUntil);
+  const expenseIds = items.flatMap((item) =>
+    item.expenseId === null ? [] : [item.expenseId],
+  );
+  if (expenseIds.length === 0) {
+    return items.map((item) => ({
+      ...item,
+      costCents: null,
+      expenseLock: null,
+    }));
+  }
+  const [expenses, openSettleUp] = await Promise.all([
+    listCheckOffExpenses(expenseIds),
+    findOpenSettlement(groupId),
+  ]);
+  return items.map((item) => {
+    const expense =
+      item.expenseId === null ? undefined : expenses.get(item.expenseId);
+    return {
+      ...item,
+      costCents: expense?.amountCents ?? null,
+      expenseLock: expense
+        ? expenseLock(expense, openSettleUp?.startedAt ?? null)
+        : null,
+    };
+  });
 }
 
 const NOT_ON_LIST = "This item isn't on the list.";
@@ -90,15 +122,28 @@ export async function removeListItem(
   }
 }
 
-// The current user pays, never an id from the request (user flow 2).
+// The current user pays, never an id from the request (user flow 2). The
+// cost is split here, as for a new expense; in the personal space it is all
+// the owner's (#23), and a cost of 0 writes no expense at all.
 export async function completeListItem(
   userId: string,
   groupId: string,
   itemId: string,
   input: CompleteItemInput,
 ): Promise<ListItem> {
-  await requireGroupAccess(userId, groupId, "write");
-  if (!(await completeOpenListItem(groupId, itemId, userId, input))) {
+  const { group } = await requireGroupAccess(userId, groupId, "write");
+  let shares: Record<string, number> = {};
+  if (input.amountCents > 0) {
+    shares = group.isPersonal
+      ? { [userId]: input.amountCents }
+      : Object.fromEntries(
+          (
+            await sharesOfNewCost(userId, groupId, input.amountCents, input)
+          ).map((share) => [share.userId, share.shareCents]),
+        );
+  }
+  const checkOff = { amountCents: input.amountCents, shares };
+  if (!(await completeOpenListItem(groupId, itemId, userId, checkOff))) {
     await refuse(groupId, itemId, "This item is already checked off.");
   }
   return reload(groupId, itemId);
