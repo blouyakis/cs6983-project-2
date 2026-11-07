@@ -166,6 +166,7 @@ describe("OverviewBoard", () => {
               addedBy: ana,
               completedBy: null,
               completedAt: null,
+              expenseId: null,
               createdAt: "2026-11-02T10:00:00+00:00",
             },
           ],

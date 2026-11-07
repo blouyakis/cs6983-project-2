@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  checkedOffTotals,
   monthOf,
   openEstimateTotalCents,
   spentInMonthCents,
@@ -79,5 +80,44 @@ describe("monthOf", () => {
   it("goes by UTC, not the server's local time", () => {
     expect(monthOf(new Date("2026-11-30T23:30:00Z"))).toBe("2026-11");
     expect(monthOf(new Date("2026-12-01T00:30:00Z"))).toBe("2026-12");
+  });
+});
+
+describe("checkedOffTotals", () => {
+  const done = (estimatedCents: number | null, costCents: number | null) => ({
+    status: "done" as const,
+    estimatedCents,
+    costCents,
+  });
+
+  it("adds up what the done items cost, leaving open items out (#12)", () => {
+    expect(
+      checkedOffTotals([
+        done(500, 450),
+        done(null, 1000),
+        { status: "open", estimatedCents: 900, costCents: null },
+      ]).spentCents,
+    ).toBe(1450);
+  });
+
+  it("counts an item checked off with no cost as $0.00", () => {
+    expect(checkedOffTotals([done(500, null)]).spentCents).toBe(0);
+  });
+
+  it("compares cost with the estimate only for done items that had one", () => {
+    // 450 against 500 and 0 against 300; the unestimated 1000 is left out.
+    expect(
+      checkedOffTotals([done(500, 450), done(300, null), done(null, 1000)])
+        .overEstimateCents,
+    ).toBe(-350);
+  });
+
+  it("is over the estimate when the costs came to more", () => {
+    expect(checkedOffTotals([done(500, 620)]).overEstimateCents).toBe(120);
+  });
+
+  it("has nothing to compare when no done item had an estimate", () => {
+    expect(checkedOffTotals([done(null, 1000)]).overEstimateCents).toBeNull();
+    expect(checkedOffTotals([]).overEstimateCents).toBeNull();
   });
 });

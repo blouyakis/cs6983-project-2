@@ -74,6 +74,7 @@ function overviewData(overrides: Partial<Overview> = {}): Overview {
           addedBy: anaId,
           completedBy: null,
           completedAt: null,
+          expenseId: null,
           createdAt: "2026-11-01T10:00:00Z",
         },
       ],

@@ -7,13 +7,17 @@ import { expenseNotice, planNotice } from "@/components/expenses/entry-notices";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useNotice, type Notice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
-import type { ListItem } from "@/lib/db/list-items";
-import { openEstimateTotalCents } from "@/lib/domain/list-stats";
+import type { ListedItem, ListItem } from "@/lib/db/list-items";
+import {
+  checkedOffTotals,
+  openEstimateTotalCents,
+} from "@/lib/domain/list-stats";
 import { splitLeadingEmoji } from "@/lib/domain/leading-emoji";
 import { deleteJson } from "@/lib/http/api-client";
 import { EditListItemForm } from "./EditListItemForm";
 import { ListItemRow } from "./ListItemRow";
 import { ListStats } from "./ListStats";
+import { useCheckOff } from "./use-check-off";
 
 type GroupListProps = {
   groupId: string;
@@ -21,8 +25,9 @@ type GroupListProps = {
   // A group the user left, or an archived one: the list can be read, not
   // changed (AGENTS.md Section 6.6).
   readOnly: boolean;
-  // Open first, then done, newest first in each, as the server sends them.
-  items: ListItem[];
+  // Open first, then done, newest first in each, as the server sends them,
+  // with each done item's cost and lock (#12).
+  items: ListedItem[];
   // User id to name, for the members the user can see.
   names: Record<string, string>;
   currentUserId: string;
@@ -53,6 +58,14 @@ export function GroupList({
 }: GroupListProps) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
+  // Checking off and unchecking (#12). The members who can share a cost are
+  // the group's current ones, the same the New entry form splits among.
+  const checkOff = useCheckOff({
+    groupId,
+    isPersonal,
+    members: entryGroups.find((group) => group.id === groupId)?.members ?? [],
+    currentUserId,
+  });
   // The item stays after the form closes, so FormSheet sees open turn false
   // and returns focus to the Edit button, instead of being unmounted first.
   // Each opening gets a new key, so the form starts from the item as the page
@@ -164,12 +177,31 @@ export function GroupList({
 
   const openCount = items.filter((item) => item.status === "open").length;
 
+  // Any current member checks an open item off. Only the member who checked a
+  // done item off unchecks it, and only while its expense can be deleted
+  // (AGENTS.md Section 6.7), so the checkbox is never offered for a 403 or 409.
+  function canCheck(item: ListedItem): boolean {
+    if (readOnly) {
+      return false;
+    }
+    return (
+      item.status === "open" ||
+      (item.completedBy === currentUserId && item.expenseLock === null)
+    );
+  }
+
   return (
     <section className="flex flex-col gap-4" aria-labelledby="list-heading">
       <ListStats
         openEstimateCents={openEstimateTotalCents(items)}
         isPersonal={isPersonal}
         spentThisMonthCents={spentThisMonthCents}
+        // Spent means something once an item is checked off.
+        checkedOff={
+          isPersonal || !items.some((item) => item.status === "done")
+            ? null
+            : checkedOffTotals(items)
+        }
       />
       <div className="flex items-baseline justify-between gap-3">
         <h2
@@ -195,6 +227,13 @@ export function GroupList({
                 item.completedBy === null ? null : nameOf(item.completedBy)
               }
               isPersonal={isPersonal}
+              costCents={item.costCents}
+              lock={item.expenseLock}
+              onCheckChange={
+                canCheck(item)
+                  ? (chosen) => checkOff.start(chosen, item.costCents)
+                  : undefined
+              }
               onEdit={
                 readOnly
                   ? undefined
@@ -259,6 +298,7 @@ export function GroupList({
             onCancel={cancelDelete}
             busy={confirming !== undefined && deleting.has(confirming.id)}
           />
+          {checkOff.elements}
         </>
       )}
       {editing ? (

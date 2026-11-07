@@ -69,4 +69,48 @@ describe("ListStats", () => {
 
     expect(screen.queryByText("Spent this month")).not.toBeInTheDocument();
   });
+
+  describe("spent and spent versus estimate in a group (#12)", () => {
+    function renderGroup(overEstimateCents: number | null) {
+      render(
+        <ListStats
+          openEstimateCents={1550}
+          isPersonal={false}
+          spentThisMonthCents={null}
+          checkedOff={{ spentCents: 1450, overEstimateCents }}
+        />,
+      );
+    }
+
+    it("shows what the done items cost", () => {
+      renderGroup(null);
+
+      expect(screen.getByText("Spent")).toBeInTheDocument();
+      expect(screen.getByText("$14.50")).toBeInTheDocument();
+    });
+
+    it("says in words how far over the estimate it came", () => {
+      renderGroup(120);
+
+      expect(screen.getByText("$1.20 over the estimate")).toBeInTheDocument();
+    });
+
+    it("says in words how far under the estimate it came", () => {
+      renderGroup(-350);
+
+      expect(screen.getByText("$3.50 under the estimate")).toBeInTheDocument();
+    });
+
+    it("says when it came to exactly the estimate", () => {
+      renderGroup(0);
+
+      expect(screen.getByText("Right on the estimate")).toBeInTheDocument();
+    });
+
+    it("leaves out the comparison when no done item had an estimate", () => {
+      renderGroup(null);
+
+      expect(screen.queryByText(/estimate$/)).not.toBeInTheDocument();
+    });
+  });
 });

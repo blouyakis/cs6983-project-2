@@ -92,6 +92,7 @@ function item(
     addedBy: ana,
     completedBy: status === "done" ? ana : null,
     completedAt: status === "done" ? "2026-11-03T10:00:00+00:00" : null,
+    expenseId: null,
     createdAt: "2026-11-01T10:00:00+00:00",
   };
 }
