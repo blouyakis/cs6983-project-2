@@ -183,4 +183,35 @@ describe("ConfirmDialog", () => {
 
     expect(screen.getByRole("button", { name: "Cancel" })).toHaveFocus();
   });
+
+  it("ignores Escape while busy, so the dialog stays open", () => {
+    const { onCancel } = renderDialog({ busy: true });
+    const dialog = screen.getByRole("dialog");
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      dialog.dispatchEvent(event);
+    });
+
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(dialog).toBeInTheDocument();
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("ignores the native cancel event while busy, so the dialog stays open", () => {
+    const { onCancel } = renderDialog({ busy: true });
+    const dialog = screen.getByRole("dialog");
+
+    const event = new Event("cancel", { bubbles: true, cancelable: true });
+    act(() => {
+      dialog.dispatchEvent(event);
+    });
+
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(dialog).toBeInTheDocument();
+  });
 });
