@@ -2,6 +2,7 @@ import "server-only";
 import type { Sharer } from "@/lib/domain/splits";
 import { ConflictError } from "@/lib/http/errors";
 import { getDb } from "./client";
+import { toMicros } from "./timestamps";
 
 const UNIQUE_VIOLATION = "23505";
 const CHECK_VIOLATION = "23514";
@@ -118,15 +119,16 @@ export async function findMembership(
 // For a former member's view, `at` is their left_at, and the members are the
 // ones who had joined by then and hadn't left before it, themselves included.
 // This is the only place in lib/db that decides membership, so the Groups
-// page, the member list and splitting an expense always agree.
+// page, the member list and splitting an expense always agree. Times are
+// compared to the microsecond, as Postgres compares the other cut-offs (#75).
 function isMemberAt(row: MemberRow, at: string | null): boolean {
   if (at === null) {
     return row.left_at === null;
   }
-  const moment = Date.parse(at);
+  const moment = toMicros(at);
   return (
-    Date.parse(row.joined_at) <= moment &&
-    (row.left_at === null || Date.parse(row.left_at) >= moment)
+    toMicros(row.joined_at) <= moment &&
+    (row.left_at === null || toMicros(row.left_at) >= moment)
   );
 }
 
