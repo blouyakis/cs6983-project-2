@@ -3,6 +3,7 @@
 // open item.
 import { afterAll, describe, expect, it } from "vitest";
 import {
+  countOpenListItems,
   deleteOpenListItem,
   findListItem,
   insertListItem,
@@ -120,5 +121,28 @@ describe("list items in the database", () => {
       await updateOpenListItem(second.groupId, item.id, { title: "Bread" }),
     ).toBeNull();
     expect(await deleteOpenListItem(second.groupId, item.id)).toBe(false);
+  });
+
+  it("counts only open items, per group", async () => {
+    const first = await createGroupWithMembers(1);
+    const second = await createGroupWithMembers(1);
+    const empty = await createGroupWithMembers(1);
+    const [ana] = first.memberIds;
+    const [sam] = second.memberIds;
+    await add(first.groupId, ana, "Milk");
+    await add(first.groupId, ana, "Bread");
+    const done = await add(first.groupId, ana, "Eggs");
+    await markDone(done.id, ana);
+    await add(second.groupId, sam, "Charcoal");
+
+    const counts = await countOpenListItems([
+      first.groupId,
+      second.groupId,
+      empty.groupId,
+    ]);
+
+    expect(counts.get(first.groupId)).toBe(2);
+    expect(counts.get(second.groupId)).toBe(1);
+    expect(counts.get(empty.groupId)).toBe(0);
   });
 });

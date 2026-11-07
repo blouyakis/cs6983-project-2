@@ -5,6 +5,9 @@ import OverviewPage from "./page";
 vi.mock("@/components/auth/SignedInAs", () => ({
   SignedInAs: () => <p>Signed in as Sam Lee</p>,
 }));
+vi.mock("@/components/overview/OverviewBoard", () => ({
+  OverviewBoard: () => <p>The overview board</p>,
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
 }));
@@ -24,5 +27,11 @@ describe("overview page", () => {
     render(<OverviewPage />);
 
     expect(screen.queryByRole("link", { name: /Groups/ })).toBeNull();
+  });
+
+  it("shows the overview board", () => {
+    render(<OverviewPage />);
+
+    expect(screen.getByText("The overview board")).toBeInTheDocument();
   });
 });

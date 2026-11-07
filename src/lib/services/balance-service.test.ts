@@ -2,7 +2,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Group } from "@/lib/db/group-members";
 import { ForbiddenError } from "@/lib/http/errors";
-import { getGroupBalances, getGroupBalancesAt } from "./balance-service";
+import {
+  getGroupBalances,
+  getGroupBalancesAt,
+  getGroupPeriod,
+} from "./balance-service";
 
 const access = vi.hoisted(() => ({ requireGroupAccess: vi.fn() }));
 vi.mock("./access", () => access);
@@ -136,6 +140,37 @@ describe("getGroupBalances", () => {
       { userId: ana, balanceCents: 0 },
       { userId: sam, balanceCents: 0 },
     ]);
+  });
+});
+
+describe("getGroupPeriod", () => {
+  it("returns the balances together with the period's expenses they came from", async () => {
+    const expenses = [
+      {
+        payerId: sam,
+        amountCents: 1000,
+        shares: [
+          { userId: ana, shareCents: 500 },
+          { userId: sam, shareCents: 500 },
+        ],
+      },
+    ];
+    periods.listPeriodExpenses.mockResolvedValue(expenses);
+
+    const period = await getGroupPeriod(ana, groupId);
+
+    expect(access.requireGroupAccess).toHaveBeenCalledWith(
+      ana,
+      groupId,
+      "read",
+    );
+    expect(period).toEqual({
+      balances: [
+        { userId: ana, balanceCents: -500 },
+        { userId: sam, balanceCents: 500 },
+      ],
+      expenses,
+    });
   });
 });
 
