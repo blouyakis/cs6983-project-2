@@ -56,10 +56,10 @@ This is the **target structure**. Paths marked `(planned)` do not exist yet; cre
 │   ├── PRD.md
 │   ├── user-stories.md
 │   ├── architecture.md
-│   ├── research/ design/
+│   ├── research/ design/ hw3/
 │   ├── decisions/           # (planned)
 │   ├── api/openapi.yaml
-│   └── sprints/             # sprint-1/ retrospective, sprint-2/ planning, issue-4-comparison.md
+│   └── sprints/             # sprint-1/ retrospective, sprint-2/ planning and retrospective, issue-4-comparison.md
 ├── supabase/
 │   ├── migrations/
 │   ├── seed.sql             # demo data for local development
@@ -98,6 +98,7 @@ _Why: Project 2 grades test-driven development from the git history, and money b
 - Vitest for unit and integration tests, Playwright for the flows in Section 5. Coverage: 80% lines, 100% of `lib/domain`.
 - Rules the database enforces (constraints, triggers, SQL functions) are tested against local Supabase in `supabase/tests/`, next to the migrations.
 - Commit the failing test first, then the code, then the refactor. Never in the same commit.
+- `e2e/accessibility.spec.ts` runs `@axe-core/playwright` (WCAG 2.1 A and AA) on every main page and dialog at desktop and 375px wide, and tabs through the forms. A new page or form goes into it in the same PR.
 - Before committing a `test(...)` commit, run `git diff --cached --stat` and confirm every file is a `*.test.*` or `e2e/*` file.
 
 ---
@@ -208,6 +209,7 @@ Non-negotiable values, check them before opening a PR: bcrypt cost **12** · ses
 
 ## Changelog
 
+- 2026-11-06, Barbara: added `sprint-2/ retrospective` to the `docs/sprints/` line of the folder tree in Section 2 (#18), recording the end-of-sprint metrics and lessons learned, and said in Section 4 that `e2e/accessibility.spec.ts` checks every main page and form, and that a new page goes into it. The tree was missing `docs/hw3/`, and without the rule a page added in Sprint 3 would skip the WCAG check that the other pages pass.
 - 2026-11-05, Barbara: said in Section 6.7 that an expense in an open settle-up is locked like a settled one, and in Section 6.10 how the balances and `started_at` are taken from the same moment (#86). Ziye's review of #82 showed that without the first, an edit during a settle-up left the period's balances non-zero at close, and without the second, a cost added between reading the balances and starting could be settled without ever being paid.
 - 2026-11-04, Barbara: added `sprint-2/ planning` to the `docs/sprints/` line of the folder tree in Section 2 (#67), because the Sprint 2 planning notes now exist there. The notes were late: the Sprint 1 retrospective asked for them on 2026-10-31.
 - 2026-11-03, Ziye: said in Section 6.3 that a default share weight is a whole number from 1 to 100 (#6). Without a cap, a weight like 10⁹ makes `amount × total weight` unsafe in `splitByWeights`, which turns into a 500; the cap was only in architecture.md, and an agent reads this file first.

@@ -32,9 +32,14 @@ test("the sidebar marks the current page and moves between pages by keyboard", a
     "aria-current",
     "page",
   );
-  // Not built yet, so they are not links (#68).
-  await expect(nav.getByRole("link", { name: /Lists/ })).toHaveCount(0);
-  await expect(nav.getByRole("link", { name: /Settle up/ })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: /Lists/ })).toHaveAttribute(
+    "href",
+    "/lists",
+  );
+  await expect(nav.getByRole("link", { name: /Settle up/ })).toHaveAttribute(
+    "href",
+    "/settle-up",
+  );
 
   await nav.getByRole("link", { name: "Groups" }).focus();
   await page.keyboard.press("Enter");
@@ -44,6 +49,20 @@ test("the sidebar marks the current page and moves between pages by keyboard", a
     "page",
   );
   await expect(nav.getByRole("link", { name: "Overview" })).not.toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+
+  await nav.getByRole("link", { name: /Lists/ }).click();
+  await expect(page).toHaveURL("/lists");
+  await expect(nav.getByRole("link", { name: /Lists/ })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+
+  await nav.getByRole("link", { name: /Settle up/ }).click();
+  await expect(page).toHaveURL("/settle-up");
+  await expect(nav.getByRole("link", { name: /Settle up/ })).toHaveAttribute(
     "aria-current",
     "page",
   );

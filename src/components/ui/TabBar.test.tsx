@@ -17,7 +17,7 @@ describe("TabBar", () => {
     expect(nav.className).toContain("md:hidden");
   });
 
-  it("links Overview and Groups, and shows Lists and Settle up as not built yet", () => {
+  it("links Overview, Lists, Settle up and Groups", () => {
     render(<TabBar />);
 
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
@@ -28,12 +28,13 @@ describe("TabBar", () => {
       "href",
       "/groups",
     );
-    expect(screen.queryByRole("link", { name: /Lists/ })).toBeNull();
-    expect(screen.queryByRole("link", { name: /Settle up/ })).toBeNull();
-    expect(screen.getByText("Lists")).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByText("Settle up")).toHaveAttribute(
-      "aria-disabled",
-      "true",
+    expect(screen.getByRole("link", { name: /Lists/ })).toHaveAttribute(
+      "href",
+      "/lists",
+    );
+    expect(screen.getByRole("link", { name: /Settle up/ })).toHaveAttribute(
+      "href",
+      "/settle-up",
     );
   });
 
@@ -48,6 +49,23 @@ describe("TabBar", () => {
     );
     expect(screen.getByRole("link", { name: "Overview" })).not.toHaveAttribute(
       "aria-current",
+    );
+  });
+
+  it("marks Lists and Settle up as current on their pages", () => {
+    mocks.usePathname.mockReturnValue("/lists");
+    const { unmount } = render(<TabBar />);
+    expect(screen.getByRole("link", { name: /Lists/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    unmount();
+
+    mocks.usePathname.mockReturnValue("/settle-up");
+    render(<TabBar />);
+    expect(screen.getByRole("link", { name: /Settle up/ })).toHaveAttribute(
+      "aria-current",
+      "page",
     );
   });
 

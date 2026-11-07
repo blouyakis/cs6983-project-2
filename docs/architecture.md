@@ -10,7 +10,7 @@ LifeBoard is one Next.js 16 app deployed on Vercel. The same app serves the page
 flowchart LR
   Browser["Browser<br/>React 19 pages"]
   subgraph Vercel["Vercel: Next.js 16 app"]
-    Proxy["proxy.ts<br/>redirects pages without a session"]
+    Proxy["proxy.ts<br/>redirects pages and rejects API calls (401) without a session"]
     Pages["App Router pages<br/>Server Components"]
     API["Route handlers<br/>/api/*"]
     Lib["src/lib<br/>services, domain, db"]
@@ -48,9 +48,9 @@ flowchart TD
 
 | Folder | Responsibility | Must not |
 |---|---|---|
-| `src/proxy.ts` | Redirect page requests without a valid `session` cookie to `/login`. | Be the only auth check. Route handlers check again. |
+| `src/proxy.ts` | Redirect page requests without a valid `session` cookie to `/login`, and answer API requests without one with `401` (except register, login and logout). | Be the only auth check. Route handlers check again. |
 | `src/app/(auth)` | Login and register pages. | Read group data. |
-| `src/app/(app)` | Signed-in pages: overview, personal space, groups. | Calculate money. |
+| `src/app/(app)` | Signed-in pages: overview, lists, settle up, personal space, groups. | Calculate money. |
 | `src/app/api` | Route handlers. Read the user id from the session, validate input with Zod, call one service, return JSON. | Trust a user id from the request body, or query the database. |
 | `src/lib/validation` | Zod schemas for request bodies and query strings. | Contain business rules. |
 | `src/lib/services` | One file per feature, such as `expense-service.ts`. Calls `requireGroupAccess`, loads data, calls domain functions, writes. | Return HTTP responses. |
@@ -273,7 +273,7 @@ erDiagram
 - `closed_at` is when it ended, by closing or by cancelling. It is set exactly when the status is not `open`, and is never before `started_at`.
 - `started_by` must be a member of the group.
 
-Every foreign key is `on delete restrict` except `expense_shares.expense_id` (`cascade`) and `list_items.expense_id` (`set null`, which clears only `expense_id`). Only two kinds of row are ever hard-deleted: an unsettled expense, with its shares, and an open list item, which has no expense and no history to keep. Everything else stays, so history stays intact.
+Every foreign key is `on delete restrict` except `expense_shares.expense_id` (`cascade`) and `list_items.expense_id` (`set null`, which clears only `expense_id`). Only three kinds of row are ever hard-deleted: an unsettled expense, with its shares; an open list item, which has no expense and no history to keep; and the `suggested` payments of a cancelled settle-up, which nobody has acted on. Everything else stays, so history stays intact.
 
 ### Demo data
 
@@ -335,7 +335,29 @@ Positive means the group owes _m_; negative means _m_ owes. Balances in a group 
 |---|---|---|
 | Local | `npm run dev` | `npx supabase start` (Docker), migrations applied with `npx supabase db reset` |
 | CI | GitHub Actions jobs in [ci.yml](../.github/workflows/ci.yml) | Local Supabase started inside the `db-test` job, which runs `npm run test:db` |
-| Preview and production | Vercel (a preview per pull request, production from `main`) | Hosted Supabase project |
+| Preview and production | Vercel (a preview per pull request, production from `main`) | Hosted Supabase project at `https://kytgqdgcurqqjrzhjxcq.supabase.co` |
+
+**Hosted database setup.** The Supabase project and environment variables `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are stored in Vercel (production environment) and GitHub secrets. Migrations are applied manually to the hosted database with `SUPABASE_ACCESS_TOKEN` (generated in Supabase → Settings → Access Tokens):
+
+```bash
+# Link to the hosted project
+SUPABASE_ACCESS_TOKEN=sbp_... npx supabase link --project-ref kytgqdgcurqqjrzhjxcq
+
+# Check what migrations are pending (dry run, no changes)
+SUPABASE_ACCESS_TOKEN=sbp_... npx supabase db push --dry-run
+
+# Apply all pending migrations to production
+SUPABASE_ACCESS_TOKEN=sbp_... npx supabase db push --linked
+```
+
+Migrations must be applied to the hosted database **before** the PR containing new migrations is merged to `main`, because Vercel deploys `main` on every merge. Preview deploys also use the same hosted database. The workflow:
+
+1. A PR with a new migration is created and tests pass locally.
+2. A partner (not an agent) runs the migration commands above to apply it to the hosted database.
+3. The partner verifies that a preview URL works (register, create a group, add an expense).
+4. The PR is merged and Vercel deploys to production.
+
+Seed data stays in `supabase/seed.sql` and is never loaded into the hosted database; CI loads it for local tests.
 
 Variables are listed in [.env.example](../.env.example). `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are read only in `lib/db`; `JWT_SECRET` only in `lib/auth`. None has a `NEXT_PUBLIC_` prefix.
 

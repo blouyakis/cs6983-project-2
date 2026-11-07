@@ -35,6 +35,25 @@ export async function findOpenSettlementId(
   return data?.id ?? null;
 }
 
+// Which of the groups asked about have an open settle-up, for "Settle-up in
+// progress" on the Settle up page (#68).
+export async function findOpenSettlementGroupIds(
+  groupIds: readonly string[],
+): Promise<Set<string>> {
+  if (groupIds.length === 0) {
+    return new Set();
+  }
+  const { data, error } = await getDb()
+    .from("settlements")
+    .select("group_id")
+    .in("group_id", groupIds)
+    .eq("status", "open");
+  if (error) {
+    throw new Error(`Could not load open settlements: ${error.message}`);
+  }
+  return new Set((data as { group_id: string }[]).map((row) => row.group_id));
+}
+
 // Narrows a query to the current period. PostgREST's `or` takes one filter
 // string; without an open settlement a plain null check reads better.
 function inPeriod<Query extends PeriodFilters>(
