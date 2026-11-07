@@ -10,7 +10,7 @@ LifeBoard is one Next.js 16 app deployed on Vercel. The same app serves the page
 flowchart LR
   Browser["Browser<br/>React 19 pages"]
   subgraph Vercel["Vercel: Next.js 16 app"]
-    Proxy["proxy.ts<br/>redirects pages without a session"]
+    Proxy["proxy.ts<br/>redirects pages and rejects API calls (401) without a session"]
     Pages["App Router pages<br/>Server Components"]
     API["Route handlers<br/>/api/*"]
     Lib["src/lib<br/>services, domain, db"]
@@ -48,9 +48,9 @@ flowchart TD
 
 | Folder | Responsibility | Must not |
 |---|---|---|
-| `src/proxy.ts` | Redirect page requests without a valid `session` cookie to `/login`. | Be the only auth check. Route handlers check again. |
+| `src/proxy.ts` | Redirect page requests without a valid `session` cookie to `/login`, and answer API requests without one with `401` (except register, login and logout). | Be the only auth check. Route handlers check again. |
 | `src/app/(auth)` | Login and register pages. | Read group data. |
-| `src/app/(app)` | Signed-in pages: overview, personal space, groups. | Calculate money. |
+| `src/app/(app)` | Signed-in pages: overview, lists, settle up, personal space, groups. | Calculate money. |
 | `src/app/api` | Route handlers. Read the user id from the session, validate input with Zod, call one service, return JSON. | Trust a user id from the request body, or query the database. |
 | `src/lib/validation` | Zod schemas for request bodies and query strings. | Contain business rules. |
 | `src/lib/services` | One file per feature, such as `expense-service.ts`. Calls `requireGroupAccess`, loads data, calls domain functions, writes. | Return HTTP responses. |
@@ -273,7 +273,7 @@ erDiagram
 - `closed_at` is when it ended, by closing or by cancelling. It is set exactly when the status is not `open`, and is never before `started_at`.
 - `started_by` must be a member of the group.
 
-Every foreign key is `on delete restrict` except `expense_shares.expense_id` (`cascade`) and `list_items.expense_id` (`set null`, which clears only `expense_id`). Only two kinds of row are ever hard-deleted: an unsettled expense, with its shares, and an open list item, which has no expense and no history to keep. Everything else stays, so history stays intact.
+Every foreign key is `on delete restrict` except `expense_shares.expense_id` (`cascade`) and `list_items.expense_id` (`set null`, which clears only `expense_id`). Only three kinds of row are ever hard-deleted: an unsettled expense, with its shares; an open list item, which has no expense and no history to keep; and the `suggested` payments of a cancelled settle-up, which nobody has acted on. Everything else stays, so history stays intact.
 
 ### Demo data
 
