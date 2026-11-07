@@ -131,6 +131,37 @@ describe("listMembersAt", () => {
     );
   });
 
+  it("leaves out a member who joined 0.4 ms after a former member left (#75)", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(2);
+    const [ana, cat] = memberIds;
+    // Fixed times in one millisecond, so the test doesn't depend on timing.
+    const catLeftAt = "2099-01-01T00:00:00.123456+00:00";
+    const { error: leaveError } = await db
+      .from("group_members")
+      .update({ left_at: catLeftAt })
+      .eq("group_id", groupId)
+      .eq("user_id", cat);
+    if (leaveError) {
+      throw leaveError;
+    }
+    const dan = await createUser();
+    const { error: joinError } = await db.from("group_members").insert({
+      group_id: groupId,
+      user_id: dan,
+      default_share_weight: 1,
+      joined_at: "2099-01-01T00:00:00.123856+00:00",
+    });
+    if (joinError) {
+      throw joinError;
+    }
+
+    const members = await listMembersAt(groupId, catLeftAt);
+
+    expect(members.map((member) => member.userId).sort()).toEqual(
+      [ana, cat].sort(),
+    );
+  });
+
   it("lists the current members when there is no moment", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(2);
     await leave(groupId, memberIds[1]);

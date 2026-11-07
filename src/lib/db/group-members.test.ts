@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { findMembership, listCurrentMemberWeights } from "./group-members";
+import {
+  findMembership,
+  listCurrentMemberWeights,
+  listMembersAt,
+} from "./group-members";
 
 type Result = { data: unknown; error: { message: string } | null };
 
@@ -148,5 +152,71 @@ describe("listCurrentMemberWeights", () => {
     await expect(listCurrentMemberWeights(groupId)).rejects.toThrow(
       "Could not load share weights: boom",
     );
+  });
+});
+
+describe("listMembersAt", () => {
+  // Postgres keeps microseconds; these times share one millisecond (#75).
+  const leftAt = "2026-11-07T10:00:00.123456+00:00";
+
+  function memberRow(id: string, joinedAt: string, left: string | null) {
+    return {
+      group_id: groupId,
+      user_id: id,
+      default_share_weight: 1,
+      joined_at: joinedAt,
+      left_at: left,
+      users: { name: id },
+    };
+  }
+
+  async function idsAt(rows: unknown[]): Promise<string[]> {
+    result = { data: rows, error: null };
+    const members = await listMembersAt(groupId, leftAt);
+    return members.map((member) => member.userId);
+  }
+
+  it("leaves out a member who joined later in the same millisecond", async () => {
+    expect(
+      await idsAt([
+        memberRow(userId, "2026-10-01T09:00:00+00:00", leftAt),
+        memberRow("dan-id", "2026-11-07T10:00:00.1239+00:00", null),
+      ]),
+    ).toEqual([userId]);
+  });
+
+  it("keeps a member who left later in the same millisecond", async () => {
+    expect(
+      await idsAt([
+        memberRow(userId, "2026-10-01T09:00:00+00:00", leftAt),
+        memberRow(
+          "ben-id",
+          "2026-10-01T09:00:00+00:00",
+          "2026-11-07T10:00:00.1235+00:00",
+        ),
+      ]),
+    ).toEqual([userId, "ben-id"]);
+  });
+
+  it("leaves out a member who left earlier in the same millisecond", async () => {
+    expect(
+      await idsAt([
+        memberRow(userId, "2026-10-01T09:00:00+00:00", leftAt),
+        memberRow(
+          "cat-id",
+          "2026-10-01T09:00:00+00:00",
+          "2026-11-07T10:00:00.1234+00:00",
+        ),
+      ]),
+    ).toEqual([userId]);
+  });
+
+  it("counts a member at the exact microsecond they joined", async () => {
+    expect(
+      await idsAt([
+        memberRow(userId, "2026-10-01T09:00:00+00:00", leftAt),
+        memberRow("eve-id", leftAt, null),
+      ]),
+    ).toEqual([userId, "eve-id"]);
   });
 });
