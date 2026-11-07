@@ -1,96 +1,145 @@
--- Complete a list item: mark it done and create an expense if there's a cost
-CREATE OR REPLACE FUNCTION complete_list_item(
+-- Check off and uncheck a list item (#12, AGENTS.md user flow 2 and Section 6.7), each in one
+-- transaction, so an item is never done without its expense or open with one left behind.
+--
+-- The parameters keep the names the service and tests pass to `rpc`. They match column names, so
+-- every column below is qualified with its table alias and every parameter with its function
+-- name; an unqualified `group_id` is ambiguous in PL/pgSQL and fails with 42702.
+--
+-- Errors: insufficient_privilege (42501) for a caller who isn't a current member, or who isn't
+-- the member who checked the item off; no_data_found (P0002) for an unknown item or one in the
+-- wrong state (open when unchecking, done when checking off); raise_exception (P0001), from
+-- delete_expense, when unchecking an item whose expense is settled or in an open settle-up.
+
+-- Marks an open item done. With a cost it also writes an expense paid by the caller, with
+-- `shares` as a JSON object of {"<user id>": <share cents>}. Returns the expense id, or null for
+-- no cost.
+create function public.complete_list_item(
   item_id uuid,
   user_id uuid,
   group_id uuid,
   amount_cents integer,
   shares jsonb
-) RETURNS uuid AS $$
-DECLARE
+)
+returns uuid
+language plpgsql
+set search_path = ''
+as $$
+declare
+  v_title text;
   v_expense_id uuid;
-BEGIN
-  -- Verify user is a current member
-  PERFORM * FROM group_members
-  WHERE group_members.group_id = complete_list_item.group_id
-    AND group_members.user_id = complete_list_item.user_id
-    AND group_members.left_at IS NULL;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'User is not a current member of this group' USING SQLSTATE = '42883';
-  END IF;
+begin
+  if not exists (
+    select 1
+    from public.group_members gm
+    where gm.group_id = complete_list_item.group_id
+      and gm.user_id = complete_list_item.user_id
+      and gm.left_at is null
+  ) then
+    raise exception 'User is not a current member of this group.'
+      using errcode = 'insufficient_privilege';
+  end if;
 
-  -- Verify item exists and is open
-  PERFORM * FROM list_items
-  WHERE id = item_id AND group_id = complete_list_item.group_id AND status = 'open';
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Item not found or already completed' USING SQLSTATE = '23505';
-  END IF;
+  -- Lock the row, so two members checking it off at once can't both create an expense.
+  select li.title into v_title
+  from public.list_items li
+  where li.id = complete_list_item.item_id
+    and li.group_id = complete_list_item.group_id
+    and li.status = 'open'
+  for update;
+  if not found then
+    raise exception 'Item not found or already completed.' using errcode = 'no_data_found';
+  end if;
 
-  -- Create expense if there's a cost
-  IF amount_cents > 0 THEN
-    INSERT INTO expenses (group_id, description, amount_cents, payer_id, spent_on)
-    VALUES (complete_list_item.group_id, '', amount_cents, user_id, CURRENT_DATE)
-    RETURNING id INTO v_expense_id;
+  if complete_list_item.amount_cents > 0 then
+    insert into public.expenses (group_id, description, amount_cents, payer_id, spent_on)
+    values (
+      complete_list_item.group_id,
+      v_title,
+      complete_list_item.amount_cents,
+      complete_list_item.user_id,
+      current_date
+    )
+    returning id into v_expense_id;
 
-    -- Insert expense shares
-    INSERT INTO expense_shares (expense_id, user_id, share_cents)
-    SELECT v_expense_id, key::uuid, value::integer
-    FROM jsonb_each_text(shares);
-  END IF;
+    insert into public.expense_shares (expense_id, user_id, share_cents)
+    select v_expense_id, share.key::uuid, share.value::integer
+    from jsonb_each_text(complete_list_item.shares) as share;
 
-  -- Mark item as done
-  UPDATE list_items
-  SET status = 'done', completed_by = user_id, completed_at = now(), expense_id = v_expense_id
-  WHERE id = item_id;
+    -- Check now, so the caller gets the error from this call instead of from the commit (see
+    -- create_expense).
+    perform public.assert_expense_total(v_expense_id);
+  end if;
 
-  RETURN v_expense_id;
-END;
-$$ LANGUAGE plpgsql;
+  update public.list_items li
+  set status = 'done',
+      completed_by = complete_list_item.user_id,
+      completed_at = now(),
+      expense_id = v_expense_id
+  where li.id = complete_list_item.item_id;
 
--- Reopen a list item: mark it open and delete its expense
-CREATE OR REPLACE FUNCTION reopen_list_item(
+  return v_expense_id;
+end;
+$$;
+
+-- Reopens a done item and deletes its expense, if it has one. Only the member who checked it off
+-- may, and only while the expense can still be deleted (AGENTS.md Section 6.7).
+create function public.reopen_list_item(
   item_id uuid,
   user_id uuid,
   group_id uuid
-) RETURNS void AS $$
-DECLARE
+)
+returns void
+language plpgsql
+set search_path = ''
+as $$
+declare
   v_expense_id uuid;
   v_completed_by uuid;
-BEGIN
-  -- Verify user is a current member
-  PERFORM * FROM group_members
-  WHERE group_members.group_id = reopen_list_item.group_id
-    AND group_members.user_id = reopen_list_item.user_id
-    AND group_members.left_at IS NULL;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'User is not a current member of this group' USING SQLSTATE = '42883';
-  END IF;
+begin
+  if not exists (
+    select 1
+    from public.group_members gm
+    where gm.group_id = reopen_list_item.group_id
+      and gm.user_id = reopen_list_item.user_id
+      and gm.left_at is null
+  ) then
+    raise exception 'User is not a current member of this group.'
+      using errcode = 'insufficient_privilege';
+  end if;
 
-  -- Get item and verify it's done and user checked it off
-  SELECT expense_id, completed_by INTO v_expense_id, v_completed_by
-  FROM list_items
-  WHERE id = item_id AND group_id = reopen_list_item.group_id AND status = 'done';
+  select li.expense_id, li.completed_by into v_expense_id, v_completed_by
+  from public.list_items li
+  where li.id = reopen_list_item.item_id
+    and li.group_id = reopen_list_item.group_id
+    and li.status = 'done'
+  for update;
+  if not found then
+    raise exception 'Item not found or not completed.' using errcode = 'no_data_found';
+  end if;
 
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Item not found or not completed' USING SQLSTATE = '23505';
-  END IF;
+  if v_completed_by <> reopen_list_item.user_id then
+    raise exception 'Only the member who checked it off can uncheck it.'
+      using errcode = 'insufficient_privilege';
+  end if;
 
-  IF v_completed_by != user_id THEN
-    RAISE EXCEPTION 'Only the member who checked it off can uncheck it' USING SQLSTATE = '42883';
-  END IF;
+  -- delete_expense refuses a settled expense or one in an open settle-up (P0001), and the
+  -- foreign key on list_items clears expense_id when it goes; the shares cascade.
+  if v_expense_id is not null then
+    perform public.delete_expense(v_expense_id);
+  end if;
 
-  -- Delete expense if it exists and is unsettled
-  IF v_expense_id IS NOT NULL THEN
-    DELETE FROM expense_shares WHERE expense_id = v_expense_id;
-    DELETE FROM expenses WHERE id = v_expense_id AND settlement_id IS NULL;
-  END IF;
+  update public.list_items li
+  set status = 'open', completed_by = null, completed_at = null, expense_id = null
+  where li.id = reopen_list_item.item_id;
+end;
+$$;
 
-  -- Mark item as open
-  UPDATE list_items
-  SET status = 'open', completed_by = NULL, completed_at = NULL, expense_id = NULL
-  WHERE id = item_id;
-END;
-$$ LANGUAGE plpgsql;
-
--- Grant execution permissions to all roles
-GRANT EXECUTE ON FUNCTION complete_list_item(uuid, uuid, uuid, integer, jsonb) TO authenticated, anon, service_role;
-GRANT EXECUTE ON FUNCTION reopen_list_item(uuid, uuid, uuid) TO authenticated, anon, service_role;
+-- Only the server calls these, with the service role (like create_expense).
+revoke all on function public.complete_list_item(uuid, uuid, uuid, integer, jsonb)
+  from public, anon, authenticated;
+revoke all on function public.reopen_list_item(uuid, uuid, uuid)
+  from public, anon, authenticated;
+grant execute on function public.complete_list_item(uuid, uuid, uuid, integer, jsonb)
+  to service_role;
+grant execute on function public.reopen_list_item(uuid, uuid, uuid)
+  to service_role;
