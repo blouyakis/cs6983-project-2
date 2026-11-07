@@ -15,14 +15,14 @@ BEGIN
     AND group_members.user_id = complete_list_item.user_id
     AND group_members.left_at IS NULL;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'User is not a current member of this group' USING SQLSTATE = '403';
+    RAISE EXCEPTION 'User is not a current member of this group' USING SQLSTATE = '42883';
   END IF;
 
   -- Verify item exists and is open
   PERFORM * FROM list_items
   WHERE id = item_id AND group_id = complete_list_item.group_id AND status = 'open';
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Item not found or already completed' USING SQLSTATE = '409';
+    RAISE EXCEPTION 'Item not found or already completed' USING SQLSTATE = '23505';
   END IF;
 
   -- Create expense if there's a cost
@@ -62,7 +62,7 @@ BEGIN
     AND group_members.user_id = reopen_list_item.user_id
     AND group_members.left_at IS NULL;
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'User is not a current member of this group' USING SQLSTATE = '403';
+    RAISE EXCEPTION 'User is not a current member of this group' USING SQLSTATE = '42883';
   END IF;
 
   -- Get item and verify it's done and user checked it off
@@ -71,11 +71,11 @@ BEGIN
   WHERE id = item_id AND group_id = reopen_list_item.group_id AND status = 'done';
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Item not found or not completed' USING SQLSTATE = '409';
+    RAISE EXCEPTION 'Item not found or not completed' USING SQLSTATE = '23505';
   END IF;
 
   IF v_completed_by != user_id THEN
-    RAISE EXCEPTION 'Only the member who checked it off can uncheck it' USING SQLSTATE = '403';
+    RAISE EXCEPTION 'Only the member who checked it off can uncheck it' USING SQLSTATE = '42883';
   END IF;
 
   -- Delete expense if it exists and is unsettled

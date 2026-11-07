@@ -5,6 +5,9 @@ afterAll(cleanUp);
 
 describe("List item complete/reopen (#12)", () => {
   it("completes a list item and creates an expense with a split", async () => {
+    // Wait for schema cache to refresh after migrations
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     const { groupId, memberIds } = await createGroupWithMembers(1);
     const userId = memberIds[0];
 
