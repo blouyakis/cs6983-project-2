@@ -423,7 +423,31 @@ paths:
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amountCents, shares]
+              properties:
+                amountCents:
+                  $ref: "#/components/schemas/AmountCents"
+                shares:
+                  type: object
+                  description: Each sharer's share in cents, keyed by user id.
+                  additionalProperties:
+                    $ref: "#/components/schemas/AmountCents"
       responses:
+        "200":
+          description: Item checked off. Expense created if amountCents > 0.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: "#/components/schemas/ListItem"
         "400":
           $ref: "#/components/responses/Error"
         "403":
@@ -438,6 +462,15 @@ paths:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ItemId"
       responses:
+        "200":
+          description: Item reopened. Expense deleted if it existed.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  item:
+                    $ref: "#/components/schemas/ListItem"
         "403":
           $ref: "#/components/responses/Error"
         "409":
