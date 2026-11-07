@@ -41,7 +41,7 @@ The milestone holds seventeen open issues. Points use the Fibonacci scale (1, 2,
 
 ## 3. Load and risks
 
-**Velocity.** Sprint 2 had no estimates. Sized afterwards by Ziye on the same scale, the Sprint 2 issues that closed come to about 80 points in seven days, so 67 points in six days is close to what the team has done. The Sprint 2 retrospective says that pace was too much ("Sprint scope was too large"), and the deadline on 2026-11-13 can't move, so the slip order below matters.
+**Load.** Sixteen issues and 67 points in six days, for two people, before a deadline that can't move (2026-11-13). The Sprint 2 retrospective found its scope too large, so the slip order below matters.
 
 **Order of work.**
 
