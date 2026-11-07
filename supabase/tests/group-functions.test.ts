@@ -142,15 +142,12 @@ describe("update_group", () => {
   });
 
   it.each([
-    ["leave out a current member", (ids: string[], _: string) => [ids[0]]],
+    ["leave out a current member", (ids: string[]) => [ids[0]]],
     [
       "list a user outside the group",
       (ids: string[], out: string) => [...ids, out],
     ],
-    [
-      "list a member twice",
-      (ids: string[], _: string) => [ids[0], ids[0], ids[1]],
-    ],
+    ["list a member twice", (ids: string[]) => [ids[0], ids[0], ids[1]]],
   ])(
     "changes nothing, not even the name, when the weights %s",
     async (_, listed) => {
