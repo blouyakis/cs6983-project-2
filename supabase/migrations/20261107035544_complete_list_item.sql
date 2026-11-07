@@ -90,3 +90,7 @@ BEGIN
   WHERE id = item_id;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Grant execution permissions to all roles
+GRANT EXECUTE ON FUNCTION complete_list_item(uuid, uuid, uuid, integer, jsonb) TO authenticated, anon, service_role;
+GRANT EXECUTE ON FUNCTION reopen_list_item(uuid, uuid, uuid) TO authenticated, anon, service_role;
