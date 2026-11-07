@@ -25,7 +25,7 @@ describe("AppSidebar", () => {
     );
   });
 
-  it("links Overview and Groups, and shows Lists and Settle up as not built yet", () => {
+  it("links Overview, Lists, Settle up and Groups", () => {
     render(<AppSidebar />);
 
     expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
@@ -36,11 +36,30 @@ describe("AppSidebar", () => {
       "href",
       "/groups",
     );
-    expect(screen.queryByRole("link", { name: /Lists/ })).toBeNull();
-    expect(screen.getByText("Lists")).toHaveAttribute("aria-disabled", "true");
-    expect(screen.getByText("Settle up")).toHaveAttribute(
-      "aria-disabled",
-      "true",
+    expect(screen.getByRole("link", { name: /Lists/ })).toHaveAttribute(
+      "href",
+      "/lists",
+    );
+    expect(screen.getByRole("link", { name: /Settle up/ })).toHaveAttribute(
+      "href",
+      "/settle-up",
+    );
+  });
+
+  it("marks Lists and Settle up as current on their pages", () => {
+    mocks.usePathname.mockReturnValue("/lists");
+    const { unmount } = render(<AppSidebar />);
+    expect(screen.getByRole("link", { name: /Lists/ })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    unmount();
+
+    mocks.usePathname.mockReturnValue("/settle-up");
+    render(<AppSidebar />);
+    expect(screen.getByRole("link", { name: /Settle up/ })).toHaveAttribute(
+      "aria-current",
+      "page",
     );
   });
 
