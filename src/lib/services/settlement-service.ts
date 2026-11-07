@@ -1,4 +1,5 @@
 import "server-only";
+import { findOpenSettlementGroupIds } from "@/lib/db/periods";
 import {
   BalancesChangedError,
   cancelOpenSettlement,
@@ -96,6 +97,13 @@ export async function cancelSettleUp(
 ): Promise<void> {
   await requireGroupAccess(userId, groupId, "write");
   await cancelOpenSettlement(groupId);
+}
+
+// Which of the user's groups have an open settle-up (#68).
+export async function listOpenSettlementGroupIds(
+  groupIds: readonly string[],
+): Promise<Set<string>> {
+  return findOpenSettlementGroupIds(groupIds);
 }
 
 // Closed periods, newest first (DESIGN.md "PastPeriods").
