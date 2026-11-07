@@ -1,6 +1,6 @@
 # Sprint 3 planning
 
-**Milestone:** [Sprint 3 v.03](https://github.com/blouyakis/cs6983-project-2/milestone/3), 2026-11-06 to 2026-11-13
+**Milestone:** [Sprint 3 v.03](https://github.com/blouyakis/cs6983-project-2/milestone/3), 2026-11-08 to 2026-11-13
 **Sprint goal (proposed):** finish the Should Haves and ship the final submission: direct payments, the itemized bill, leaving a group, expense history with filters and the default split screen, with the API docs, the end-to-end suite in CI and the demo video.
 **Product Owner:** Barbara · **Scrum Master:** Ziye
 
