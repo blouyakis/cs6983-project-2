@@ -11,7 +11,13 @@ import {
 } from "@/lib/db/group-members";
 import { createGroup, updateGroup } from "@/lib/db/groups";
 import { ConflictError, ValidationError } from "@/lib/http/errors";
-import { cleanUp, createGroupWithMembers, createUser, db } from "./fixtures";
+import {
+  cleanUp,
+  createGroupWithMembers,
+  createUser,
+  db,
+  dbNow,
+} from "./fixtures";
 
 afterAll(cleanUp);
 
@@ -20,14 +26,6 @@ async function nameUser(userId: string, name: string): Promise<void> {
   if (error) {
     throw error;
   }
-}
-
-async function dbNow(): Promise<string> {
-  const { data, error } = await db.rpc("db_now");
-  if (error) {
-    throw error;
-  }
-  return data as string;
 }
 
 // left_at from the database's clock, the one that stamps the next join's

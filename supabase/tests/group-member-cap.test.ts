@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { cleanUp, createUser, db } from "./fixtures";
+import { cleanUp, createUser, db, dbNow } from "./fixtures";
 
 afterAll(cleanUp);
 
@@ -74,11 +74,14 @@ describe("group member cap", () => {
 
   it("does not count members who left", async () => {
     const { groupId, memberIds } = await groupWithMembers(MAX_GROUP_MEMBERS);
-    await db
+    const { error: leaveError } = await db
       .from("group_members")
-      .update({ left_at: new Date().toISOString() })
+      .update({ left_at: await dbNow() })
       .eq("group_id", groupId)
       .eq("user_id", memberIds[1]);
+    if (leaveError) {
+      throw leaveError;
+    }
     const [newcomer] = await createUsers(1);
 
     const { error } = await db

@@ -6,6 +6,7 @@ import {
   createGroupWithMembers,
   createUser,
   db,
+  dbNow,
 } from "./fixtures";
 
 afterAll(cleanUp);
@@ -177,11 +178,14 @@ describe("update_group", () => {
   it("does not count a former member as a current one", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(2);
     const [ana, ben] = memberIds;
-    await db
+    const { error: leaveError } = await db
       .from("group_members")
-      .update({ left_at: new Date().toISOString() })
+      .update({ left_at: await dbNow() })
       .eq("group_id", groupId)
       .eq("user_id", ben);
+    if (leaveError) {
+      throw leaveError;
+    }
 
     const { error } = await db.rpc("update_group", {
       p_group_id: groupId,

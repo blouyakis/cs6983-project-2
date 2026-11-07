@@ -12,6 +12,16 @@ export function anonDb(): SupabaseClient {
   });
 }
 
+// The database's clock, for left_at and other times a test writes, so they
+// can't tie or cross the times the database stamps itself (#75).
+export async function dbNow(): Promise<string> {
+  const { data, error } = await db.rpc("db_now");
+  if (error) {
+    throw error;
+  }
+  return data as string;
+}
+
 export function uniqueEmail(): string {
   return `test-${randomUUID()}@example.com`;
 }
