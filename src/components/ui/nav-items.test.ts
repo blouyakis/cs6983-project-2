@@ -12,10 +12,10 @@ describe("NAV_ITEMS", () => {
     ]);
   });
 
-  it("only links the pages that exist until #68 builds the other two", () => {
+  it("links all four navigation pages now that #68 built Lists and Settle up", () => {
     expect(
       NAV_ITEMS.filter((item) => item.built).map((item) => item.href),
-    ).toEqual(["/", "/groups"]);
+    ).toEqual(["/", "/lists", "/settle-up", "/groups"]);
   });
 });
 
@@ -27,7 +27,10 @@ describe("isCurrentPage", () => {
     ["/groups/123", "/groups", true],
     ["/groups-archive", "/groups", false],
     ["/", "/groups", false],
+    ["/lists", "/lists", true],
+    ["/", "/lists", false],
     ["/settle-up", "/settle-up", true],
+    ["/", "/settle-up", false],
   ])("on %s, the link to %s is current: %s", (pathname, href, current) => {
     expect(isCurrentPage(pathname, href)).toBe(current);
   });
