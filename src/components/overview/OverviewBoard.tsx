@@ -95,6 +95,8 @@ export async function OverviewBoard() {
           />
           {personal ? (
             <MyList
+              groupId={personal.group.id}
+              currentUserId={userId}
               items={personal.openItems}
               openEstimateCents={personal.openEstimateCents}
             />

@@ -1,6 +1,6 @@
 // lib/db functions for groups (#6), against the real database: the joins,
 // rejoining, and the Postgres errors they turn into typed errors.
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import {
   addMember,
   listCurrentMembers,
@@ -11,7 +11,13 @@ import {
 } from "@/lib/db/group-members";
 import { createGroup, updateGroup } from "@/lib/db/groups";
 import { ConflictError, ValidationError } from "@/lib/http/errors";
-import { cleanUp, createGroupWithMembers, createUser, db } from "./fixtures";
+import {
+  cleanUp,
+  createGroupWithMembers,
+  createUser,
+  db,
+  dbNow,
+} from "./fixtures";
 
 afterAll(cleanUp);
 
@@ -22,10 +28,12 @@ async function nameUser(userId: string, name: string): Promise<void> {
   }
 }
 
+// left_at from the database's clock, the one that stamps the next join's
+// joined_at, so the two can't tie or cross (#75).
 async function leave(groupId: string, userId: string): Promise<void> {
   const { error } = await db
     .from("group_members")
-    .update({ left_at: new Date().toISOString() })
+    .update({ left_at: await dbNow() })
     .eq("group_id", groupId)
     .eq("user_id", userId);
   if (error) {
@@ -128,6 +136,37 @@ describe("listMembersAt", () => {
 
     expect(members.map((member) => member.userId).sort()).toEqual(
       [ana, ben, cat].sort(),
+    );
+  });
+
+  it("leaves out a member who joined 0.4 ms after a former member left (#75)", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(2);
+    const [ana, cat] = memberIds;
+    // Fixed times in one millisecond, so the test doesn't depend on timing.
+    const catLeftAt = "2099-01-01T00:00:00.123456+00:00";
+    const { error: leaveError } = await db
+      .from("group_members")
+      .update({ left_at: catLeftAt })
+      .eq("group_id", groupId)
+      .eq("user_id", cat);
+    if (leaveError) {
+      throw leaveError;
+    }
+    const dan = await createUser();
+    const { error: joinError } = await db.from("group_members").insert({
+      group_id: groupId,
+      user_id: dan,
+      default_share_weight: 1,
+      joined_at: "2099-01-01T00:00:00.123856+00:00",
+    });
+    if (joinError) {
+      throw joinError;
+    }
+
+    const members = await listMembersAt(groupId, catLeftAt);
+
+    expect(members.map((member) => member.userId).sort()).toEqual(
+      [ana, cat].sort(),
     );
   });
 
@@ -239,6 +278,31 @@ describe("rejoinMember", () => {
     expect(new Date(after.joined_at).getTime()).toBeGreaterThanOrEqual(
       new Date(before.left_at!).getTime(),
     );
+  });
+
+  describe("with this machine's clock wrong", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("takes joined_at from the database's clock (#75)", async () => {
+      const { groupId, memberIds } = await createGroupWithMembers(2);
+      const [, ben] = memberIds;
+      await leave(groupId, ben);
+      const start = await dbNow();
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2000-01-01T00:00:00Z"));
+
+      await rejoinMember(groupId, ben);
+
+      vi.useRealTimers();
+      const end = await dbNow();
+      const joinedAt = Date.parse(
+        (await membershipRow(groupId, ben)).joined_at,
+      );
+      expect(joinedAt).toBeGreaterThanOrEqual(Date.parse(start));
+      expect(joinedAt).toBeLessThanOrEqual(Date.parse(end));
+    });
   });
 
   it("turns a 13th current member into a ConflictError", async () => {

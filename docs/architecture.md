@@ -48,7 +48,7 @@ flowchart TD
 
 | Folder | Responsibility | Must not |
 |---|---|---|
-| `src/proxy.ts` | Redirect page requests without a valid `session` cookie to `/login`, and answer API requests without one with `401` (except register, login and logout). | Be the only auth check. Route handlers check again. |
+| `src/proxy.ts` | Redirect page requests without a valid `session` cookie to `/login`, and answer API requests without one with `401` (except register, login, logout and the health check). | Be the only auth check. Route handlers check again. |
 | `src/app/(auth)` | Login and register pages. | Read group data. |
 | `src/app/(app)` | Signed-in pages: overview, lists, settle up, personal space, groups. | Calculate money. |
 | `src/app/api` | Route handlers. Read the user id from the session, validate input with Zod, call one service, return JSON. | Trust a user id from the request body, or query the database. |
@@ -95,7 +95,7 @@ Writes that touch several tables (registering an account with its personal space
 
 **Two checks per request.**
 
-1. `proxy.ts` runs first. A page request without a valid cookie is sent to `/login`. An API request without one gets `401` and the error body, except `POST /api/auth/register`, `/login` and `/logout`. It is a first check, not the security boundary.
+1. `proxy.ts` runs first. A page request without a valid cookie is sent to `/login`. An API request without one gets `401` and the error body, except `POST /api/auth/register`, `/login` and `/logout`, and `GET /api/health` (#100), which says only whether the app and database are up. It is a first check, not the security boundary.
 2. Every route handler and every page reads the session itself and passes the user id to the service.
 
 **`requireGroupAccess(userId, groupId, mode)`** is the one place access is decided. Every service calls it before reading or writing group data.
@@ -234,9 +234,9 @@ erDiagram
 **`group_members`**: who is or was in a group. Primary key `(group_id, user_id)`.
 
 - `default_share_weight` is an integer from 1 to 100 (`group_members_weight_at_most_100`), so `amount_cents × total weight` stays a safe integer when the largest amount is split among 12 members. Every new member starts at 1. A 60/40 group stores 3 and 2. Even groups store 1 for everyone. The server's even mode ignores them and gives every sharer weight 1. They reach a new expense through `SplitEditor`, which opens on Custom amounts filled in from these weights when they differ (DESIGN.md), so the payer can keep or change them. `update_group(p_group_id, p_name, p_weights)` renames a group, sets its whole ratio, or both, in one transaction; either part can be null. `p_weights` is a JSON array of `{"user_id", "weight"}` and must list every current member exactly once, or the call fails with `22023` and changes nothing. It takes the same lock on the group row as the member cap trigger, so an invite can't land between the check and the write.
-- `left_at` is set when a member leaves; the row stays so history and read access still work.
-- A former member who is invited again keeps their one row: `left_at` becomes null, `joined_at` becomes the time they rejoined, and their weight goes back to 1 (#6). Only `left_at` decides access, so a rejoined member reads everything again.
-- A current member is a row with `left_at` null. In `lib/db/group-members.ts`, one predicate, `isMemberAt(row, at)`, decides membership for the member list, the Groups page and splitting an expense, so they always agree. With `at` null it means a current member. For a former member, `at` is their `left_at`, so they see the members as they were when they left, themselves included, and not people who joined later (AGENTS.md 6.6). `getMemberRows` reads the rows of many groups in one query, so the Groups page takes two queries however many groups the user is in.
+- `left_at` is set when a member leaves; the row stays so history and read access still work. Like `joined_at`, it must come from the database's `now()`, the clock that stamps `created_at` and every other cut-off, never from the app server (#75). Nothing in `src/` sets it yet; the leave route (#22) must follow this, not `new Date()`.
+- A former member who is invited again keeps their one row: `rejoin_member(p_group_id, p_user_id)` sets `left_at` to null, `joined_at` to the database's `now()` and their weight back to 1 (#6, #75). Only `left_at` decides access, so a rejoined member reads everything again. The trade-off: rejoining overwrites `joined_at`, so the row no longer shows the time they were in the group before. So if Ana leaves at T1, and Ren, who was in the group at T1, later leaves and is invited back, Ana's view at T1 leaves Ren out of the member list, unless Ren has an expense or payment up to T1. Balances are unaffected, since they take every payer and sharer from the expenses and payments. One row per stint would change the primary key and every membership query, so we keep one row (#75).
+- A current member is a row with `left_at` null. In `lib/db/group-members.ts`, one predicate, `isMemberAt(row, at)`, decides membership for the member list, the Groups page and splitting an expense, so they always agree. With `at` null it means a current member. For a former member, `at` is their `left_at`, so they see the members as they were when they left, themselves included, and not people who joined later (AGENTS.md 6.6). It compares times to the microsecond with `toMicros` (`lib/db/timestamps.ts`), as Postgres does for the other cut-offs, because `Date.parse` drops the microseconds and a join in the same millisecond as a leave would tie (#75). `getMemberRows` reads the rows of many groups in one query, so the Groups page takes two queries however many groups the user is in.
 - A trigger rejects a join or rejoin that would make a 13th current member (`MAX_GROUP_MEMBERS = 12`). It locks the group row, so two joins cannot race for the last place.
 
 **`list_items`**: things to do or buy.
@@ -245,7 +245,7 @@ erDiagram
 - `estimated_cents` and `quantity` are optional and must be positive when present.
 - Any current member can edit or delete an open item, whoever added it (#11). A done item is linked to what it cost, so editing or deleting it is `409` until it is unchecked. The `status = 'open'` check is part of the same `update` or `delete`, so an item checked off between the service's access check and the write is left alone. Deleting an open item removes the row.
 - `expense_id` is null when the item was done with no cost. It must be an expense of the same group, and an expense belongs to one item at most. If that expense is deleted on its own, only `expense_id` becomes null and the item stays done.
-- Unchecking a done item reopens it: one transaction deletes its expense, if it has one, and sets `status` back to `open` with `completed_by`, `completed_at` and `expense_id` null. Only the member who checked it off (`completed_by`) can uncheck it; anyone else gets `403`. If its expense is settled, unchecking is `409`. A done item with no expense (checked off with no cost, or its expense was deleted on its own) has nothing to lock, so it just reopens. Unchecking an item that is already open is `409`, like checking off a done item.
+- Unchecking a done item reopens it: one transaction deletes its expense, if it has one, and sets `status` back to `open` with `completed_by`, `completed_at` and `expense_id` null. Only the member who checked it off (`completed_by`) can uncheck it; anyone else gets `403`. If its expense is settled, or was created on or before the start of the open settle-up (#86), unchecking is `409`: it goes through `delete_expense`, which refuses both. A done item with no expense (checked off with no cost, or its expense was deleted on its own) has nothing to lock, so it just reopens. Unchecking an item that is already open is `409`, like checking off a done item.
 
 **`expenses`**: one cost, personal or shared.
 
@@ -316,7 +316,7 @@ The earlier draft had only `pending` and `confirmed`. That could not tell "the a
 | Even split, leftover cents to the payer | `lib/domain/splits.ts` |
 | Custom split must equal the total | Zod and `lib/domain/splits.ts`; deferred trigger as a backstop |
 | Balances over unsettled expenses and confirmed payments | `lib/domain/balances.ts`, fed by `lib/db` queries for the current period |
-| The net across groups (overview, #10) | `lib/domain/overview.ts` sums the per-group balances that `getGroupPeriod` in the balance service returns; the personal space and read-only groups stay out. `listGroupStandings` in the overview service gives each current group's balance and open items to the overview, the Groups page and the sidebar |
+| The net across groups (overview, #10) | `lib/domain/overview.ts` sums the per-group balances that `getGroupPeriod` in the balance service returns; the personal space and read-only groups stay out. `getOverview` in the overview service gives each current group's balance and open items to the overview and the Groups page. The sidebar takes its groups and balances from `listSidebarGroups` in the sidebar service, on a full load and from `GET /api/sidebar-groups` after each client navigation (#89) |
 | Fewest payments, exact bitmask search, at most 12 members | `lib/domain/settle-up.ts`; member cap trigger |
 | One access check | `lib/services/access.ts` (`requireGroupAccess`) |
 | Only the payer edits, only while unsettled | Expense service; `409` once `settlement_id` is set. Unchecking a list item uses the same check, because it deletes the expense |

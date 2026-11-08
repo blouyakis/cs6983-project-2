@@ -1,8 +1,17 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { findMembership, listCurrentMemberWeights } from "./group-members";
+import { ConflictError } from "@/lib/http/errors";
+import {
+  findMembership,
+  listCurrentMemberWeights,
+  listMembersAt,
+  rejoinMember,
+} from "./group-members";
 
-type Result = { data: unknown; error: { message: string } | null };
+type Result = {
+  data: unknown;
+  error: { message: string; code?: string } | null;
+};
 
 const calls: { method: string; args: unknown[] }[] = [];
 let result: Result;
@@ -29,6 +38,10 @@ vi.mock("./client", () => ({
     from: (table: string) => {
       calls.push({ method: "from", args: [table] });
       return queryBuilder();
+    },
+    rpc: async (fn: string, args: unknown) => {
+      calls.push({ method: "rpc", args: [fn, args] });
+      return result;
     },
   }),
 }));
@@ -147,6 +160,99 @@ describe("listCurrentMemberWeights", () => {
 
     await expect(listCurrentMemberWeights(groupId)).rejects.toThrow(
       "Could not load share weights: boom",
+    );
+  });
+});
+
+describe("listMembersAt", () => {
+  // Postgres keeps microseconds; these times share one millisecond (#75).
+  const leftAt = "2026-11-07T10:00:00.123456+00:00";
+
+  function memberRow(id: string, joinedAt: string, left: string | null) {
+    return {
+      group_id: groupId,
+      user_id: id,
+      default_share_weight: 1,
+      joined_at: joinedAt,
+      left_at: left,
+      users: { name: id },
+    };
+  }
+
+  async function idsAt(rows: unknown[]): Promise<string[]> {
+    result = { data: rows, error: null };
+    const members = await listMembersAt(groupId, leftAt);
+    return members.map((member) => member.userId);
+  }
+
+  it("leaves out a member who joined later in the same millisecond", async () => {
+    expect(
+      await idsAt([
+        memberRow(userId, "2026-10-01T09:00:00+00:00", leftAt),
+        memberRow("dan-id", "2026-11-07T10:00:00.1239+00:00", null),
+      ]),
+    ).toEqual([userId]);
+  });
+
+  it("keeps a member who left later in the same millisecond", async () => {
+    expect(
+      await idsAt([
+        memberRow(userId, "2026-10-01T09:00:00+00:00", leftAt),
+        memberRow(
+          "ben-id",
+          "2026-10-01T09:00:00+00:00",
+          "2026-11-07T10:00:00.1235+00:00",
+        ),
+      ]),
+    ).toEqual([userId, "ben-id"]);
+  });
+
+  it("leaves out a member who left earlier in the same millisecond", async () => {
+    expect(
+      await idsAt([
+        memberRow(userId, "2026-10-01T09:00:00+00:00", leftAt),
+        memberRow(
+          "cat-id",
+          "2026-10-01T09:00:00+00:00",
+          "2026-11-07T10:00:00.1234+00:00",
+        ),
+      ]),
+    ).toEqual([userId]);
+  });
+
+  it("counts a member at the exact microsecond they joined", async () => {
+    expect(
+      await idsAt([
+        memberRow(userId, "2026-10-01T09:00:00+00:00", leftAt),
+        memberRow("eve-id", leftAt, null),
+      ]),
+    ).toEqual([userId, "eve-id"]);
+  });
+});
+
+describe("rejoinMember", () => {
+  it("asks the database to rejoin, so joined_at comes from its clock (#75)", async () => {
+    await rejoinMember(groupId, userId);
+
+    expect(calls).toEqual([
+      {
+        method: "rpc",
+        args: ["rejoin_member", { p_group_id: groupId, p_user_id: userId }],
+      },
+    ]);
+  });
+
+  it("turns a 13th current member into a ConflictError", async () => {
+    result = {
+      data: null,
+      error: {
+        code: "23514",
+        message: "A group can have at most 12 current members.",
+      },
+    };
+
+    await expect(rejoinMember(groupId, userId)).rejects.toEqual(
+      new ConflictError("A group can have at most 12 members."),
     );
   });
 });
