@@ -239,4 +239,16 @@ describe("SettleUpDetail", () => {
 
     expect(screen.queryByTestId("pay-directly")).toBeNull();
   });
+
+  it("doesn't offer Pay one person directly while a settle-up is open, so the suggested payments aren't paid twice", async () => {
+    mocks.getCurrentSettleUp.mockResolvedValue({
+      id: "s",
+      status: "open",
+      payments: [],
+    });
+
+    render(await detail());
+
+    expect(screen.queryByTestId("pay-directly")).toBeNull();
+  });
 });
