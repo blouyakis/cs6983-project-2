@@ -1,4 +1,4 @@
-// listExpensesSpentBetween (#10) against the real database: only the days in
+// listExpensesSpentBetween (#90) against the real database: only the days in
 // the range, the end day left out, and only the group asked about.
 import { afterAll, describe, expect, it } from "vitest";
 import { listExpensesSpentBetween } from "@/lib/db/expenses";
