@@ -4,7 +4,7 @@ import { PING_TIMEOUT_MS, pingDatabase } from "./health";
 
 type Result = {
   data: unknown;
-  error: { message: string; code?: string } | null;
+  error: { message: string; code?: string; details?: string } | null;
 };
 
 const rpcCalls: { name: string; params: unknown }[] = [];
@@ -65,6 +65,45 @@ describe("pingDatabase", () => {
     const line = logged.mock.calls.flat().join(" ");
     expect(line).toContain("PGRST000");
     expect(line).toContain("connection refused");
+  });
+
+  // postgrest-js puts the real cause of a network failure in `details`, after
+  // the fetch error and before the stack, as "Caused by: …".
+  it("logs the cause of a network failure, without the stack", async () => {
+    answer = async () => ({
+      data: null,
+      error: {
+        code: "",
+        message: "TypeError: fetch failed",
+        details: [
+          "TypeError: fetch failed",
+          "",
+          "Caused by: Error: connect ECONNREFUSED 127.0.0.1:54321 (ECONNREFUSED)",
+          "Error: connect ECONNREFUSED 127.0.0.1:54321",
+          "    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1611:16)",
+        ].join("\n"),
+      },
+    });
+
+    await expect(pingDatabase()).resolves.toBe(false);
+    const line = logged.mock.calls.flat().join(" ");
+    expect(line).toContain("TypeError: fetch failed");
+    expect(line).toContain("ECONNREFUSED 127.0.0.1:54321");
+    expect(line).not.toContain("TCPConnectWrap");
+  });
+
+  it("logs no details that aren't a cause, since they can hold row values", async () => {
+    answer = async () => ({
+      data: null,
+      error: {
+        code: "PGRST000",
+        message: "connection refused",
+        details: "Key (email)=(ana@example.com) already exists.",
+      },
+    });
+
+    await expect(pingDatabase()).resolves.toBe(false);
+    expect(logged.mock.calls.flat().join(" ")).not.toContain("ana@example.com");
   });
 
   it("is false when the client can't be created, such as a missing env variable, and logs why", async () => {
