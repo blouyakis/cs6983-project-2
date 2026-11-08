@@ -138,6 +138,11 @@ describe("proxy for API requests", () => {
     },
   );
 
+  it("lets GET /api/health through without a session", async () => {
+    const response = await proxy(request("/api/health"));
+    expect(isPassedThrough(response)).toBe(true);
+  });
+
   it("does not let a signed-in user bounce off the auth API routes", async () => {
     const token = await signSession(userId);
     const response = await proxy(
