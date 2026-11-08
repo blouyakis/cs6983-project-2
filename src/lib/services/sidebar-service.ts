@@ -1,4 +1,5 @@
 import "server-only";
+import { ForbiddenError } from "@/lib/http/errors";
 import { getGroupPeriod } from "./balance-service";
 import { listGroups } from "./group-service";
 
@@ -18,8 +19,8 @@ export type SidebarGroup = {
 // from here. Groups the user left and archived ones are read-only history,
 // so they stay on the Groups page and out of the sidebar (AGENTS.md Section
 // 6.6). Balances come from getGroupPeriod (#9), which checks access for each
-// group; one that fails is logged and leaves its group without a balance
-// rather than taking the whole sidebar down.
+// group; one that fails leaves its group without a balance rather than
+// taking the whole sidebar down, and is logged unless the user just left.
 export async function listSidebarGroups(
   userId: string,
 ): Promise<SidebarGroup[]> {
@@ -35,9 +36,16 @@ export async function listSidebarGroups(
         const own = balances.find((balance) => balance.userId === userId);
         return { ...group, balanceCents: own?.balanceCents ?? 0 };
       } catch (error) {
+        // The user left the group after listGroups read it: expected, and the
+        // next navigation drops it from the sidebar.
+        if (error instanceof ForbiddenError) {
+          return group;
+        }
         // Logged, so the fallback doesn't hide a database or code failure.
-        // Only the group id and the error: never a request body or token.
-        console.error(`Sidebar balance for group ${id} not loaded`, error);
+        // Only the group id and the message: never the error object, whose
+        // cause can carry row values, nor a request body or token.
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`Sidebar balance for group ${id} not loaded: ${message}`);
         return group;
       }
     }),
