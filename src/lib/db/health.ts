@@ -19,7 +19,11 @@ export async function pingDatabase(): Promise<boolean> {
       .rpc("db_now", {})
       .abortSignal(controller.signal);
     if (error) {
-      console.error(LOG_PREFIX, `${error.code}: ${error.message}`);
+      // A network failure or a timeout comes back with an empty code.
+      console.error(
+        LOG_PREFIX,
+        error.code ? `${error.code}: ${error.message}` : error.message,
+      );
       return false;
     }
     return true;
