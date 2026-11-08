@@ -5,6 +5,7 @@ import {
   deleteExpense,
   findExpense,
   listExpenses,
+  listExpensesInPeriod,
   listExpensesSpentBetween,
   updateExpense,
 } from "./expenses";
@@ -26,6 +27,8 @@ function queryBuilder() {
     "gte",
     "lt",
     "lte",
+    "is",
+    "or",
     "order",
     "delete",
   ]) {
@@ -400,5 +403,78 @@ describe("listExpensesSpentBetween", () => {
     await expect(
       listExpensesSpentBetween(groupId, "2026-11-01", "2026-12-01", null),
     ).rejects.toThrow("Could not load expenses: boom");
+  });
+});
+
+describe("listExpensesInPeriod", () => {
+  const settlementId = "5e6f7a8b-5555-4666-8777-d88899990000";
+
+  beforeEach(() => {
+    result = { data: [], error: null };
+  });
+
+  function argsOfAll(method: string): unknown[][] {
+    return queries.filter((q) => q.method === method).map((q) => q.args);
+  }
+
+  it("loads the group's unsettled expenses with their shares, newest first", async () => {
+    result = { data: [row], error: null };
+
+    const expenses = await listExpensesInPeriod(
+      groupId,
+      { openSettlementId: null },
+      null,
+    );
+
+    expect(expenses).toEqual([expense]);
+    expect(argsOfAll("from")).toEqual([["expenses"]]);
+    expect(argsOfAll("eq")).toEqual([["group_id", groupId]]);
+    expect(argsOfAll("is")).toEqual([["settlement_id", null]]);
+    expect(argsOfAll("order")).toEqual([
+      ["spent_on", { ascending: false }],
+      ["created_at", { ascending: false }],
+    ]);
+  });
+
+  it("also loads the expenses in the open settle-up, which is still the current period", async () => {
+    await listExpensesInPeriod(
+      groupId,
+      { openSettlementId: settlementId },
+      null,
+    );
+
+    expect(argsOfAll("or")).toEqual([
+      [`settlement_id.is.null,settlement_id.eq.${settlementId}`],
+    ]);
+    expect(argsOfAll("is")).toEqual([]);
+  });
+
+  it("loads only a closed settle-up's expenses for a past period", async () => {
+    await listExpensesInPeriod(groupId, { settlementId }, null);
+
+    expect(argsOfAll("eq")).toEqual([
+      ["group_id", groupId],
+      ["settlement_id", settlementId],
+    ]);
+    expect(argsOfAll("is")).toEqual([]);
+    expect(argsOfAll("or")).toEqual([]);
+  });
+
+  it("stops at the day a former member left", async () => {
+    await listExpensesInPeriod(
+      groupId,
+      { openSettlementId: null },
+      "2026-09-02T15:00:00Z",
+    );
+
+    expect(argsOfAll("lte")).toEqual([["created_at", "2026-09-02T15:00:00Z"]]);
+  });
+
+  it("throws on a database error", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(
+      listExpensesInPeriod(groupId, { openSettlementId: null }, null),
+    ).rejects.toThrow("Could not load the period's expenses: boom");
   });
 });

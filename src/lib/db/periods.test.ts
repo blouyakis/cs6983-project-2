@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   findOpenSettlementId,
   findOpenSettlementGroupIds,
+  listClosedPeriodConfirmedPayments,
   listPeriodConfirmedPayments,
   listPeriodExpenses,
 } from "./periods";
@@ -230,5 +231,39 @@ describe("listPeriodConfirmedPayments", () => {
     await expect(
       listPeriodConfirmedPayments(groupId, null, null),
     ).rejects.toThrow("boom");
+  });
+});
+
+describe("listClosedPeriodConfirmedPayments", () => {
+  it("loads the confirmed payments a closed settle-up settled", async () => {
+    result = {
+      data: [{ from_user_id: joId, to_user_id: demoId, amount_cents: 802 }],
+      error: null,
+    };
+
+    const payments = await listClosedPeriodConfirmedPayments(
+      groupId,
+      settlementId,
+    );
+
+    expect(payments).toEqual([
+      { fromUserId: joId, toUserId: demoId, amountCents: 802 },
+    ]);
+    expect(argsOf("from")).toEqual(["payments"]);
+    expect(queries.filter((q) => q.method === "eq").map((q) => q.args)).toEqual(
+      [
+        ["group_id", groupId],
+        ["status", "confirmed"],
+        ["settlement_id", settlementId],
+      ],
+    );
+  });
+
+  it("throws on a database error", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(
+      listClosedPeriodConfirmedPayments(groupId, settlementId),
+    ).rejects.toThrow("Could not load the period's payments: boom");
   });
 });
