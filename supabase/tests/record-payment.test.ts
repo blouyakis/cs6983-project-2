@@ -106,7 +106,7 @@ describe("record_payment", () => {
     const { error } = await record(groupId, memberIds[0], memberIds[1], 500);
 
     expect(error?.code).toBe("P0001");
-    expect(error?.message).toMatch(/recipient/i);
+    expect(error?.hint).toBe("recipient_not_member");
     expect(await paymentsIn(groupId)).toEqual([]);
   });
 
@@ -117,6 +117,7 @@ describe("record_payment", () => {
     const { error } = await record(groupId, memberIds[0], stranger, 500);
 
     expect(error?.code).toBe("P0001");
+    expect(error?.hint).toBe("recipient_not_member");
     expect(await paymentsIn(groupId)).toEqual([]);
   });
 
@@ -127,6 +128,7 @@ describe("record_payment", () => {
     const { error } = await record(groupId, memberIds[0], memberIds[1], 500);
 
     expect(error?.code).toBe("P0001");
+    expect(error?.hint).toBe("sender_not_member");
     expect(await paymentsIn(groupId)).toEqual([]);
   });
 

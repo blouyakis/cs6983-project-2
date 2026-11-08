@@ -24,7 +24,7 @@ import {
 
 type Result = {
   data: unknown;
-  error: { message: string; code?: string } | null;
+  error: { message: string; code?: string; hint?: string } | null;
 };
 
 const calls: { method: string; args: unknown[] }[] = [];
@@ -537,7 +537,8 @@ describe("recordPayment", () => {
         data: null,
         error: {
           code: "P0001",
-          message: "The recipient is not a current member of this group.",
+          message: "Reworded, so only the hint tells the cases apart.",
+          hint: "recipient_not_member",
         },
       },
     ];
@@ -558,7 +559,8 @@ describe("recordPayment", () => {
         data: null,
         error: {
           code: "P0001",
-          message: "The sender is not a current member of this group.",
+          message: "The recipient wording here must not matter.",
+          hint: "sender_not_member",
         },
       },
     ];
