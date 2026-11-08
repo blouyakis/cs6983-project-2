@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 type ChipPickerProps = {
   // The visible title of the group of chips.
   label: string;
@@ -10,6 +12,10 @@ type ChipPickerProps = {
   // Chips that are always selected and can't be cleared, such as the payer in
   // "Shared by" (AGENTS.md Section 6.2). Only meaningful with `multiple`.
   locked?: readonly string[];
+  // Shown below the chips, announced, and tied to each chip, as in TextField.
+  // Pass "" before there is an error, so the announced region is already in
+  // place when one arrives; leave it out for a picker that never has one.
+  error?: string;
 };
 
 // A row of chips for picking a group, or for picking who shares a cost
@@ -24,7 +30,9 @@ export function ChipPicker({
   onChange,
   multiple = false,
   locked = [],
+  error,
 }: ChipPickerProps) {
+  const errorId = useId();
   const chosen = new Set([...selected, ...locked]);
 
   function toggle(value: string) {
@@ -61,6 +69,8 @@ export function ChipPicker({
                 checked={isSelected}
                 disabled={isLocked}
                 onChange={() => toggle(option.value)}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? errorId : undefined}
                 className="peer sr-only"
               />
               <span
@@ -77,6 +87,11 @@ export function ChipPicker({
           );
         })}
       </div>
+      {error === undefined ? null : (
+        <p id={errorId} aria-live="polite" className="text-sm text-owe">
+          {error}
+        </p>
+      )}
     </fieldset>
   );
 }

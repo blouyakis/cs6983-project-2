@@ -6,8 +6,14 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  ValidationError,
 } from "@/lib/http/errors";
-import { confirmPaymentReceived, markPaymentSent } from "./payment-service";
+import {
+  confirmPaymentReceived,
+  listPayments,
+  markPaymentSent,
+  recordDirectPayment,
+} from "./payment-service";
 
 const access = vi.hoisted(() => ({ requireGroupAccess: vi.fn() }));
 vi.mock("./access", () => access);
@@ -16,8 +22,13 @@ const db = vi.hoisted(() => ({
   findPayment: vi.fn(),
   markPaymentPaid: vi.fn(),
   confirmPayment: vi.fn(),
+  recordPayment: vi.fn(),
+  listGroupPayments: vi.fn(),
 }));
 vi.mock("@/lib/db/settlements", () => db);
+
+const members = vi.hoisted(() => ({ listCurrentMembers: vi.fn() }));
+vi.mock("@/lib/db/group-members", () => members);
 
 const ana = "6f1c2d4e-1111-4222-8333-944455556666";
 const sam = "7a2d3e5f-1111-4222-8333-944455556666";
@@ -192,5 +203,113 @@ describe("confirmPaymentReceived", () => {
     await expect(
       confirmPaymentReceived(ana, groupId, paymentId),
     ).rejects.toThrow(/could not/i);
+  });
+});
+
+describe("recordDirectPayment", () => {
+  const direct: Payment = {
+    ...paid,
+    fromUserId: ana,
+    toUserId: sam,
+    amountCents: 883,
+    settlementId: null,
+  };
+
+  beforeEach(() => {
+    members.listCurrentMembers.mockResolvedValue([
+      { userId: ana, name: "Ana", defaultShareWeight: 1 },
+      { userId: sam, name: "Sam", defaultShareWeight: 1 },
+    ]);
+  });
+
+  it("records a payment from the current user, who needs write access", async () => {
+    db.recordPayment.mockResolvedValue(direct);
+
+    const payment = await recordDirectPayment(ana, groupId, {
+      toUserId: sam,
+      amountCents: 883,
+    });
+
+    expect(access.requireGroupAccess).toHaveBeenCalledWith(
+      ana,
+      groupId,
+      "write",
+    );
+    expect(db.recordPayment).toHaveBeenCalledWith(groupId, ana, sam, 883);
+    expect(payment).toEqual(direct);
+  });
+
+  it("refuses a payment to yourself with a 400 on toUserId", async () => {
+    const error = await recordDirectPayment(ana, groupId, {
+      toUserId: ana,
+      amountCents: 883,
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error).toMatchObject({
+      fields: { toUserId: "You can't pay yourself." },
+    });
+    expect(db.recordPayment).not.toHaveBeenCalled();
+  });
+
+  it("refuses someone who isn't a current member with a 400 on toUserId", async () => {
+    const error = await recordDirectPayment(ana, groupId, {
+      toUserId: jo,
+      amountCents: 883,
+    }).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error).toMatchObject({
+      fields: { toUserId: "Choose a current member of this group." },
+    });
+    expect(db.recordPayment).not.toHaveBeenCalled();
+  });
+
+  it("refuses a user without write access", async () => {
+    access.requireGroupAccess.mockRejectedValue(
+      new ForbiddenError("You left this group."),
+    );
+
+    await expect(
+      recordDirectPayment(ana, groupId, { toUserId: sam, amountCents: 883 }),
+    ).rejects.toThrow(ForbiddenError);
+    expect(db.recordPayment).not.toHaveBeenCalled();
+  });
+});
+
+describe("listPayments", () => {
+  it("lists the group's payments for a current member", async () => {
+    db.listGroupPayments.mockResolvedValue([paid]);
+
+    expect(await listPayments(ana, groupId)).toEqual([paid]);
+    expect(access.requireGroupAccess).toHaveBeenCalledWith(
+      ana,
+      groupId,
+      "read",
+    );
+    expect(db.listGroupPayments).toHaveBeenCalledWith(groupId, null);
+  });
+
+  it("stops at a former member's left_at", async () => {
+    access.requireGroupAccess.mockResolvedValue({
+      group: flat,
+      readUntil: "2026-11-02T12:00:00+00:00",
+    });
+    db.listGroupPayments.mockResolvedValue([]);
+
+    await listPayments(jo, groupId);
+
+    expect(db.listGroupPayments).toHaveBeenCalledWith(
+      groupId,
+      "2026-11-02T12:00:00+00:00",
+    );
+  });
+
+  it("refuses someone outside the group", async () => {
+    access.requireGroupAccess.mockRejectedValue(
+      new ForbiddenError("You are not a member of this group."),
+    );
+
+    await expect(listPayments(jo, groupId)).rejects.toThrow(ForbiddenError);
   });
 });

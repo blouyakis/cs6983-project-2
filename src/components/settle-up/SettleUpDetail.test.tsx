@@ -35,6 +35,12 @@ vi.mock("./SettleUpPanel", () => ({
     <div data-testid="panel" data-props={JSON.stringify(props)} />
   ),
 }));
+// The card is a Client Component with its own tests.
+vi.mock("@/components/payments/PayDirectlyCard", () => ({
+  PayDirectlyCard: (props: object) => (
+    <div data-testid="pay-directly" data-props={JSON.stringify(props)} />
+  ),
+}));
 vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,
   notFound: mocks.notFound,
@@ -210,5 +216,39 @@ describe("SettleUpDetail", () => {
     mocks.getCurrentSettleUp.mockRejectedValue(new Error("database down"));
 
     await expect(detail()).rejects.toThrow("database down");
+  });
+
+  it("offers Pay one person directly to a current member, with the group's members (#14)", async () => {
+    render(await detail());
+
+    expect(
+      JSON.parse(
+        screen.getByTestId("pay-directly").getAttribute("data-props") ?? "{}",
+      ),
+    ).toEqual({
+      groupId,
+      members: details().members,
+      currentUserId: anaId,
+    });
+  });
+
+  it("doesn't offer Pay one person directly in a read-only group", async () => {
+    mocks.getGroup.mockResolvedValue(details({ readOnly: true }));
+
+    render(await detail());
+
+    expect(screen.queryByTestId("pay-directly")).toBeNull();
+  });
+
+  it("doesn't offer Pay one person directly while a settle-up is open, so the suggested payments aren't paid twice", async () => {
+    mocks.getCurrentSettleUp.mockResolvedValue({
+      id: "s",
+      status: "open",
+      payments: [],
+    });
+
+    render(await detail());
+
+    expect(screen.queryByTestId("pay-directly")).toBeNull();
   });
 });

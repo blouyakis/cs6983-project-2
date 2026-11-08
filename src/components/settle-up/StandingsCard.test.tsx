@@ -95,4 +95,20 @@ describe("StandingsCard", () => {
     expect(screen.getByText("You are all settled up")).toBeInTheDocument();
     expect(document.querySelectorAll("[data-bar]")).toHaveLength(0);
   });
+
+  it("ends with what it is given, such as the Pay one person directly card", () => {
+    render(
+      <StandingsCard
+        members={members}
+        balances={balances}
+        currentUserId={anaId}
+        unsettledExpenses={9}
+        billHref="/groups/g1"
+      >
+        <p>Pay one person directly</p>
+      </StandingsCard>,
+    );
+
+    expect(screen.getByText("Pay one person directly")).toBeInTheDocument();
+  });
 });

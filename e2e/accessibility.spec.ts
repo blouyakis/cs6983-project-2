@@ -1,5 +1,11 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type Browser,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 
 // The accessibility pass (#18, AGENTS.md Section 8): every main page passes an
 // automated WCAG 2.1 AA check at desktop and phone width, fits a 375px screen,
@@ -38,6 +44,35 @@ async function createGroup(page: Page, name: string): Promise<string> {
   await dialog.getByRole("button", { name: "Create group" }).click();
   await expect(page).toHaveURL(/\/groups\/[0-9a-f-]{36}$/);
   return page.url().split("/").pop() as string;
+}
+
+// Registers someone else in their own browser and invites them to the group
+// on `page`, so the group has someone to pay (#14).
+async function inviteSomeone(page: Page, browser: Browser, name: string) {
+  const context = await browser.newContext();
+  const other = await context.newPage();
+  const email = uniqueEmail(name.toLowerCase());
+  await other.goto("/register");
+  await other.getByLabel("Name").fill(name);
+  await other.getByLabel("Email").fill(email);
+  await other.getByLabel("Password").fill("correct horse");
+  await other.getByRole("button", { name: "Create account" }).click();
+  await expect(other).toHaveURL("/");
+  await context.close();
+
+  const invite = page.getByRole("form", { name: "Invite a member" });
+  await invite.getByLabel("Email").fill(email);
+  await invite.getByRole("button", { name: "Invite" }).click();
+  await expect(page.getByText(`${name} joined the group.`)).toBeVisible();
+}
+
+// Opens the Pay one person directly form on the group's settle-up page.
+async function openPaymentForm(page: Page, groupId: string) {
+  await page.goto(`/groups/${groupId}/settle-up`);
+  await page.getByRole("button", { name: /^Pay/ }).click();
+  const form = page.getByRole("dialog", { name: "Pay one person directly" });
+  await expect(form).toBeVisible();
+  return form;
 }
 
 // Gives the group a list item and a cost, so the pages have data to check.
@@ -240,6 +275,26 @@ for (const viewport of viewports) {
     await page.keyboard.press("Escape");
     await expect(entry).toBeHidden();
   });
+
+  test(`the payment dialog passes the WCAG 2.1 AA check, traps focus and closes with Escape on ${viewport.name}`, async ({
+    page,
+    browser,
+  }) => {
+    await page.setViewportSize(viewport);
+    await register(page, "Di");
+    const groupId = await createGroup(page, "🏠 Dorm 4B");
+    await inviteSomeone(page, browser, "Ed");
+
+    const form = await openPaymentForm(page, groupId);
+    await expectNoViolations(page);
+    await expectFitsTheScreen(page);
+    for (let press = 0; press < 12; press += 1) {
+      await page.keyboard.press("Tab");
+      await focusIsInside(page, form);
+    }
+    await page.keyboard.press("Escape");
+    await expect(form).toBeHidden();
+  });
 }
 
 test("tabbing through the login and register forms reaches every control with a visible focus style", async ({
@@ -338,4 +393,21 @@ test("animations and transitions are switched off for prefers-reduced-motion", a
     );
   });
   expect(longest).toBeLessThan(0.001);
+});
+
+test("tabbing through the payment form reaches every control with a visible focus style", async ({
+  page,
+  browser,
+}) => {
+  await register(page, "Fay");
+  const groupId = await createGroup(page, "🏠 Dorm 4B");
+  await inviteSomeone(page, browser, "Gus");
+  await inviteSomeone(page, browser, "Hal");
+
+  const form = await openPaymentForm(page, groupId);
+  await form.evaluate((element) => element.setAttribute("data-tab-scope", ""));
+  const stops = await tabStopsIn(form);
+  const result = await tabThrough(page);
+  expect(result.reached).toBeGreaterThanOrEqual(stops - 1);
+  expect(result.withoutFocusStyle).toEqual([]);
 });

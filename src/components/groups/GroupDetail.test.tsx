@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentSettleUp: vi.fn(),
   listGroupListItems: vi.fn(),
   listGroupExpenses: vi.fn(),
+  listPayments: vi.fn(),
   redirect: vi.fn(),
   notFound: vi.fn(),
 }));
@@ -58,6 +59,15 @@ vi.mock("@/components/expenses/ExpenseList", () => ({
 vi.mock("@/components/expenses/AddExpenseButton", () => ({
   AddExpenseButton: (props: object) => (
     <div data-testid="add-expense" data-props={JSON.stringify(props)} />
+  ),
+}));
+vi.mock("@/lib/services/payment-service", () => ({
+  listPayments: mocks.listPayments,
+}));
+// The payment list is a Client Component with its own tests (#14).
+vi.mock("@/components/payments/PaymentHistory", () => ({
+  PaymentHistory: (props: object) => (
+    <div data-testid="payment-history" data-props={JSON.stringify(props)} />
   ),
 }));
 vi.mock("next/navigation", () => ({
@@ -124,6 +134,7 @@ beforeEach(() => {
   mocks.getCurrentSettleUp.mockRejectedValue(new NotFoundError("none"));
   mocks.listGroupListItems.mockResolvedValue([]);
   mocks.listGroupExpenses.mockResolvedValue([]);
+  mocks.listPayments.mockResolvedValue([]);
 });
 
 function expenseListProps() {
@@ -460,5 +471,48 @@ describe("GroupDetail", () => {
     expect(provider).toContainElement(screen.getByTestId("add-expense"));
     expect(provider).toContainElement(screen.getByTestId("group-list"));
     expect(line.nextElementSibling).toBe(screen.getByTestId("group-list"));
+  });
+
+  describe("the payments (#14)", () => {
+    function paymentHistoryProps() {
+      return JSON.parse(
+        screen.getByTestId("payment-history").getAttribute("data-props") ??
+          "{}",
+      );
+    }
+
+    it("lists the group's payments with the members' names", async () => {
+      const payments = [{ id: "p1", status: "paid" }];
+      mocks.getGroup.mockResolvedValue(details());
+      mocks.listPayments.mockResolvedValue(payments);
+
+      render(await detail());
+
+      expect(mocks.listPayments).toHaveBeenCalledWith(anaId, groupId);
+      expect(paymentHistoryProps()).toEqual({
+        groupId,
+        payments,
+        names: { [anaId]: "Ana", [samId]: "Sam" },
+        currentUserId: anaId,
+        readOnly: false,
+      });
+    });
+
+    it("shows a read-only group's payments as read-only", async () => {
+      mocks.getGroup.mockResolvedValue(details({ readOnly: true }));
+
+      render(await detail());
+
+      expect(paymentHistoryProps().readOnly).toBe(true);
+    });
+
+    it("has no payments in the personal space", async () => {
+      mocks.getGroup.mockResolvedValue(details({ isPersonal: true }));
+
+      render(await detail());
+
+      expect(mocks.listPayments).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("payment-history")).toBeNull();
+    });
   });
 });

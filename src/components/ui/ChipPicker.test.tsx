@@ -127,3 +127,42 @@ describe("ChipPicker, choosing several", () => {
     expect(onChange).toHaveBeenCalledWith(["ana"]);
   });
 });
+
+describe("ChipPicker, with an error", () => {
+  it("shows the error next to the chips, announced and tied to every chip", () => {
+    render(
+      <ChipPicker
+        label="Who did you pay?"
+        name="toUserId"
+        options={options}
+        selected={[]}
+        onChange={vi.fn()}
+        error="Choose who you paid."
+      />,
+    );
+
+    const message = screen.getByText("Choose who you paid.");
+    expect(message).toHaveAttribute("aria-live", "polite");
+    for (const radio of screen.getAllByRole("radio")) {
+      expect(radio).toHaveAccessibleDescription("Choose who you paid.");
+      expect(radio).toHaveAttribute("aria-invalid", "true");
+    }
+  });
+
+  it("ties nothing to the chips without an error", () => {
+    render(
+      <ChipPicker
+        label="Group"
+        name="group"
+        options={options}
+        selected={["ana"]}
+        onChange={vi.fn()}
+      />,
+    );
+
+    for (const radio of screen.getAllByRole("radio")) {
+      expect(radio).not.toHaveAttribute("aria-describedby");
+      expect(radio).not.toHaveAttribute("aria-invalid");
+    }
+  });
+});
