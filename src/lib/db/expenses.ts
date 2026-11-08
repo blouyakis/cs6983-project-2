@@ -182,3 +182,32 @@ export async function deleteExpense(expenseId: string): Promise<void> {
     throw new Error(`Could not delete the expense: ${error.message}`);
   }
 }
+
+// Just the day and amount of the group's expenses dated from `from` up to,
+// not including, `before`, for spending totals (#90), so a long history
+// isn't loaded to add up one month. `createdBefore` is a former member's
+// left_at, as in listExpenses.
+export async function listExpensesSpentBetween(
+  groupId: string,
+  from: string,
+  before: string,
+  createdBefore: string | null,
+): Promise<{ spentOn: string; amountCents: number }[]> {
+  let query = getDb()
+    .from("expenses")
+    .select("spent_on, amount_cents")
+    .eq("group_id", groupId)
+    .gte("spent_on", from)
+    .lt("spent_on", before);
+  if (createdBefore !== null) {
+    query = query.lte("created_at", createdBefore);
+  }
+  const { data, error } = await query;
+  if (error) {
+    throw new Error(`Could not load expenses: ${error.message}`);
+  }
+  return (data as { spent_on: string; amount_cents: number }[]).map((row) => ({
+    spentOn: row.spent_on,
+    amountCents: row.amount_cents,
+  }));
+}

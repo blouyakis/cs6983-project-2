@@ -4,7 +4,11 @@ import type { Expense } from "@/lib/db/expenses";
 import type { Group } from "@/lib/db/group-members";
 import { ForbiddenError, ValidationError } from "@/lib/http/errors";
 import type { CreateExpenseInput } from "@/lib/validation/expense";
-import { addExpense, listGroupExpenses } from "./expense-service";
+import {
+  addExpense,
+  listGroupExpenses,
+  listGroupExpensesSpentBetween,
+} from "./expense-service";
 
 const access = vi.hoisted(() => ({ requireGroupAccess: vi.fn() }));
 vi.mock("./access", () => access);
@@ -16,6 +20,7 @@ const expenses = vi.hoisted(() => ({
   createExpense: vi.fn(),
   findExpense: vi.fn(),
   listExpenses: vi.fn(),
+  listExpensesSpentBetween: vi.fn(),
 }));
 vi.mock("@/lib/db/expenses", () => expenses);
 
@@ -295,5 +300,64 @@ describe("listGroupExpenses", () => {
       ForbiddenError,
     );
     expect(expenses.listExpenses).not.toHaveBeenCalled();
+  });
+});
+
+describe("listGroupExpensesSpentBetween", () => {
+  const day = { spentOn: "2026-11-02", amountCents: 1234 };
+
+  it("gives a current member the day and amount of the expenses in the range", async () => {
+    expenses.listExpensesSpentBetween.mockResolvedValue([day]);
+
+    expect(
+      await listGroupExpensesSpentBetween(
+        ana,
+        groupId,
+        "2026-11-01",
+        "2026-12-01",
+      ),
+    ).toEqual([day]);
+    expect(access.requireGroupAccess).toHaveBeenCalledWith(
+      ana,
+      groupId,
+      "read",
+    );
+    expect(expenses.listExpensesSpentBetween).toHaveBeenCalledWith(
+      groupId,
+      "2026-11-01",
+      "2026-12-01",
+      null,
+    );
+  });
+
+  it("limits a former member to what was added before they left", async () => {
+    access.requireGroupAccess.mockResolvedValue({
+      group: flat,
+      readUntil: "2026-10-25T12:00:00+00:00",
+    });
+    expenses.listExpensesSpentBetween.mockResolvedValue([]);
+
+    await listGroupExpensesSpentBetween(
+      ana,
+      groupId,
+      "2026-10-01",
+      "2026-11-01",
+    );
+
+    expect(expenses.listExpensesSpentBetween).toHaveBeenCalledWith(
+      groupId,
+      "2026-10-01",
+      "2026-11-01",
+      "2026-10-25T12:00:00+00:00",
+    );
+  });
+
+  it("passes on a 403 for someone who isn't in the group", async () => {
+    access.requireGroupAccess.mockRejectedValue(new ForbiddenError());
+
+    await expect(
+      listGroupExpensesSpentBetween(ana, groupId, "2026-11-01", "2026-12-01"),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(expenses.listExpensesSpentBetween).not.toHaveBeenCalled();
   });
 });

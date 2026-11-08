@@ -11,6 +11,7 @@ import {
   addListItem,
   editListItem,
   listGroupListItems,
+  listGroupOpenListItems,
   removeListItem,
 } from "./list-item-service";
 
@@ -20,6 +21,7 @@ vi.mock("./access", () => access);
 const listItems = vi.hoisted(() => ({
   insertListItem: vi.fn(),
   listListItems: vi.fn(),
+  listOpenListItems: vi.fn(),
   findListItem: vi.fn(),
   updateOpenListItem: vi.fn(),
   deleteOpenListItem: vi.fn(),
@@ -229,5 +231,43 @@ describe("removeListItem", () => {
       ForbiddenError,
     );
     expect(listItems.deleteOpenListItem).not.toHaveBeenCalled();
+  });
+});
+
+describe("listGroupOpenListItems", () => {
+  it("gives a current member the open items without a time limit", async () => {
+    listItems.listOpenListItems.mockResolvedValue([milk]);
+
+    expect(await listGroupOpenListItems(ana, groupId)).toEqual([milk]);
+    expect(access.requireGroupAccess).toHaveBeenCalledWith(
+      ana,
+      groupId,
+      "read",
+    );
+    expect(listItems.listOpenListItems).toHaveBeenCalledWith(groupId, null);
+  });
+
+  it("limits a former member to what was added before they left", async () => {
+    access.requireGroupAccess.mockResolvedValue({
+      group: flat,
+      readUntil: "2026-11-01T00:00:00Z",
+    });
+    listItems.listOpenListItems.mockResolvedValue([]);
+
+    await listGroupOpenListItems(ana, groupId);
+
+    expect(listItems.listOpenListItems).toHaveBeenCalledWith(
+      groupId,
+      "2026-11-01T00:00:00Z",
+    );
+  });
+
+  it("passes on a 403 for someone who isn't in the group", async () => {
+    access.requireGroupAccess.mockRejectedValue(new ForbiddenError());
+
+    await expect(listGroupOpenListItems(ana, groupId)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(listItems.listOpenListItems).not.toHaveBeenCalled();
   });
 });

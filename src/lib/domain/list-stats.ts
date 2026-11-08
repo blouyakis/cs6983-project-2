@@ -47,3 +47,14 @@ export function spentInMonthCents(
 export function monthOf(now: Date): string {
   return now.toISOString().slice(0, 7);
 }
+
+// The days of `month`, "2026-11", for a query on spent_on: from the first day
+// up to, but not including, the first day of the next month.
+export function monthRange(month: string): { from: string; before: string } {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const next =
+    monthNumber === 12
+      ? `${year + 1}-01`
+      : `${year}-${String(monthNumber + 1).padStart(2, "0")}`;
+  return { from: `${month}-01`, before: `${next}-01` };
+}
