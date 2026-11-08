@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { AddExpenseButton } from "@/components/expenses/AddExpenseButton";
 import { ExpenseList } from "@/components/expenses/ExpenseList";
 import { GroupList } from "@/components/lists/GroupList";
+import { PaymentHistory } from "@/components/payments/PaymentHistory";
 import { Badge } from "@/components/ui/Badge";
 import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import { getSessionUserId } from "@/lib/auth/cookies";
@@ -17,6 +18,7 @@ import {
   type GroupDetails,
 } from "@/lib/services/group-service";
 import { listGroupListItems } from "@/lib/services/list-item-service";
+import { listPayments } from "@/lib/services/payment-service";
 import { groupParamsSchema } from "@/lib/validation/group";
 import { GroupTile } from "./GroupTile";
 import { InviteForm } from "./InviteForm";
@@ -77,6 +79,11 @@ export async function GroupDetail({ params }: GroupDetailProps) {
         throw error;
       });
   const items = await listGroupListItems(userId, group.id);
+  // Paid and confirmed payments, where the recipient confirms one (#14). The
+  // personal space has nobody to pay.
+  const payments = group.isPersonal
+    ? null
+    : await listPayments(userId, group.id);
   // The personal list shows this month's spending (#23). Every expense in the
   // personal space is the owner's alone, so it adds up the amounts.
   // TODO(#77): take the month in the user's time zone, not UTC.
@@ -144,6 +151,15 @@ export async function GroupDetail({ params }: GroupDetailProps) {
           readOnly={group.readOnly}
           settleUpStartedAt={openSettleUp?.startedAt ?? null}
         />
+        {payments ? (
+          <PaymentHistory
+            groupId={group.id}
+            payments={payments}
+            names={names}
+            currentUserId={userId}
+            readOnly={group.readOnly}
+          />
+        ) : null}
         {!group.isPersonal && !group.readOnly ? (
           <InviteForm groupId={group.id} />
         ) : null}

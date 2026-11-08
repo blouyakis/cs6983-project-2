@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { formatDay } from "@/components/groups/format-day";
+import { PayDirectlyCard } from "@/components/payments/PayDirectlyCard";
 import { Badge } from "@/components/ui/Badge";
 import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -88,7 +89,16 @@ export async function SettleUpDetail({ params }: SettleUpDetailProps) {
             currentUserId={userId}
             unsettledExpenses={unsettled}
             billHref={`/groups/${group.id}`}
-          />
+          >
+            {/* Recording a payment needs write access (#14). */}
+            {group.readOnly ? null : (
+              <PayDirectlyCard
+                groupId={group.id}
+                members={group.members}
+                currentUserId={userId}
+              />
+            )}
+          </StandingsCard>
           <SettleUpPanel
             groupId={group.id}
             settleUp={settleUp}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { MoneyText } from "@/components/ui/MoneyText";
 import type { Member } from "@/lib/db/group-members";
@@ -11,6 +12,8 @@ type StandingsCardProps = {
   unsettledExpenses: number;
   // Where the footnote's link goes: the group's bill.
   billHref: string;
+  // Shown last, such as PayDirectlyCard (#14).
+  children?: ReactNode;
 };
 
 // "Where everyone stands" (DESIGN.md "StandingsCard"): each member's balance
@@ -22,6 +25,7 @@ export function StandingsCard({
   currentUserId,
   unsettledExpenses,
   billHref,
+  children,
 }: StandingsCardProps) {
   const cents = new Map(
     balances.map((balance) => [balance.userId, balance.balanceCents]),
@@ -87,6 +91,7 @@ export function StandingsCard({
         </Link>
         {" · "}balances move the moment a payment is confirmed.
       </p>
+      {children}
     </section>
   );
 }
