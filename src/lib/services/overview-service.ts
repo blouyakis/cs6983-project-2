@@ -65,17 +65,6 @@ async function standingsOf(
   });
 }
 
-// Every shared group the user is in now, with their balance, their share this
-// period and the open items. The Groups page, the sidebar and the Lists and
-// Settle up pages (#68) all need these, so they live here. A caller that has
-// already loaded the user's groups passes them in.
-export async function listGroupStandings(
-  userId: string,
-  groups?: readonly GroupSummary[],
-): Promise<GroupStanding[]> {
-  return standingsOf(userId, groups ?? (await listGroups(userId)));
-}
-
 async function personalOverview(
   userId: string,
   group: GroupSummary,
