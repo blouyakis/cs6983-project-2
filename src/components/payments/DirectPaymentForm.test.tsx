@@ -122,6 +122,9 @@ describe("DirectPaymentForm", () => {
 
     expect(await screen.findByText("Choose who you paid.")).toBeInTheDocument();
     expect(
+      screen.getByRole("radio", { name: "Sam" }),
+    ).toHaveAccessibleDescription("Choose who you paid.");
+    expect(
       screen.getByText("Enter an amount from $0.01 to $21,474,836.47."),
     ).toBeInTheDocument();
     expect(mocks.postJson).not.toHaveBeenCalled();
