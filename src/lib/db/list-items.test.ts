@@ -1,16 +1,23 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ConflictError, ForbiddenError } from "@/lib/http/errors";
 import {
+  completeOpenListItem,
   countOpenListItems,
   deleteOpenListItem,
   findListItem,
   insertListItem,
+  listCheckOffExpenses,
   listListItems,
   listOpenListItems,
+  reopenDoneListItem,
   updateOpenListItem,
 } from "./list-items";
 
-type Result = { data: unknown; error: { message: string } | null };
+type Result = {
+  data: unknown;
+  error: { message: string; code?: string } | null;
+};
 
 const queries: { method: string; args: unknown[] }[] = [];
 let result: Result;
@@ -49,6 +56,10 @@ vi.mock("./client", () => ({
       queries.push({ method: "from", args: [table] });
       return queryBuilder();
     },
+    rpc: async (fn: string, args: unknown) => {
+      queries.push({ method: "rpc", args: [fn, args] });
+      return result;
+    },
   }),
 }));
 
@@ -67,6 +78,7 @@ const row = {
   added_by: anaId,
   completed_by: null,
   completed_at: null,
+  expense_id: null,
   created_at: "2026-11-04T18:00:00+00:00",
 };
 
@@ -81,6 +93,7 @@ const item = {
   addedBy: anaId,
   completedBy: null,
   completedAt: null,
+  expenseId: null,
   createdAt: "2026-11-04T18:00:00+00:00",
 };
 
@@ -318,6 +331,187 @@ describe("countOpenListItems", () => {
     await expect(countOpenListItems([groupId])).rejects.toThrow(
       "Could not count the open list items: boom",
     );
+  });
+});
+
+describe("completeOpenListItem", () => {
+  const expenseId = "5e4f3a2b-5555-4666-8777-d88899990000";
+
+  it("checks the item off with the shares as a JSON object, not a string", async () => {
+    result = { data: expenseId, error: null };
+
+    expect(
+      await completeOpenListItem(groupId, itemId, anaId, {
+        amountCents: 1234,
+        shares: { [anaId]: 1234 },
+      }),
+    ).toBe(true);
+    expect(called("rpc")).toEqual([
+      {
+        method: "rpc",
+        args: [
+          "complete_list_item",
+          {
+            item_id: itemId,
+            user_id: anaId,
+            group_id: groupId,
+            amount_cents: 1234,
+            shares: { [anaId]: 1234 },
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("is false when no open item in the group has this id", async () => {
+    result = {
+      data: null,
+      error: { message: "Item not found", code: "P0002" },
+    };
+
+    expect(
+      await completeOpenListItem(groupId, itemId, anaId, {
+        amountCents: 0,
+        shares: {},
+      }),
+    ).toBe(false);
+  });
+
+  it("is a 403 when the database says the caller can't", async () => {
+    result = { data: null, error: { message: "Not a member", code: "42501" } };
+
+    await expect(
+      completeOpenListItem(groupId, itemId, anaId, {
+        amountCents: 0,
+        shares: {},
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("throws when the call fails", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(
+      completeOpenListItem(groupId, itemId, anaId, {
+        amountCents: 0,
+        shares: {},
+      }),
+    ).rejects.toThrow("Could not check off the list item: boom");
+  });
+});
+
+describe("reopenDoneListItem", () => {
+  it("unchecks the item", async () => {
+    result = { data: null, error: null };
+
+    expect(await reopenDoneListItem(groupId, itemId, anaId)).toBe(true);
+    expect(called("rpc")).toEqual([
+      {
+        method: "rpc",
+        args: [
+          "reopen_list_item",
+          { item_id: itemId, user_id: anaId, group_id: groupId },
+        ],
+      },
+    ]);
+  });
+
+  it("is false when no done item in the group has this id", async () => {
+    result = {
+      data: null,
+      error: { message: "Item not found", code: "P0002" },
+    };
+
+    expect(await reopenDoneListItem(groupId, itemId, anaId)).toBe(false);
+  });
+
+  it("is a 403 for someone other than the member who checked it off", async () => {
+    result = { data: null, error: { message: "Only them", code: "42501" } };
+
+    await expect(
+      reopenDoneListItem(groupId, itemId, anaId),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("is a 409 with the database's reason for a locked expense", async () => {
+    const message = "A settled expense can't be deleted.";
+    result = { data: null, error: { message, code: "P0001" } };
+
+    const error = await reopenDoneListItem(groupId, itemId, anaId).catch(
+      (caught: unknown) => caught,
+    );
+    expect(error).toBeInstanceOf(ConflictError);
+    expect((error as ConflictError).message).toBe(message);
+  });
+
+  it("throws when the call fails", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(reopenDoneListItem(groupId, itemId, anaId)).rejects.toThrow(
+      "Could not uncheck the list item: boom",
+    );
+  });
+});
+
+describe("listCheckOffExpenses", () => {
+  const milkExpense = "5e4f3a2b-5555-4666-8777-d88899990000";
+  const breadExpense = "6f5a4b3c-5555-4666-8777-d88899990000";
+
+  it("loads the cost, settlement and creation time of each expense asked about (#12)", async () => {
+    result = {
+      data: [
+        {
+          id: milkExpense,
+          amount_cents: 1234,
+          settlement_id: null,
+          created_at: "2026-11-04T19:00:00+00:00",
+        },
+        {
+          id: breadExpense,
+          amount_cents: 300,
+          settlement_id: "7a6b5c4d-5555-4666-8777-d88899990000",
+          created_at: "2026-11-01T09:00:00+00:00",
+        },
+      ],
+      error: null,
+    };
+
+    const expenses = await listCheckOffExpenses([milkExpense, breadExpense]);
+
+    expect(called("from")).toEqual([{ method: "from", args: ["expenses"] }]);
+    expect(called("select")[0].args).toEqual([
+      "id, amount_cents, settlement_id, created_at",
+    ]);
+    expect(called("in")[0].args).toEqual(["id", [milkExpense, breadExpense]]);
+    expect(expenses.get(milkExpense)).toEqual({
+      amountCents: 1234,
+      settled: false,
+      createdAt: "2026-11-04T19:00:00+00:00",
+    });
+    expect(expenses.get(breadExpense)?.settled).toBe(true);
+  });
+
+  it("asks the database nothing for no expenses", async () => {
+    expect((await listCheckOffExpenses([])).size).toBe(0);
+    expect(queries).toHaveLength(0);
+  });
+
+  it("throws when the query fails", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(listCheckOffExpenses([milkExpense])).rejects.toThrow(
+      "Could not load the list's expenses: boom",
+    );
+  });
+});
+
+describe("the list item columns", () => {
+  it("include the expense an item was checked off with", async () => {
+    result = { data: [row], error: null };
+
+    await listListItems(groupId, null);
+
+    expect(String(called("select")[0].args[0])).toContain("expense_id");
   });
 });
 

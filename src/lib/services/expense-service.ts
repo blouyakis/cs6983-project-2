@@ -6,11 +6,9 @@ import {
   listExpensesSpentBetween,
   type Expense,
 } from "@/lib/db/expenses";
-import { listCurrentMemberWeights } from "@/lib/db/group-members";
-import { checkCustomShares, splitByWeights } from "@/lib/domain/splits";
-import { ValidationError } from "@/lib/http/errors";
 import type { CreateExpenseInput } from "@/lib/validation/expense";
 import { requireGroupAccess } from "./access";
+import { sharesOfNewCost } from "./shares";
 
 // Adds an expense paid by the current user (AGENTS.md Sections 6.2 and 6.7).
 // The payer is never taken from the request. The shares are worked out here, in
@@ -24,33 +22,12 @@ export async function addExpense(
   // always a current member.
   await requireGroupAccess(userId, groupId, "write");
 
-  // The database accepts a former member as a sharer, so that old shares
-  // survive when someone leaves. This check is what keeps a new cost to current
-  // members.
-  const current = new Set(
-    (await listCurrentMemberWeights(groupId)).map((member) => member.userId),
+  const shares = await sharesOfNewCost(
+    userId,
+    groupId,
+    input.amountCents,
+    input,
   );
-  if (!input.sharedBy.every((sharerId) => current.has(sharerId))) {
-    throw new ValidationError("Check the highlighted fields.", {
-      sharedBy: "Everyone sharing this cost must be in the group.",
-    });
-  }
-
-  // The server's even mode is always 1:1. A group's ratio reaches an expense
-  // through SplitEditor, as custom amounts (AGENTS.md Section 6.3).
-  const shares =
-    input.mode === "even"
-      ? splitByWeights(
-          input.amountCents,
-          userId,
-          input.sharedBy.map((sharerId) => ({ userId: sharerId, weight: 1 })),
-        )
-      : checkCustomShares(
-          input.amountCents,
-          userId,
-          input.sharedBy,
-          input.amountsCents,
-        );
 
   const expenseId = await createExpense({
     groupId,

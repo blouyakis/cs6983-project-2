@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { formatCents } from "@/lib/domain/money";
-import { MAX_CENTS } from "@/lib/domain/splits";
+import { MAX_CENTS, splitMessages } from "@/lib/domain/splits";
+import { splitSchema } from "./splits";
 
 // The bodies of POST and PATCH /api/groups/{groupId}/list-items (#11). There
 // is no addedBy: the item is always added by the current user, and an addedBy
@@ -70,3 +71,22 @@ export const updateListItemSchema = z
 
 export type CreateListItemInput = z.output<typeof createListItemSchema>;
 export type UpdateListItemInput = z.output<typeof updateListItemSchema>;
+
+// The body of POST /api/groups/{groupId}/list-items/{itemId}/complete (#12):
+// the actual cost and the same split fields as adding an expense, at the top
+// level (lib/validation/splits.ts). There is no payer: the member who checks
+// the item off pays. A cost of 0 checks it off with no expense, and the split
+// is then ignored, as it is in the personal space, where the owner is the only
+// sharer (#23).
+const enterCost = splitMessages.amount;
+export const completeItemSchema = z
+  .object({
+    amountCents: z
+      .number({ error: enterCost })
+      .int({ error: enterCost })
+      .min(0, { error: enterCost })
+      .max(MAX_CENTS, { error: enterCost }),
+  })
+  .and(splitSchema);
+
+export type CompleteItemInput = z.output<typeof completeItemSchema>;

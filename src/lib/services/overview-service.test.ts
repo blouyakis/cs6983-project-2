@@ -81,6 +81,7 @@ function item(title: string, estimatedCents: number | null): ListItem {
     addedBy: ana,
     completedBy: null,
     completedAt: null,
+    expenseId: null,
     createdAt: "2026-11-01T10:00:00+00:00",
   };
 }
