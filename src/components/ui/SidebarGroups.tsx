@@ -1,33 +1,17 @@
 import { getSessionUserId } from "@/lib/auth/cookies";
-import { listGroups } from "@/lib/services/group-service";
-import { listGroupStandings } from "@/lib/services/overview-service";
+import { listSidebarGroups } from "@/lib/services/sidebar-service";
 import { GroupLinks } from "./GroupLinks";
 
-// Loads the user's groups for the sidebar. Reads the session, so render it
-// inside <Suspense>. Without a session it renders nothing: proxy.ts has
-// already sent the user to login, and the page checks again itself.
+// Loads the user's groups for the sidebar on a full page load. Reads the
+// session, so render it inside <Suspense>. Without a session it renders
+// nothing: proxy.ts has already sent the user to login, and the page checks
+// again itself. GroupLinks asks for them again after each client navigation
+// (#89), because this layout isn't rendered again then.
 export async function SidebarGroups() {
   const userId = await getSessionUserId();
   if (!userId) {
     return null;
   }
-  const groups = await listGroups(userId);
   // Each shared group's balance comes from the server (#9), never the browser.
-  // TODO(#89): the layout isn't re-rendered on client navigation, so these
-  // stay as they were until the next refresh when another member changes them.
-  const standings = await listGroupStandings(userId, groups);
-  const balances = new Map(
-    standings.map((group) => [group.id, group.balanceCents]),
-  );
-  // Groups the user left and archived ones are read-only history, so they
-  // stay on the Groups page and out of the sidebar (AGENTS.md Section 6.6).
-  const current = groups
-    .filter((group) => !group.readOnly)
-    .map(({ id, name, isPersonal }) => ({
-      id,
-      name,
-      isPersonal,
-      balanceCents: balances.get(id),
-    }));
-  return <GroupLinks groups={current} />;
+  return <GroupLinks groups={await listSidebarGroups(userId)} />;
 }
