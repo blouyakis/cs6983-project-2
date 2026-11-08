@@ -252,6 +252,59 @@ describe("GroupLinks after a client navigation", () => {
     expect(linkTexts()).toEqual(["🏠 Dorm 4BYou are owed $9.00"]);
   });
 
+  it("drops an answer still on its way when router.refresh() brings newer groups", async () => {
+    const toGroups = deferred();
+    fetchMock.mockReturnValueOnce(toGroups.promise);
+    const { rerender } = render(<GroupLinks groups={first} />);
+    mocks.usePathname.mockReturnValue("/groups");
+    rerender(<GroupLinks groups={first} />);
+
+    // Ana adds an expense before the answer arrives, and the action's
+    // router.refresh() renders the layout again with the new balance.
+    const refreshed = [
+      { id: "a", name: "🏠 Dorm 4B", isPersonal: false, balanceCents: 0 },
+      { id: "p", name: "Personal space", isPersonal: true },
+    ];
+    rerender(<GroupLinks groups={refreshed} />);
+    const request = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(request.signal?.aborted).toBe(true);
+
+    // The answer was worked out before the expense, so it must not win.
+    await act(async () => {
+      toGroups.resolve(answer(first));
+    });
+
+    expect(linkTexts()).toEqual([
+      "🏠 Dorm 4BYou are all settled up",
+      "Personal space",
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("doesn't ask while the sidebar is hidden, as it is on a phone", () => {
+    const matchMedia = vi.fn().mockReturnValue({ matches: false });
+    vi.stubGlobal("matchMedia", matchMedia);
+    const { rerender } = render(<GroupLinks groups={first} />);
+
+    mocks.usePathname.mockReturnValue("/groups");
+    rerender(<GroupLinks groups={first} />);
+
+    // AppSidebar is shown from Tailwind's md breakpoint (48rem) up.
+    expect(matchMedia).toHaveBeenCalledWith("(min-width: 48rem)");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("asks while the sidebar is shown, as it is on desktop", async () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+    fetchMock.mockResolvedValue(answer(first));
+    const { rerender } = render(<GroupLinks groups={first} />);
+
+    mocks.usePathname.mockReturnValue("/groups");
+    rerender(<GroupLinks groups={first} />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  });
+
   it("takes the groups the layout renders again after router.refresh()", async () => {
     fetchMock.mockResolvedValue(
       answer([
