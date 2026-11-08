@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ListItem } from "@/lib/db/list-items";
 import type { GroupSummary } from "./group-service";
-import { getOverview, listGroupStandings } from "./overview-service";
+import { getOverview } from "./overview-service";
 
 const groupService = vi.hoisted(() => ({ listGroups: vi.fn() }));
 vi.mock("./group-service", () => groupService);
@@ -276,33 +276,5 @@ describe("getOverview", () => {
     expect(overview.personal).toBeNull();
     expect(expenseService.listGroupExpensesSpentBetween).not.toHaveBeenCalled();
     expect(listItemService.listGroupOpenListItems).not.toHaveBeenCalled();
-  });
-});
-
-describe("listGroupStandings", () => {
-  it("gives every current shared group its balance, share and open items, and nothing else", async () => {
-    groupService.listGroups.mockResolvedValue([personal, dorm, left]);
-    balanceService.getGroupPeriod.mockResolvedValue(period(-883, 617));
-    listItems.countOpenListItems.mockResolvedValue(new Map([[dormId, 1]]));
-
-    const standings = await listGroupStandings(ana);
-
-    expect(standings).toEqual([
-      {
-        ...dorm,
-        balanceCents: -883,
-        shareThisPeriodCents: 617,
-        openItemCount: 1,
-      },
-    ]);
-  });
-
-  it("uses the groups it is given instead of loading them again", async () => {
-    balanceService.getGroupPeriod.mockResolvedValue(period(1850, 0));
-
-    const standings = await listGroupStandings(ana, [personal, picnic]);
-
-    expect(groupService.listGroups).not.toHaveBeenCalled();
-    expect(standings.map((group) => group.balanceCents)).toEqual([1850]);
   });
 });
