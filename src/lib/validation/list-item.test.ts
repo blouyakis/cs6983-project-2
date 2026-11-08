@@ -3,6 +3,7 @@ import { MAX_CENTS } from "@/lib/domain/splits";
 import { ValidationError } from "@/lib/http/errors";
 import {
   MAX_QUANTITY,
+  completeItemSchema,
   createListItemSchema,
   listItemParamsSchema,
   updateListItemSchema,
@@ -181,5 +182,77 @@ describe("listItemParamsSchema", () => {
     it("is the largest Postgres integer, the column's own limit", () => {
       expect(MAX_QUANTITY).toBe(2_147_483_647);
     });
+  });
+});
+
+describe("completeItemSchema", () => {
+  const ana = "6f1c2d4e-1111-4222-8333-944455556666";
+  const sam = "7a2d3e5f-1111-4222-8333-944455556666";
+
+  function errorsOf(input: unknown) {
+    try {
+      parseInput(completeItemSchema, input);
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return error.fields;
+      }
+      throw error;
+    }
+    return undefined;
+  }
+
+  it("takes the cost and the same split fields as adding an expense (#12)", () => {
+    expect(
+      parseInput(completeItemSchema, {
+        amountCents: 1234,
+        mode: "even",
+        sharedBy: [ana, sam],
+      }),
+    ).toEqual({ amountCents: 1234, mode: "even", sharedBy: [ana, sam] });
+    expect(
+      parseInput(completeItemSchema, {
+        amountCents: 1234,
+        mode: "custom",
+        sharedBy: [ana, sam],
+        amountsCents: { [ana]: 1000, [sam]: 234 },
+      }),
+    ).toMatchObject({ amountsCents: { [ana]: 1000, [sam]: 234 } });
+  });
+
+  it("accepts $0.00 for an item that cost nothing", () => {
+    expect(
+      parseInput(completeItemSchema, {
+        amountCents: 0,
+        mode: "even",
+        sharedBy: [ana],
+      }).amountCents,
+    ).toBe(0);
+  });
+
+  it("reports a bad cost on amountCents", () => {
+    expect(
+      errorsOf({ amountCents: -1, mode: "even", sharedBy: [ana] }),
+    ).toHaveProperty("amountCents");
+    expect(
+      errorsOf({ amountCents: 1.5, mode: "even", sharedBy: [ana] }),
+    ).toHaveProperty("amountCents");
+    expect(
+      errorsOf({ amountCents: MAX_CENTS + 1, mode: "even", sharedBy: [ana] }),
+    ).toHaveProperty("amountCents");
+  });
+
+  it("reports a missing split on its own field, not on a split key", () => {
+    expect(errorsOf({ amountCents: 500, mode: "even" })).toHaveProperty(
+      "sharedBy",
+    );
+    expect(errorsOf({ amountCents: 500, sharedBy: [ana] })).toHaveProperty(
+      "mode",
+    );
+  });
+
+  it("no longer takes a shares object from the client", () => {
+    expect(
+      errorsOf({ amountCents: 500, shares: { [ana]: 500 } }),
+    ).toBeDefined();
   });
 });

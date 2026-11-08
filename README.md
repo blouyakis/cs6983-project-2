@@ -191,11 +191,13 @@ Production is <https://cs6983-project-2.vercel.app>, built by Vercel from `main`
 2. Import the repository into Vercel. The framework is detected as Next.js, and the Node version comes from `.nvmrc`.
 3. Add the four variables from [Environment variables](#environment-variables) to the Vercel project, using the hosted project's URL and service role key, a new `JWT_SECRET`, and the production URL as `NEXT_PUBLIC_APP_URL`. Keep the service role key and `JWT_SECRET` server-side; never give them a `NEXT_PUBLIC_` prefix.
 4. Every pull request gets a preview deployment, and a merge to `main` deploys to production. A migration is applied to the hosted database with `npx supabase db push` before the code that needs it is merged.
+5. Check the deployment at [`/api/health`](https://cs6983-project-2.vercel.app/api/health). It needs no login and answers `200` with `{ "status": "ok" }` when the app is up and can query the database, or `503` with `{ "status": "error" }` when it can't. It is never cached and says nothing else. It gives up on the database after 3 seconds, and why the database didn't answer goes to the Vercel function logs, starting with "Health check: the database did not answer."
 
 ## Development workflow
 
 - **Branches:** one per issue, from `main`, e.g. `feature/19-settle-up`
 - **Commits:** Conventional Commits with the issue number, e.g. `feat(settle): suggest fewest payments (#19)`
+- **Pre-commit hook:** `npm install` sets up a Husky hook that runs `eslint --fix` and `prettier --write` on the staged files through lint-staged, and stops the commit if an ESLint error can't be fixed. CI and Vercel skip the hook, and CI's lint job still checks every file.
 - **Pull requests:** `Closes #<issue>` and how it was tested; one partner approval and green CI; merged with a merge commit
 - **Sprints:** three sprints tracked as GitHub milestones (`Sprint 1 v.01`, `Sprint 2 v.02`, `Sprint 3 v.03`)
 - **Standups and meetings:** logged in the [communication log](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?gid=229896090#gid=229896090)
@@ -205,11 +207,11 @@ Full conventions are in [`AGENTS.md`](./AGENTS.md).
 
 ## API
 
-Eighteen routes are implemented: `POST /api/auth/register`, `/login` and `/logout`, `GET /api/auth/me`, `GET /api/overview`, `GET` and `POST /api/groups`, `GET` and `PATCH /api/groups/{groupId}`, and under `/api/groups/{groupId}`: `POST invitations`, `GET balances`, `GET` and `POST expenses`, `PATCH` and `DELETE expenses/{expenseId}`, `GET` and `POST list-items`, `PATCH` and `DELETE list-items/{itemId}`, `GET` and `POST settlements`, `GET settlements/current`, `POST settlements/current/cancel`, and `POST payments/{paymentId}/paid` and `/confirm`. The full API is described in [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) and the routes not listed above are built issue by issue. Swagger UI will be served at `/api/docs` ([#16](https://github.com/blouyakis/cs6983-project-2/issues/16)).
+Twenty-six routes are implemented: `POST /api/auth/register`, `/login` and `/logout`, `GET /api/auth/me`, `GET /api/health`, `GET /api/overview`, `GET` and `POST /api/groups`, `GET` and `PATCH /api/groups/{groupId}`, and under `/api/groups/{groupId}`: `POST invitations`, `GET balances`, `GET` and `POST expenses`, `PATCH` and `DELETE expenses/{expenseId}`, `GET` and `POST list-items`, `PATCH` and `DELETE list-items/{itemId}`, `GET` and `POST settlements`, `GET settlements/current`, `POST settlements/current/cancel`, and `POST payments/{paymentId}/paid` and `/confirm`. The full API is described in [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) and the routes not listed above are built issue by issue. Swagger UI will be served at `/api/docs` ([#16](https://github.com/blouyakis/cs6983-project-2/issues/16)).
 
 Errors use one body, `{ "error": { "code", "message", "fields"? } }`. The session is an `httpOnly` cookie named `session`; the API never returns the token.
 
-Main resources: `/api/auth`, `/api/overview`, and `/api/groups/{groupId}` with `list-items`, `expenses`, `balances`, `bills/me`, `payments`, `settlements`, `invitations`, and `leave`.
+Main resources: `/api/auth`, `/api/health`, `/api/overview`, and `/api/groups/{groupId}` with `list-items`, `expenses`, `balances`, `bills/me`, `payments`, `settlements`, `invitations`, and `leave`.
 
 ## Project documentation
 

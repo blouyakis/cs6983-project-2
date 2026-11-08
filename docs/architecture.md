@@ -48,7 +48,7 @@ flowchart TD
 
 | Folder | Responsibility | Must not |
 |---|---|---|
-| `src/proxy.ts` | Redirect page requests without a valid `session` cookie to `/login`, and answer API requests without one with `401` (except register, login and logout). | Be the only auth check. Route handlers check again. |
+| `src/proxy.ts` | Redirect page requests without a valid `session` cookie to `/login`, and answer API requests without one with `401` (except register, login, logout and the health check). | Be the only auth check. Route handlers check again. |
 | `src/app/(auth)` | Login and register pages. | Read group data. |
 | `src/app/(app)` | Signed-in pages: overview, lists, settle up, personal space, groups. | Calculate money. |
 | `src/app/api` | Route handlers. Read the user id from the session, validate input with Zod, call one service, return JSON. | Trust a user id from the request body, or query the database. |
@@ -95,7 +95,7 @@ Writes that touch several tables (registering an account with its personal space
 
 **Two checks per request.**
 
-1. `proxy.ts` runs first. A page request without a valid cookie is sent to `/login`. An API request without one gets `401` and the error body, except `POST /api/auth/register`, `/login` and `/logout`. It is a first check, not the security boundary.
+1. `proxy.ts` runs first. A page request without a valid cookie is sent to `/login`. An API request without one gets `401` and the error body, except `POST /api/auth/register`, `/login` and `/logout`, and `GET /api/health` (#100), which says only whether the app and database are up. It is a first check, not the security boundary.
 2. Every route handler and every page reads the session itself and passes the user id to the service.
 
 **`requireGroupAccess(userId, groupId, mode)`** is the one place access is decided. Every service calls it before reading or writing group data.
@@ -245,7 +245,7 @@ erDiagram
 - `estimated_cents` and `quantity` are optional and must be positive when present.
 - Any current member can edit or delete an open item, whoever added it (#11). A done item is linked to what it cost, so editing or deleting it is `409` until it is unchecked. The `status = 'open'` check is part of the same `update` or `delete`, so an item checked off between the service's access check and the write is left alone. Deleting an open item removes the row.
 - `expense_id` is null when the item was done with no cost. It must be an expense of the same group, and an expense belongs to one item at most. If that expense is deleted on its own, only `expense_id` becomes null and the item stays done.
-- Unchecking a done item reopens it: one transaction deletes its expense, if it has one, and sets `status` back to `open` with `completed_by`, `completed_at` and `expense_id` null. Only the member who checked it off (`completed_by`) can uncheck it; anyone else gets `403`. If its expense is settled, unchecking is `409`. A done item with no expense (checked off with no cost, or its expense was deleted on its own) has nothing to lock, so it just reopens. Unchecking an item that is already open is `409`, like checking off a done item.
+- Unchecking a done item reopens it: one transaction deletes its expense, if it has one, and sets `status` back to `open` with `completed_by`, `completed_at` and `expense_id` null. Only the member who checked it off (`completed_by`) can uncheck it; anyone else gets `403`. If its expense is settled, or was created on or before the start of the open settle-up (#86), unchecking is `409`: it goes through `delete_expense`, which refuses both. A done item with no expense (checked off with no cost, or its expense was deleted on its own) has nothing to lock, so it just reopens. Unchecking an item that is already open is `409`, like checking off a done item.
 
 **`expenses`**: one cost, personal or shared.
 

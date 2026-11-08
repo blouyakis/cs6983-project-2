@@ -56,10 +56,11 @@ async function sendJson<T>(
   return { ok: false, error: error ?? NETWORK_ERROR };
 }
 
-// For Client Components: sends JSON and reads the OpenAPI error body.
+// For Client Components: sends JSON and reads the OpenAPI error body. With no
+// body, such as unchecking a list item (#12), nothing is sent.
 export function postJson<T = unknown>(
   url: string,
-  body: unknown,
+  body?: unknown,
 ): Promise<ApiResult<T>> {
   return sendJson<T>("POST", url, body);
 }

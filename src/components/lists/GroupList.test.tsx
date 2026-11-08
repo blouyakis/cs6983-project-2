@@ -16,7 +16,7 @@ import {
   vi,
 } from "vitest";
 import type { Expense } from "@/lib/db/expenses";
-import type { ListItem } from "@/lib/db/list-items";
+import type { ListedItem } from "@/lib/db/list-items";
 import type { EntryGroup } from "@/components/expenses/EntryForm";
 import type { ReactNode } from "react";
 import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
@@ -59,7 +59,7 @@ const sam = "7a2d3e5f-1111-4222-8333-944455556666";
 const gone = "8b3e4f60-1111-4222-8333-944455556666";
 const groupId = "0b7e8a10-2222-4333-8444-a55566667777";
 
-function item(overrides: Partial<ListItem>): ListItem {
+function item(overrides: Partial<ListedItem>): ListedItem {
   return {
     id: "00000000-0000-4000-8000-000000000000",
     groupId,
@@ -71,7 +71,10 @@ function item(overrides: Partial<ListItem>): ListItem {
     addedBy: ana,
     completedBy: null,
     completedAt: null,
+    expenseId: null,
     createdAt: "2026-11-04T18:00:00+00:00",
+    costCents: null,
+    expenseLock: null,
     ...overrides,
   };
 }
@@ -99,6 +102,7 @@ const groceries = item({
   status: "done",
   completedBy: sam,
   completedAt: "2026-11-03T12:00:00+00:00",
+  expenseId: null,
 });
 
 const flat: EntryGroup = {
@@ -735,5 +739,190 @@ describe("GroupList", () => {
     expect(
       screen.getByText("This item isn't on the list."),
     ).toBeInTheDocument();
+  });
+
+  describe("checking off and unchecking (#12)", () => {
+    const expenseId = "99999999-9999-4999-8999-999999999999";
+    const anaMilk = item({
+      id: "55555555-5555-4555-8555-555555555555",
+      title: "🥛 Milk",
+      estimatedCents: 450,
+      status: "done",
+      completedBy: ana,
+      completedAt: "2026-11-04T19:00:00+00:00",
+      expenseId,
+      costCents: 500,
+    });
+    const anaBread = item({
+      id: "66666666-6666-4666-8666-666666666666",
+      title: "Bread",
+      status: "done",
+      completedBy: ana,
+      completedAt: "2026-11-04T19:00:00+00:00",
+    });
+
+    function uncheckDialog() {
+      return screen.getByRole("dialog", { name: /^Uncheck / });
+    }
+
+    it("opens the check-off form from an open row's checkbox", () => {
+      setup();
+
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: "Check off Paper towels" }),
+      );
+
+      expect(
+        screen.getByRole("dialog", { name: "Check off Paper towels" }),
+      ).toBeInTheDocument();
+    });
+
+    it("checks the item off, says so, and refreshes the list", async () => {
+      mocks.postJson.mockResolvedValue({
+        ok: true,
+        data: { item: { ...towels, status: "done" } },
+      });
+      setup();
+
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: "Check off Paper towels" }),
+      );
+      fireEvent.change(screen.getByLabelText("Actual cost"), {
+        target: { value: "5" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Check off" }));
+
+      expect(
+        await screen.findByText("Checked off Paper towels for $5.00."),
+      ).toBeInTheDocument();
+      expect(mocks.postJson).toHaveBeenCalledWith(
+        `/api/groups/${groupId}/list-items/${towels.id}/complete`,
+        { amountCents: 500, mode: "even", sharedBy: [ana, sam] },
+      );
+      expect(mocks.refresh).toHaveBeenCalled();
+    });
+
+    it("asks before unchecking an item that has an expense, saying what it deletes", () => {
+      setup({ items: [anaMilk] });
+
+      fireEvent.click(screen.getByRole("checkbox", { name: "Uncheck Milk" }));
+
+      expect(uncheckDialog()).toHaveAccessibleName(
+        "Uncheck Milk? This deletes its $5.00 expense.",
+      );
+      expect(
+        within(uncheckDialog()).getByRole("button", {
+          name: "Uncheck and delete",
+        }),
+      ).toBeInTheDocument();
+      expect(mocks.postJson).not.toHaveBeenCalled();
+    });
+
+    it("says an item with no expense just goes back on the list", () => {
+      setup({ items: [anaBread] });
+
+      fireEvent.click(screen.getByRole("checkbox", { name: "Uncheck Bread" }));
+
+      expect(uncheckDialog()).toHaveAccessibleName(
+        "Uncheck Bread? It goes back on the list.",
+      );
+      expect(
+        within(uncheckDialog()).getByRole("button", { name: "Uncheck" }),
+      ).toBeInTheDocument();
+    });
+
+    it("unchecks once confirmed, says so, and refreshes the list", async () => {
+      mocks.postJson.mockResolvedValue({
+        ok: true,
+        data: { item: { ...anaMilk, status: "open" } },
+      });
+      setup({ items: [anaMilk] });
+
+      fireEvent.click(screen.getByRole("checkbox", { name: "Uncheck Milk" }));
+      fireEvent.click(
+        within(uncheckDialog()).getByRole("button", {
+          name: "Uncheck and delete",
+        }),
+      );
+
+      expect(
+        await screen.findByText(
+          "Unchecked Milk and deleted its $5.00 expense.",
+        ),
+      ).toBeInTheDocument();
+      expect(mocks.postJson).toHaveBeenCalledWith(
+        `/api/groups/${groupId}/list-items/${anaMilk.id}/reopen`,
+      );
+      expect(mocks.refresh).toHaveBeenCalled();
+    });
+
+    it("leaves the item done when the uncheck is cancelled", () => {
+      setup({ items: [anaMilk] });
+
+      fireEvent.click(screen.getByRole("checkbox", { name: "Uncheck Milk" }));
+      fireEvent.click(
+        within(uncheckDialog()).getByRole("button", { name: "Cancel" }),
+      );
+
+      expect(mocks.postJson).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole("checkbox", { name: "Uncheck Milk" }),
+      ).toBeChecked();
+    });
+
+    it("shows the server's reason when the uncheck is refused", async () => {
+      mocks.postJson.mockResolvedValue({
+        ok: false,
+        error: {
+          code: "CONFLICT",
+          message: "A settled expense can't be deleted.",
+        },
+      });
+      setup({ items: [anaMilk] });
+
+      fireEvent.click(screen.getByRole("checkbox", { name: "Uncheck Milk" }));
+      fireEvent.click(
+        within(uncheckDialog()).getByRole("button", {
+          name: "Uncheck and delete",
+        }),
+      );
+
+      expect(
+        await screen.findByText("A settled expense can't be deleted."),
+      ).toBeInTheDocument();
+      expect(mocks.refresh).toHaveBeenCalled();
+    });
+
+    it("doesn't let anyone else uncheck an item", () => {
+      setup({ items: [groceries] });
+
+      expect(
+        screen.getByRole("checkbox", { name: "Grocery run is done" }),
+      ).toBeDisabled();
+    });
+
+    it("doesn't let the member who checked it off uncheck it once its expense is locked", () => {
+      setup({ items: [{ ...anaMilk, expenseLock: "settled" }] });
+
+      expect(
+        screen.getByRole("checkbox", { name: "Milk is done" }),
+      ).toBeDisabled();
+      expect(screen.getByText("Settled")).toBeInTheDocument();
+    });
+
+    it("offers no checking off or unchecking in a read-only list", () => {
+      setup({ readOnly: true, items: [towels, anaMilk] });
+
+      for (const box of screen.getAllByRole("checkbox")) {
+        expect(box).toBeDisabled();
+      }
+    });
+
+    it("shows what the done items cost as spent", () => {
+      setup({ items: [towels, anaMilk] });
+
+      expect(screen.getByText("Spent")).toBeInTheDocument();
+      expect(screen.getByText("$0.50 over the estimate")).toBeInTheDocument();
+    });
   });
 });
