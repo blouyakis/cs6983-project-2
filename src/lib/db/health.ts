@@ -8,6 +8,17 @@ export const PING_TIMEOUT_MS = 3000;
 
 const LOG_PREFIX = "Health check: the database did not answer.";
 
+// postgrest-js puts the real cause of a network failure, such as
+// ECONNREFUSED, in `details` as a "Caused by: …" line between the fetch error
+// and the stack. Only that line is logged: the stack is noise, and other
+// details can hold row values.
+function causeOf(details: string | undefined): string | null {
+  const line = details
+    ?.split("\n")
+    .find((text) => text.startsWith("Caused by: "));
+  return line ? line.slice("Caused by: ".length) : null;
+}
+
 // Whether the database answers a cheap query (#100). It never throws and
 // never returns the error, so the public health check can't leak it. Why it
 // failed goes to the server log only.
@@ -20,10 +31,11 @@ export async function pingDatabase(): Promise<boolean> {
       .abortSignal(controller.signal);
     if (error) {
       // A network failure or a timeout comes back with an empty code.
-      console.error(
-        LOG_PREFIX,
-        error.code ? `${error.code}: ${error.message}` : error.message,
-      );
+      const summary = error.code
+        ? `${error.code}: ${error.message}`
+        : error.message;
+      const cause = causeOf(error.details);
+      console.error(LOG_PREFIX, cause ? `${summary} (${cause})` : summary);
       return false;
     }
     return true;
