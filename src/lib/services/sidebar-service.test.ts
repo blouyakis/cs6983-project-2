@@ -127,6 +127,22 @@ describe("listSidebarGroups", () => {
     ]);
   });
 
+  it("logs why a balance couldn't be loaded, so the fallback doesn't hide the failure", async () => {
+    const error = new Error("database unavailable");
+    groupService.listGroups.mockResolvedValue([dorm]);
+    balanceService.getGroupPeriod.mockRejectedValue(error);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    await listSidebarGroups(ana);
+
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError.mock.calls[0]).toContain(error);
+    expect(String(consoleError.mock.calls[0][0])).toContain(dormId);
+    consoleError.mockRestore();
+  });
+
   it("fails when the groups themselves can't be loaded", async () => {
     groupService.listGroups.mockRejectedValue(
       new Error("database unavailable"),
