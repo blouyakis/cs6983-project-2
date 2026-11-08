@@ -143,6 +143,16 @@ describe("proxy for API requests", () => {
     expect(isPassedThrough(response)).toBe(true);
   });
 
+  // PUBLIC_API_ROUTES is an exact match, so a path that only starts with a
+  // public one still needs a session.
+  it.each(["/api/healthx", "/api/health/x"])(
+    "rejects GET %s without a session with 401",
+    async (path) => {
+      const response = await proxy(request(path));
+      expect(response.status).toBe(401);
+    },
+  );
+
   it("does not let a signed-in user bounce off the auth API routes", async () => {
     const token = await signSession(userId);
     const response = await proxy(
