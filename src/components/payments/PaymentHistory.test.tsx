@@ -124,6 +124,39 @@ describe("PaymentHistory", () => {
     expect(mocks.refresh).toHaveBeenCalled();
   });
 
+  // The button disappears after the refresh, and it is disabled while the
+  // request is on its way, which drops focus to body in a browser. Focus goes
+  // to the row instead, so a keyboard user stays where they were.
+  it.each([
+    [
+      "it worked",
+      {
+        ok: true,
+        data: { payment: payment({ status: "confirmed" }), closed: false },
+      },
+    ],
+    [
+      "it failed",
+      {
+        ok: false,
+        error: {
+          code: "CONFLICT",
+          message: "This payment is already confirmed.",
+        },
+      },
+    ],
+  ])("moves focus to the payment's row when %s", async (_, response) => {
+    mocks.postJson.mockResolvedValue(response);
+    history([payment({})], sam);
+    const button = screen.getByRole("button", { name: /I got it/ });
+    button.focus();
+
+    fireEvent.click(button);
+
+    const row = screen.getByRole("listitem");
+    await waitFor(() => expect(row).toHaveFocus());
+  });
+
   it("says when the confirmation closed a settle-up", async () => {
     mocks.postJson.mockResolvedValue({
       ok: true,
