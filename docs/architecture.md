@@ -95,7 +95,7 @@ Writes that touch several tables (registering an account with its personal space
 
 **Two checks per request.**
 
-1. `proxy.ts` runs first. A page request without a valid cookie is sent to `/login`. An API request without one gets `401` and the error body, except `POST /api/auth/register`, `/login` and `/logout`. It is a first check, not the security boundary.
+1. `proxy.ts` runs first. A page request without a valid cookie is sent to `/login`. An API request without one gets `401` and the error body, except `POST /api/auth/register`, `/login` and `/logout`, and `GET /api/health` (#100), which says only whether the app and database are up. It is a first check, not the security boundary.
 2. Every route handler and every page reads the session itself and passes the user id to the service.
 
 **`requireGroupAccess(userId, groupId, mode)`** is the one place access is decided. Every service calls it before reading or writing group data.
