@@ -36,7 +36,14 @@ export function PaymentHistory({
   const { show, clear } = useNotice();
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  async function confirm(payment: Payment, from: string) {
+  // Disabling the button while the request is on its way drops focus to body
+  // in a browser, and the refresh takes the button away, so the row gets
+  // focus once the answer is in.
+  async function confirm(
+    payment: Payment,
+    from: string,
+    row: HTMLLIElement | null,
+  ) {
     setBusyId(payment.id);
     clear();
     const result = await postJson<{ payment: Payment; closed: boolean }>(
@@ -44,6 +51,7 @@ export function PaymentHistory({
       {},
     );
     setBusyId(null);
+    row?.focus();
     if (!result.ok) {
       show(result.error.message, "problem");
     } else if (result.data.closed) {
@@ -74,6 +82,7 @@ export function PaymentHistory({
             return (
               <li
                 key={payment.id}
+                tabIndex={-1}
                 className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-ink bg-surface p-3 ${
                   canConfirm ? "shadow-[4px_4px_0_0_var(--color-owe)]" : ""
                 }`}
@@ -94,7 +103,13 @@ export function PaymentHistory({
                   {canConfirm ? (
                     <PrimaryButton
                       disabled={busyId !== null}
-                      onClick={() => confirm(payment, from)}
+                      onClick={(event) =>
+                        confirm(
+                          payment,
+                          from,
+                          event.currentTarget.closest("li"),
+                        )
+                      }
                     >
                       I got it<span aria-hidden="true"> ✅</span>
                     </PrimaryButton>
