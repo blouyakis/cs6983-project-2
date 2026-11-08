@@ -100,24 +100,20 @@ export function DirectPaymentForm({
         Record money you already sent (Venmo, cash…). It counts once they
         confirm it. LifeBoard never moves money.
       </p>
-      <div className="flex flex-col gap-1">
-        <ChipPicker
-          label="Who did you pay?"
-          name="toUserId"
-          options={others.map((member) => ({
-            value: member.userId,
-            label: member.name,
-          }))}
-          selected={toUserId ? [toUserId] : []}
-          onChange={([chosen]) => {
-            setToUserId(chosen ?? null);
-            setErrors((old) => ({ ...old, toUserId: undefined }));
-          }}
-        />
-        <p aria-live="polite" className="text-sm text-owe">
-          {errors.toUserId}
-        </p>
-      </div>
+      <ChipPicker
+        label="Who did you pay?"
+        name="toUserId"
+        options={others.map((member) => ({
+          value: member.userId,
+          label: member.name,
+        }))}
+        selected={toUserId ? [toUserId] : []}
+        onChange={([chosen]) => {
+          setToUserId(chosen ?? null);
+          setErrors((old) => ({ ...old, toUserId: undefined }));
+        }}
+        error={errors.toUserId ?? ""}
+      />
       <TextField
         label="Amount"
         name="amount"
