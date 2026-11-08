@@ -115,6 +115,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/health:
+    get:
+      summary: Whether the app and the database are up
+      description: |
+        Issue #100. Works without a session, so it says only up or down: no
+        error message, version or environment name. It runs a cheap query
+        (`db_now()`) on every request, gives up on it after 3 seconds, and is
+        never cached. Its `503` body is not the shared `Error` shape, so a
+        monitor only has to read `status`.
+      security: []
+      responses:
+        "200":
+          description: The app answered and could query the database.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: ok
+        "503":
+          description: The app answered but the database failed or took more than 3 seconds.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+              example:
+                status: error
   /api/overview:
     get:
       summary: Personal total, share per group, net balance
@@ -1556,6 +1593,15 @@ components:
       properties:
         user:
           $ref: "#/components/schemas/User"
+    HealthResponse:
+      description: Issue #100. Nothing else is ever added, so nothing leaks.
+      type: object
+      required: [status]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ok, error]
     Error:
       type: object
       required: [error]
