@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConflictError, NotFoundError } from "@/lib/http/errors";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from "@/lib/http/errors";
 import {
   BalancesChangedError,
   cancelOpenSettlement,
@@ -11,8 +16,10 @@ import {
   findSettlement,
   insertSettlement,
   listClosedSettlements,
+  listGroupPayments,
   listSettlementPayments,
   markPaymentPaid,
+  recordPayment,
 } from "./settlements";
 
 type Result = {
@@ -35,7 +42,16 @@ function nextResult(): Result {
 
 function queryBuilder() {
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "update", "eq", "in", "is", "lte", "order"]) {
+  for (const method of [
+    "select",
+    "update",
+    "eq",
+    "neq",
+    "in",
+    "is",
+    "lte",
+    "order",
+  ]) {
     builder[method] = (...args: unknown[]) => {
       calls.push({ method, args });
       return builder;
@@ -476,5 +492,135 @@ describe("confirmPayment", () => {
     results = [{ data: null, error: { message: "boom" } }];
 
     await expect(confirmPayment(paymentId)).rejects.toThrow("boom");
+  });
+});
+
+describe("recordPayment", () => {
+  const paidRow = {
+    ...paymentRow,
+    status: "paid",
+    settlement_id: null,
+    paid_at: "2026-11-02T10:00:00+00:00",
+  };
+
+  it("records a direct payment through record_payment and returns it", async () => {
+    results = [
+      { data: paymentId, error: null },
+      { data: paidRow, error: null },
+    ];
+
+    const recorded = await recordPayment(groupId, samId, anaId, 1500);
+
+    expect(allArgsOf("rpc")).toEqual([
+      [
+        "record_payment",
+        {
+          p_group_id: groupId,
+          p_from_user_id: samId,
+          p_to_user_id: anaId,
+          p_amount_cents: 1500,
+        },
+      ],
+    ]);
+    expect(argsOf("eq")).toEqual(["id", paymentId]);
+    expect(recorded).toEqual({
+      ...payment,
+      status: "paid",
+      settlementId: null,
+      paidAt: "2026-11-02T10:00:00+00:00",
+    });
+  });
+
+  it("turns a recipient who isn't a current member into a 400 on toUserId", async () => {
+    results = [
+      {
+        data: null,
+        error: {
+          code: "P0001",
+          message: "The recipient is not a current member of this group.",
+        },
+      },
+    ];
+
+    const error = await recordPayment(groupId, samId, anaId, 1500).catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error).toMatchObject({
+      fields: { toUserId: "Choose a current member of this group." },
+    });
+  });
+
+  it("turns a sender who isn't a current member into a 403", async () => {
+    results = [
+      {
+        data: null,
+        error: {
+          code: "P0001",
+          message: "The sender is not a current member of this group.",
+        },
+      },
+    ];
+
+    await expect(recordPayment(groupId, samId, anaId, 1500)).rejects.toThrow(
+      ForbiddenError,
+    );
+  });
+
+  it("turns a failed check constraint into a 400", async () => {
+    results = [
+      {
+        data: null,
+        error: { code: "23514", message: "payments_different_people" },
+      },
+    ];
+
+    await expect(recordPayment(groupId, samId, samId, 1500)).rejects.toThrow(
+      ValidationError,
+    );
+  });
+
+  it("throws on any other database error", async () => {
+    results = [{ data: null, error: { message: "boom" } }];
+
+    await expect(recordPayment(groupId, samId, anaId, 1500)).rejects.toThrow(
+      "boom",
+    );
+  });
+});
+
+describe("listGroupPayments", () => {
+  const paidRow = {
+    ...paymentRow,
+    status: "paid",
+    paid_at: "2026-11-02T10:00:00+00:00",
+  };
+
+  it("lists the group's paid and confirmed payments, last paid first", async () => {
+    results = [{ data: [paidRow], error: null }];
+
+    expect(await listGroupPayments(groupId, null)).toEqual([
+      { ...payment, status: "paid", paidAt: "2026-11-02T10:00:00+00:00" },
+    ]);
+    expect(argsOf("from")).toEqual(["payments"]);
+    expect(argsOf("eq")).toEqual(["group_id", groupId]);
+    expect(argsOf("neq")).toEqual(["status", "suggested"]);
+    expect(argsOf("order")).toEqual(["paid_at", { ascending: false }]);
+    expect(allArgsOf("lte")).toEqual([]);
+  });
+
+  it("stops at a former member's left_at", async () => {
+    results = [{ data: [], error: null }];
+
+    await listGroupPayments(groupId, "2026-11-03T10:00:00+00:00");
+
+    expect(argsOf("lte")).toEqual(["created_at", "2026-11-03T10:00:00+00:00"]);
+  });
+
+  it("throws on a database error", async () => {
+    results = [{ data: null, error: { message: "boom" } }];
+
+    await expect(listGroupPayments(groupId, null)).rejects.toThrow("boom");
   });
 });
