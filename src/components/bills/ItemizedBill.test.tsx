@@ -1,18 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { Expense } from "@/lib/db/expenses";
 import type { Member } from "@/lib/db/group-members";
 import type { ClosedPeriod } from "@/lib/db/settlements";
 import type { Bill, BillLine } from "@/lib/services/bill-service";
 import { ItemizedBill } from "./ItemizedBill";
-
-// The pencil is a Client Component with its own tests. Here it only has to
-// appear on the right rows.
-vi.mock("@/components/expenses/EditExpenseButton", () => ({
-  EditExpenseButton: (props: { expense: Expense }) => (
-    <button type="button">Edit {props.expense.description}</button>
-  ),
-}));
 
 const ana = "6f1c2d4e-1111-4222-8333-944455556666";
 const sam = "7a2d3e5f-1111-4222-8333-944455556666";
@@ -125,7 +116,7 @@ describe("ItemizedBill", () => {
     ).toBeInTheDocument();
   });
 
-  it("puts a pencil on the user's unsettled costs and a lock on the rest", () => {
+  it("leaves editing to Costs: no pencil, a lock on what the user can't change", () => {
     setup(
       bill({
         lines: [
@@ -141,9 +132,14 @@ describe("ItemizedBill", () => {
       }),
     );
 
+    // Costs already has a pencil for Internet; a second "Edit Internet" on
+    // the page would be two controls with one name.
+    expect(screen.queryByRole("button")).toBeNull();
     expect(
-      screen.getByRole("button", { name: "Edit Internet" }),
-    ).toBeInTheDocument();
+      within(screen.getByRole("listitem", { name: "Internet" })).queryByText(
+        /🔒/,
+      ),
+    ).toBeNull();
     expect(
       within(screen.getByRole("listitem", { name: "Groceries" })).getByText(
         "Only Sam can edit this",
@@ -170,14 +166,12 @@ describe("ItemizedBill", () => {
       { settleUpStartedAt: "2026-11-03T09:00:00+00:00" },
     );
     expect(screen.getByText("In the open settle-up")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Edit/ })).toBeNull();
     unmount();
 
     setup(bill({ lines: [line({ description: "Internet", payerId: ana })] }), {
       readOnly: true,
     });
     expect(screen.getByText("Read only")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Edit/ })).toBeNull();
   });
 
   it("says when the user has no costs in the period", () => {

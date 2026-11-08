@@ -127,8 +127,7 @@ test("start a settle-up, pay and confirm the one suggested payment, and the peri
   // the group page shows it locked, and the API refuses an edit.
   await ana.page.goto(`/groups/${groupId}`);
   const groceriesRow = ana.page
-    .getByRole("list")
-    .filter({ hasText: "Groceries" })
+    .getByRole("region", { name: "Costs" })
     .getByRole("listitem")
     .filter({ hasText: "Groceries" });
   await expect(groceriesRow).toContainText("In the open settle-up");
