@@ -90,8 +90,11 @@ export async function SettleUpDetail({ params }: SettleUpDetailProps) {
             unsettledExpenses={unsettled}
             billHref={`/groups/${group.id}`}
           >
-            {/* Recording a payment needs write access (#14). */}
-            {group.readOnly ? null : (
+            {/* Recording a payment needs write access (#14). While a
+                settle-up is open its suggested payments are the way to pay,
+                so the card waits until it closes or is cancelled; the API
+                still accepts one for the next period (AGENTS.md 6.10). */}
+            {group.readOnly || settleUp ? null : (
               <PayDirectlyCard
                 groupId={group.id}
                 members={group.members}
