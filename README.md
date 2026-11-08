@@ -196,6 +196,7 @@ Production is <https://cs6983-project-2.vercel.app>, built by Vercel from `main`
 
 - **Branches:** one per issue, from `main`, e.g. `feature/19-settle-up`
 - **Commits:** Conventional Commits with the issue number, e.g. `feat(settle): suggest fewest payments (#19)`
+- **Pre-commit hook:** `npm install` sets up a Husky hook that runs `eslint --fix` and `prettier --write` on the staged files through lint-staged, and stops the commit if an ESLint error can't be fixed. CI and Vercel skip the hook, and CI's lint job still checks every file.
 - **Pull requests:** `Closes #<issue>` and how it was tested; one partner approval and green CI; merged with a merge commit
 - **Sprints:** three sprints tracked as GitHub milestones (`Sprint 1 v.01`, `Sprint 2 v.02`, `Sprint 3 v.03`)
 - **Standups and meetings:** logged in the [communication log](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?gid=229896090#gid=229896090)

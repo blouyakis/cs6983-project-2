@@ -8,6 +8,7 @@ import {
   findListItem,
   insertListItem,
   listListItems,
+  listOpenListItems,
   updateOpenListItem,
 } from "@/lib/db/list-items";
 import { cleanUp, createGroupWithMembers, db } from "./fixtures";
@@ -144,5 +145,22 @@ describe("list items in the database", () => {
     expect(counts.get(first.groupId)).toBe(2);
     expect(counts.get(second.groupId)).toBe(1);
     expect(counts.get(empty.groupId)).toBe(0);
+  });
+
+  it("lists only the open items, newest first", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(1);
+    const [ana] = memberIds;
+    await add(groupId, ana, "Old open");
+    await pause(5);
+    const done = await add(groupId, ana, "Done");
+    await pause(5);
+    await add(groupId, ana, "New open");
+    await markDone(done.id, ana);
+
+    const titles = (await listOpenListItems(groupId, null)).map(
+      (item) => item.title,
+    );
+
+    expect(titles).toEqual(["New open", "Old open"]);
   });
 });

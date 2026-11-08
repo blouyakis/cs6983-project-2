@@ -4,6 +4,7 @@ import {
   findListItem,
   insertListItem,
   listListItems,
+  listOpenListItems,
   updateOpenListItem,
   type ListItem,
 } from "@/lib/db/list-items";
@@ -38,6 +39,16 @@ export async function listGroupListItems(
 ): Promise<ListItem[]> {
   const { readUntil } = await requireGroupAccess(userId, groupId, "read");
   return listListItems(groupId, readUntil);
+}
+
+// Only the open items, newest first, for the overview (#90), with the same
+// cut-off for a former member.
+export async function listGroupOpenListItems(
+  userId: string,
+  groupId: string,
+): Promise<ListItem[]> {
+  const { readUntil } = await requireGroupAccess(userId, groupId, "read");
+  return listOpenListItems(groupId, readUntil);
 }
 
 // The write already skipped a done item, so this only decides which error to
