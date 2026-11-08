@@ -21,3 +21,5 @@ export const createPaymentSchema = z.object({
     .min(1, { error: amountMessage })
     .max(MAX_CENTS, { error: amountMessage }),
 });
+
+export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;

@@ -1,22 +1,27 @@
 import "server-only";
+import { listCurrentMembers } from "@/lib/db/group-members";
 import {
   confirmPayment,
   findPayment,
+  listGroupPayments,
   markPaymentPaid,
+  recordPayment,
   type Payment,
 } from "@/lib/db/settlements";
 import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  ValidationError,
 } from "@/lib/http/errors";
+import type { CreatePaymentInput } from "@/lib/validation/payment";
 import { requireGroupAccess } from "./access";
 
 export type { Payment };
 
 // The payment lifecycle (architecture.md "Payment lifecycle"): the sender
 // says "I sent it", the recipient says "I got it", and only the recipient's
-// confirmation changes balances. Recording a direct payment is #14.
+// confirmation changes balances.
 
 // The payment, once the user may act on it. A payment in another group gets
 // the same 404 as an unknown one, so ids can't be probed.
@@ -79,4 +84,37 @@ export async function confirmPaymentReceived(
     throw new Error("The confirmed payment could not be loaded.");
   }
   return { payment: confirmed, closed };
+}
+
+// A member records money they sent another current member outside the app
+// (#14, user flow 6). The sender is always the current user, never an id from
+// the request. It starts as paid and counts once the recipient confirms it.
+export async function recordDirectPayment(
+  userId: string,
+  groupId: string,
+  input: CreatePaymentInput,
+): Promise<Payment> {
+  await requireGroupAccess(userId, groupId, "write");
+  if (input.toUserId === userId) {
+    throw new ValidationError("Check the highlighted fields.", {
+      toUserId: "You can't pay yourself.",
+    });
+  }
+  const members = await listCurrentMembers(groupId);
+  if (!members.some((member) => member.userId === input.toUserId)) {
+    throw new ValidationError("Check the highlighted fields.", {
+      toUserId: "Choose a current member of this group.",
+    });
+  }
+  return recordPayment(groupId, userId, input.toUserId, input.amountCents);
+}
+
+// The group's paid and confirmed payments, last paid first (#14). A former
+// member only sees the ones created before they left (AGENTS.md Section 6.6).
+export async function listPayments(
+  userId: string,
+  groupId: string,
+): Promise<Payment[]> {
+  const { readUntil } = await requireGroupAccess(userId, groupId, "read");
+  return listGroupPayments(groupId, readUntil);
 }
