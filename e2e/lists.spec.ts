@@ -262,7 +262,14 @@ test("check off a personal item and see it logged as a personal expense", async 
   await expect(row).toContainText("Logged as personal expense", {
     ignoreCase: true,
   });
-  await expect(ana.page.getByText("Spent this month")).toBeVisible();
+  // The sidebar's personal space line says "Spent this month" too (#89), so
+  // look only in the page itself, and check the amount as well as the label.
+  const stats = ana.page.getByRole("main");
+  await expect(stats.getByText("Spent this month")).toBeVisible();
+  // The stat's amount, not the row's: ListStats is a <dl> of terms and values.
+  await expect(
+    stats.getByRole("definition").filter({ hasText: "$32.00" }),
+  ).toBeVisible();
 });
 
 // The form body scrolls in a fixed-height column, so a Toggle that may shrink
