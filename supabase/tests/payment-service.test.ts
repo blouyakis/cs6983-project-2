@@ -8,11 +8,17 @@ import {
   ValidationError,
 } from "@/lib/http/errors";
 import { getGroupBalances } from "@/lib/services/balance-service";
+import { addExpense } from "@/lib/services/expense-service";
 import {
   confirmPaymentReceived,
   listPayments,
+  markPaymentSent,
   recordDirectPayment,
 } from "@/lib/services/payment-service";
+import {
+  listPastPeriods,
+  startSettleUp,
+} from "@/lib/services/settlement-service";
 import { cleanUp, createGroupWithMembers, createUser, db } from "./fixtures";
 
 afterAll(cleanUp);
@@ -135,6 +141,42 @@ describe("a direct payment", () => {
         recordDirectPayment(a, groupId, { toUserId, amountCents: 883 }),
       ).rejects.toThrow(ValidationError);
     }
+  });
+});
+
+// AGENTS.md Section 6.10: a direct payment recorded while a settle-up is open
+// belongs to the next period, so closing the period must not claim it.
+describe("a direct payment during an open settle-up", () => {
+  it("isn't claimed when the period closes and counts in the next period", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(2);
+    const [a, b] = memberIds;
+    await addExpense(a, groupId, {
+      description: "Groceries",
+      amountCents: 1000,
+      spentOn: "2026-11-02",
+      mode: "even",
+      sharedBy: [a, b],
+    });
+    const settleUp = await startSettleUp(a, groupId);
+    expect(settleUp.payments).toHaveLength(1);
+    const [suggested] = settleUp.payments;
+
+    const direct = await recordDirectPayment(a, groupId, {
+      toUserId: b,
+      amountCents: 300,
+    });
+    await confirmPaymentReceived(b, groupId, direct.id);
+    await markPaymentSent(b, groupId, suggested.id);
+    const { closed } = await confirmPaymentReceived(a, groupId, suggested.id);
+
+    expect(closed).toBe(true);
+    expect(await listPastPeriods(a, groupId)).toHaveLength(1);
+    const [stored] = (await listPayments(a, groupId)).filter(
+      (payment) => payment.id === direct.id,
+    );
+    expect(stored).toMatchObject({ status: "confirmed", settlementId: null });
+    expect(await balanceOf(a, groupId, a)).toBe(300);
+    expect(await balanceOf(a, groupId, b)).toBe(-300);
   });
 });
 
