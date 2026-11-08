@@ -93,6 +93,45 @@ export async function listExpenses(
   return (data as unknown as ExpenseRow[]).map(toExpense);
 }
 
+// Which period's expenses to load (architecture.md Section 5, "Settle-up
+// periods"): the current one, which is everything unsettled plus what is in
+// the open settle-up, or the one a closed settle-up settled.
+export type PeriodScope =
+  { openSettlementId: string | null } | { settlementId: string };
+
+// One period's expenses with their shares, ordered as listExpenses orders
+// them, for the itemized bill (#21). `createdBefore` is a former member's
+// left_at, as in listExpenses.
+export async function listExpensesInPeriod(
+  groupId: string,
+  scope: PeriodScope,
+  createdBefore: string | null,
+): Promise<Expense[]> {
+  let query = getDb()
+    .from("expenses")
+    .select(EXPENSE_COLUMNS)
+    .eq("group_id", groupId);
+  if ("settlementId" in scope) {
+    query = query.eq("settlement_id", scope.settlementId);
+  } else if (scope.openSettlementId === null) {
+    query = query.is("settlement_id", null);
+  } else {
+    query = query.or(
+      `settlement_id.is.null,settlement_id.eq.${scope.openSettlementId}`,
+    );
+  }
+  if (createdBefore !== null) {
+    query = query.lte("created_at", createdBefore);
+  }
+  const { data, error } = await query
+    .order("spent_on", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) {
+    throw new Error(`Could not load the period's expenses: ${error.message}`);
+  }
+  return (data as unknown as ExpenseRow[]).map(toExpense);
+}
+
 export async function findExpense(expenseId: string): Promise<Expense | null> {
   const { data, error } = await getDb()
     .from("expenses")

@@ -60,3 +60,11 @@ export const updateGroupSchema = z
 export type CreateGroupInput = z.output<typeof createGroupSchema>;
 export type InviteInput = z.output<typeof inviteSchema>;
 export type UpdateGroupInput = z.output<typeof updateGroupSchema>;
+
+// GET /api/groups/{groupId}/bills/me: which closed period, or none for the
+// current one (#21).
+export const billQuerySchema = z.object({
+  settlementId: z
+    .uuid({ error: "settlementId must be the id of a past period." })
+    .optional(),
+});
