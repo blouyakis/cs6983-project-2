@@ -71,10 +71,14 @@ describe("getMyBill", () => {
       amountCents: 3001,
       shareCents: 1000,
     });
-    expect(bill.owed).toEqual([
-      { userId: sam, owedCents: 1000 },
-      { userId: jo, owedCents: 0 },
-    ]);
+    // The fixture adds every member at once, so their join order can tie.
+    expect(bill.owed).toHaveLength(2);
+    expect(bill.owed).toEqual(
+      expect.arrayContaining([
+        { userId: sam, owedCents: 1000 },
+        { userId: jo, owedCents: 0 },
+      ]),
+    );
   });
 
   it("leaves out an expense split between other members only", async () => {
