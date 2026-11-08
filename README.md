@@ -191,7 +191,7 @@ Production is <https://cs6983-project-2.vercel.app>, built by Vercel from `main`
 2. Import the repository into Vercel. The framework is detected as Next.js, and the Node version comes from `.nvmrc`.
 3. Add the four variables from [Environment variables](#environment-variables) to the Vercel project, using the hosted project's URL and service role key, a new `JWT_SECRET`, and the production URL as `NEXT_PUBLIC_APP_URL`. Keep the service role key and `JWT_SECRET` server-side; never give them a `NEXT_PUBLIC_` prefix.
 4. Every pull request gets a preview deployment, and a merge to `main` deploys to production. A migration is applied to the hosted database with `npx supabase db push` before the code that needs it is merged.
-5. Check the deployment at [`/api/health`](https://cs6983-project-2.vercel.app/api/health). It needs no login and answers `200` with `{ "status": "ok" }` when the app is up and can query the database, or `503` with `{ "status": "error" }` when it can't. It is never cached, and it says nothing else, so the database's error stays in the Vercel logs.
+5. Check the deployment at [`/api/health`](https://cs6983-project-2.vercel.app/api/health). It needs no login and answers `200` with `{ "status": "ok" }` when the app is up and can query the database, or `503` with `{ "status": "error" }` when it can't. It is never cached and says nothing else. It gives up on the database after 3 seconds, and why the database didn't answer goes to the Vercel function logs, starting with "Health check: the database did not answer."
 
 ## Development workflow
 

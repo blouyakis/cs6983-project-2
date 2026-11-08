@@ -48,7 +48,7 @@ flowchart TD
 
 | Folder | Responsibility | Must not |
 |---|---|---|
-| `src/proxy.ts` | Redirect page requests without a valid `session` cookie to `/login`, and answer API requests without one with `401` (except register, login and logout). | Be the only auth check. Route handlers check again. |
+| `src/proxy.ts` | Redirect page requests without a valid `session` cookie to `/login`, and answer API requests without one with `401` (except register, login, logout and the health check). | Be the only auth check. Route handlers check again. |
 | `src/app/(auth)` | Login and register pages. | Read group data. |
 | `src/app/(app)` | Signed-in pages: overview, lists, settle up, personal space, groups. | Calculate money. |
 | `src/app/api` | Route handlers. Read the user id from the session, validate input with Zod, call one service, return JSON. | Trust a user id from the request body, or query the database. |
