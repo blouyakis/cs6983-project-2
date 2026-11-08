@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ForbiddenError } from "@/lib/http/errors";
 import type { GroupSummary } from "./group-service";
 import { listSidebarGroups } from "./sidebar-service";
 
@@ -127,8 +128,12 @@ describe("listSidebarGroups", () => {
     ]);
   });
 
-  it("logs why a balance couldn't be loaded, so the fallback doesn't hide the failure", async () => {
-    const error = new Error("database unavailable");
+  // Only the message: the error object can carry a cause with row values
+  // from the database.
+  it("logs why a balance couldn't be loaded, with the message only, so the fallback doesn't hide the failure", async () => {
+    const error = new Error("database unavailable", {
+      cause: { details: "Key (email)=(ana@example.com) already exists." },
+    });
     groupService.listGroups.mockResolvedValue([dorm]);
     balanceService.getGroupPeriod.mockRejectedValue(error);
     const consoleError = vi
@@ -138,8 +143,27 @@ describe("listSidebarGroups", () => {
     await listSidebarGroups(ana);
 
     expect(consoleError).toHaveBeenCalledTimes(1);
-    expect(consoleError.mock.calls[0]).toContain(error);
-    expect(String(consoleError.mock.calls[0][0])).toContain(dormId);
+    expect(consoleError.mock.calls[0]).not.toContain(error);
+    const line = consoleError.mock.calls[0].map(String).join(" ");
+    expect(line).toContain(dormId);
+    expect(line).toContain("database unavailable");
+    expect(line).not.toContain("ana@example.com");
+    consoleError.mockRestore();
+  });
+
+  // The user left the group between listing their groups and loading its
+  // balance. That is expected, not a failure, so nothing is logged.
+  it("lists a group the user just left without a balance, and logs nothing", async () => {
+    groupService.listGroups.mockResolvedValue([dorm]);
+    balanceService.getGroupPeriod.mockRejectedValue(new ForbiddenError());
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    expect(await listSidebarGroups(ana)).toEqual([
+      { id: dormId, name: "🏠 Dorm 4B", isPersonal: false },
+    ]);
+    expect(consoleError).not.toHaveBeenCalled();
     consoleError.mockRestore();
   });
 
