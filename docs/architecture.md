@@ -266,6 +266,7 @@ erDiagram
 - `status` is `suggested`, `paid` or `confirmed`. See the payment lifecycle below. A `suggested` payment always has a `settlement_id`.
 - `paid_at` is set when the sender marks it paid; `confirmed_at` when the recipient confirms. A check constraint requires neither for `suggested`, only `paid_at` for `paid`, and both for `confirmed`, with `confirmed_at` no earlier than `paid_at`.
 - `settlement_id` points to the settle-up that suggested it, or is null for a direct payment until the period closes. It must be a settlement of the same group.
+- A direct payment is written by `record_payment(p_group_id, p_from_user_id, p_to_user_id, p_amount_cents)` (#14). It locks both people's membership rows, fails with `P0001` unless both are current members, and inserts the payment as `paid` with `paid_at = now()`. The database's clock stamps `paid_at` as `confirm_payment` stamps `confirmed_at`, so `confirmed_at` is never earlier than `paid_at` because the app server's clock runs ahead.
 
 **`settlements`**: one settle-up period.
 
