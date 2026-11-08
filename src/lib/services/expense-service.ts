@@ -3,6 +3,7 @@ import {
   createExpense,
   findExpense,
   listExpenses,
+  listExpensesSpentBetween,
   type Expense,
 } from "@/lib/db/expenses";
 import type { CreateExpenseInput } from "@/lib/validation/expense";
@@ -51,4 +52,17 @@ export async function listGroupExpenses(
 ): Promise<Expense[]> {
   const { readUntil } = await requireGroupAccess(userId, groupId, "read");
   return listExpenses(groupId, readUntil);
+}
+
+// Just the day and amount of the expenses dated from `from` up to, not
+// including, `before`, for a spending total such as the overview's (#90).
+// A former member only gets what was added before they left (Section 6.6).
+export async function listGroupExpensesSpentBetween(
+  userId: string,
+  groupId: string,
+  from: string,
+  before: string,
+): Promise<{ spentOn: string; amountCents: number }[]> {
+  const { readUntil } = await requireGroupAccess(userId, groupId, "read");
+  return listExpensesSpentBetween(groupId, from, before, readUntil);
 }

@@ -140,6 +140,29 @@ export async function listListItems(
   return (data as ListItemRow[]).map(toListItem);
 }
 
+// Only the open items, newest first, for the overview's My list (#90).
+// `createdBefore` is a former member's left_at, as in listListItems.
+export async function listOpenListItems(
+  groupId: string,
+  createdBefore: string | null,
+): Promise<ListItem[]> {
+  let query = getDb()
+    .from("list_items")
+    .select(LIST_ITEM_COLUMNS)
+    .eq("group_id", groupId)
+    .eq("status", "open");
+  if (createdBefore !== null) {
+    query = query.lte("created_at", createdBefore);
+  }
+  const { data, error } = await query.order("created_at", {
+    ascending: false,
+  });
+  if (error) {
+    throw new Error(`Could not load the list: ${error.message}`);
+  }
+  return (data as ListItemRow[]).map(toListItem);
+}
+
 export async function findListItem(
   groupId: string,
   itemId: string,

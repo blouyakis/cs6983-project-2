@@ -5,6 +5,7 @@ import {
   deleteExpense,
   findExpense,
   listExpenses,
+  listExpensesSpentBetween,
   updateExpense,
 } from "./expenses";
 
@@ -19,7 +20,15 @@ let result: Result;
 
 function queryBuilder() {
   const builder: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "lte", "order", "delete"]) {
+  for (const method of [
+    "select",
+    "eq",
+    "gte",
+    "lt",
+    "lte",
+    "order",
+    "delete",
+  ]) {
     builder[method] = (...args: unknown[]) => {
       queries.push({ method, args });
       return builder;
@@ -325,5 +334,71 @@ describe("deleteExpense", () => {
     await expect(deleteExpense(expenseId)).rejects.toThrow(
       "Could not delete the expense: boom",
     );
+  });
+});
+
+describe("listExpensesSpentBetween", () => {
+  it("asks only for the day and amount of the group's expenses in the range", async () => {
+    result = {
+      data: [
+        { spent_on: "2026-11-02", amount_cents: 3500 },
+        { spent_on: "2026-11-04", amount_cents: 6100 },
+      ],
+      error: null,
+    };
+
+    const rows = await listExpensesSpentBetween(
+      groupId,
+      "2026-11-01",
+      "2026-12-01",
+      null,
+    );
+
+    expect(rows).toEqual([
+      { spentOn: "2026-11-02", amountCents: 3500 },
+      { spentOn: "2026-11-04", amountCents: 6100 },
+    ]);
+    expect(queries).toContainEqual({ method: "from", args: ["expenses"] });
+    expect(queries).toContainEqual({
+      method: "select",
+      args: ["spent_on, amount_cents"],
+    });
+    expect(queries).toContainEqual({
+      method: "eq",
+      args: ["group_id", groupId],
+    });
+    expect(queries).toContainEqual({
+      method: "gte",
+      args: ["spent_on", "2026-11-01"],
+    });
+    expect(queries).toContainEqual({
+      method: "lt",
+      args: ["spent_on", "2026-12-01"],
+    });
+    expect(queries.some((query) => query.method === "lte")).toBe(false);
+  });
+
+  it("limits a former member to what was added before they left", async () => {
+    result = { data: [], error: null };
+
+    await listExpensesSpentBetween(
+      groupId,
+      "2026-11-01",
+      "2026-12-01",
+      "2026-11-03T12:00:00+00:00",
+    );
+
+    expect(queries).toContainEqual({
+      method: "lte",
+      args: ["created_at", "2026-11-03T12:00:00+00:00"],
+    });
+  });
+
+  it("throws when the query fails", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(
+      listExpensesSpentBetween(groupId, "2026-11-01", "2026-12-01", null),
+    ).rejects.toThrow("Could not load expenses: boom");
   });
 });

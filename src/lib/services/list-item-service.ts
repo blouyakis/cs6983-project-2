@@ -6,6 +6,7 @@ import {
   insertListItem,
   listCheckOffExpenses,
   listListItems,
+  listOpenListItems,
   reopenDoneListItem,
   updateOpenListItem,
   type ListedItem,
@@ -73,6 +74,16 @@ export async function listGroupListItems(
         : null,
     };
   });
+}
+
+// Only the open items, newest first, for the overview (#90), with the same
+// cut-off for a former member.
+export async function listGroupOpenListItems(
+  userId: string,
+  groupId: string,
+): Promise<ListItem[]> {
+  const { readUntil } = await requireGroupAccess(userId, groupId, "read");
+  return listOpenListItems(groupId, readUntil);
 }
 
 const NOT_ON_LIST = "This item isn't on the list.";

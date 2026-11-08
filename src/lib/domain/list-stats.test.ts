@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   checkedOffTotals,
   monthOf,
+  monthRange,
   openEstimateTotalCents,
   spentInMonthCents,
 } from "./list-stats";
@@ -119,5 +120,21 @@ describe("checkedOffTotals", () => {
   it("has nothing to compare when no done item had an estimate", () => {
     expect(checkedOffTotals([done(null, 1000)]).overEstimateCents).toBeNull();
     expect(checkedOffTotals([]).overEstimateCents).toBeNull();
+  });
+});
+
+describe("monthRange", () => {
+  it("runs from the month's first day up to the next month's first day", () => {
+    expect(monthRange("2026-11")).toEqual({
+      from: "2026-11-01",
+      before: "2026-12-01",
+    });
+  });
+
+  it("rolls December over into January of the next year", () => {
+    expect(monthRange("2026-12")).toEqual({
+      from: "2026-12-01",
+      before: "2027-01-01",
+    });
   });
 });
