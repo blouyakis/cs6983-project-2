@@ -1,7 +1,12 @@
 import "server-only";
 import type { Balance } from "@/lib/domain/balances";
 import type { SuggestedPayment } from "@/lib/domain/settle-up";
-import { ConflictError, NotFoundError } from "@/lib/http/errors";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from "@/lib/http/errors";
 import { getDb } from "./client";
 
 // Settle-up periods and their payments (#19, AGENTS.md Section 6.10).
@@ -70,6 +75,8 @@ const PAYMENT_COLUMNS =
 // raise_exception and no_data_found, the two codes the functions use.
 const CONFLICT_CODE = "P0001";
 const NOT_FOUND_CODE = "P0002";
+// check_violation: a row the table's own checks refuse.
+const CHECK_CODE = "23514";
 
 function toSettlement(row: SettlementRow): Settlement {
   return {
@@ -311,4 +318,64 @@ export async function confirmPayment(paymentId: string): Promise<boolean> {
     throw new Error(`Could not confirm the payment: ${error.message}`);
   }
   return data === true;
+}
+
+// Records a direct payment (#14) through record_payment, which stamps paid_at
+// with the database's clock. The service has already checked both people; the
+// function checks again under a lock, so a leave that landed in between is
+// still refused here.
+export async function recordPayment(
+  groupId: string,
+  fromUserId: string,
+  toUserId: string,
+  amountCents: number,
+): Promise<Payment> {
+  const { data, error } = await getDb().rpc("record_payment", {
+    p_group_id: groupId,
+    p_from_user_id: fromUserId,
+    p_to_user_id: toUserId,
+    p_amount_cents: amountCents,
+  });
+  if (error) {
+    if (error.code === CONFLICT_CODE) {
+      if (/recipient/i.test(error.message)) {
+        throw new ValidationError("Check the highlighted fields.", {
+          toUserId: "Choose a current member of this group.",
+        });
+      }
+      throw new ForbiddenError("You're no longer a member of this group.");
+    }
+    if (error.code === CHECK_CODE) {
+      throw new ValidationError("This payment isn't valid.");
+    }
+    throw new Error(`Could not record the payment: ${error.message}`);
+  }
+  const recorded = await findPayment(data as string);
+  if (!recorded) {
+    throw new Error("The recorded payment could not be loaded.");
+  }
+  return recorded;
+}
+
+// The group's payments that someone has sent (#14): paid or confirmed, direct
+// or from a settle-up, last paid first. A suggested payment is only a plan and
+// lives on the settle-up page. `createdBefore` is a former member's left_at,
+// as in listExpenses.
+export async function listGroupPayments(
+  groupId: string,
+  createdBefore: string | null,
+): Promise<Payment[]> {
+  let query = getDb()
+    .from("payments")
+    .select(PAYMENT_COLUMNS)
+    .eq("group_id", groupId)
+    .neq("status", "suggested");
+  if (createdBefore !== null) {
+    query = query.lte("created_at", createdBefore);
+  }
+  const { data, error } = await query.order("paid_at", { ascending: false });
+  if (error) {
+    throw new Error(`Could not load the group's payments: ${error.message}`);
+  }
+  return (data as PaymentRow[]).map(toPayment);
 }
