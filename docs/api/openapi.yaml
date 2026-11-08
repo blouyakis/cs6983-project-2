@@ -133,6 +133,27 @@ paths:
                 $ref: "#/components/schemas/OverviewResponse"
         "401":
           $ref: "#/components/responses/Error"
+  /api/sidebar-groups:
+    get:
+      summary: The sidebar's groups, with my balance in each shared one
+      description: |
+        Issue #89. The groups the sidebar lists: the personal space and every
+        group the user is in now, without the groups they left or that were
+        archived. The `(app)` layout isn't rendered again on client
+        navigation, so the sidebar asks for this after each one, and it shows
+        balances and groups that another member changed. Each balance comes
+        from the same calculation as `GET /api/groups/{groupId}/balances`
+        (#9). A group whose balance can't be loaded is still listed, without
+        `balanceCents`. Sent with `Cache-Control: no-store`.
+      responses:
+        "200":
+          description: The user's sidebar groups.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SidebarGroupListResponse"
+        "401":
+          $ref: "#/components/responses/Error"
   /api/groups:
     get:
       summary: List my groups
@@ -1425,6 +1446,31 @@ components:
       properties:
         overview:
           $ref: "#/components/schemas/Overview"
+    SidebarGroup:
+      type: object
+      required: [id, name, isPersonal]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        isPersonal:
+          type: boolean
+        balanceCents:
+          type: integer
+          description: |
+            The user's balance in a shared group: positive when the group owes
+            them, negative when they owe it. Absent for the personal space and
+            for a group whose balance couldn't be loaded.
+    SidebarGroupListResponse:
+      type: object
+      required: [groups]
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/SidebarGroup"
     GroupListResponse:
       type: object
       required: [groups]
