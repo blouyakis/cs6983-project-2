@@ -3,7 +3,7 @@
 -- recipient confirms it (Section 6.4).
 --
 -- paid_at is the database's now(), like confirm_payment's confirmed_at, so
--- payments_confirmed_after_paid can't fail because the app server's clock runs ahead.
+-- payments_confirmed_after_paid holds even when the app server's clock runs ahead.
 --
 -- Both people must be current members. Their membership rows are locked first, so a leave that
 -- is on its way can't land between this check and the insert. FOR SHARE is enough for that,
