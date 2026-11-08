@@ -338,7 +338,7 @@ export async function recordPayment(
   });
   if (error) {
     if (error.code === CONFLICT_CODE) {
-      if (/recipient/i.test(error.message)) {
+      if (error.hint === "recipient_not_member") {
         throw new ValidationError("Check the highlighted fields.", {
           toUserId: "Choose a current member of this group.",
         });

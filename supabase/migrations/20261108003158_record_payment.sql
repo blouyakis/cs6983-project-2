@@ -7,7 +7,9 @@
 --
 -- Both people must be current members. Their membership rows are locked first, so a leave that
 -- is on its way can't land between this check and the insert. P0001 when either isn't a current
--- member; paying yourself or an amount of 0 or less fails the table's own checks (23514).
+-- member, with the hint sender_not_member or recipient_not_member so the app tells them apart
+-- without reading the message; paying yourself or an amount of 0 or less fails the table's own
+-- checks (23514).
 create function public.record_payment(
   p_group_id uuid,
   p_from_user_id uuid,
@@ -31,14 +33,16 @@ begin
     select 1 from public.group_members
     where group_id = p_group_id and user_id = p_from_user_id and left_at is null
   ) then
-    raise exception 'The sender is not a current member of this group.';
+    raise exception 'The sender is not a current member of this group.'
+      using hint = 'sender_not_member';
   end if;
 
   if not exists (
     select 1 from public.group_members
     where group_id = p_group_id and user_id = p_to_user_id and left_at is null
   ) then
-    raise exception 'The recipient is not a current member of this group.';
+    raise exception 'The recipient is not a current member of this group.'
+      using hint = 'recipient_not_member';
   end if;
 
   insert into public.payments (group_id, from_user_id, to_user_id, amount_cents, status, paid_at)
