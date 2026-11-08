@@ -7,7 +7,13 @@ import { findExpense } from "@/lib/db/expenses";
 import { ForbiddenError, ValidationError } from "@/lib/http/errors";
 import { addExpense, listGroupExpenses } from "@/lib/services/expense-service";
 import type { CreateExpenseInput } from "@/lib/validation/expense";
-import { cleanUp, createGroupWithMembers, createUser, db } from "./fixtures";
+import {
+  cleanUp,
+  createGroupWithMembers,
+  createUser,
+  db,
+  dbNow,
+} from "./fixtures";
 
 afterAll(cleanUp);
 
@@ -141,7 +147,7 @@ describe("addExpense", () => {
 
   it("rejects a sharer who has left the group", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(2);
-    await setMembership(groupId, memberIds[1], new Date().toISOString());
+    await setMembership(groupId, memberIds[1], await dbNow());
 
     await expect(
       addExpense(memberIds[0], groupId, even(memberIds)),
@@ -161,7 +167,7 @@ describe("addExpense", () => {
 
   it("gives a former member a 403, and writes nothing", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(2);
-    await setMembership(groupId, memberIds[1], new Date().toISOString());
+    await setMembership(groupId, memberIds[1], await dbNow());
 
     await expect(
       addExpense(memberIds[1], groupId, even([memberIds[1]])),

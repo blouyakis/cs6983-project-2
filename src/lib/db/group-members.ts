@@ -2,6 +2,7 @@ import "server-only";
 import type { Sharer } from "@/lib/domain/splits";
 import { ConflictError } from "@/lib/http/errors";
 import { getDb } from "./client";
+import { toMicros } from "./timestamps";
 
 const UNIQUE_VIOLATION = "23505";
 const CHECK_VIOLATION = "23514";
@@ -118,15 +119,16 @@ export async function findMembership(
 // For a former member's view, `at` is their left_at, and the members are the
 // ones who had joined by then and hadn't left before it, themselves included.
 // This is the only place in lib/db that decides membership, so the Groups
-// page, the member list and splitting an expense always agree.
+// page, the member list and splitting an expense always agree. Times are
+// compared to the microsecond, as Postgres compares the other cut-offs (#75).
 function isMemberAt(row: MemberRow, at: string | null): boolean {
   if (at === null) {
     return row.left_at === null;
   }
-  const moment = Date.parse(at);
+  const moment = toMicros(at);
   return (
-    Date.parse(row.joined_at) <= moment &&
-    (row.left_at === null || Date.parse(row.left_at) >= moment)
+    toMicros(row.joined_at) <= moment &&
+    (row.left_at === null || toMicros(row.left_at) >= moment)
   );
 }
 
@@ -226,22 +228,17 @@ export async function addMember(
 }
 
 // A former member who is invited again joins from now, at weight 1. They keep
-// one row, so joined_at becomes the time of this join.
-// TODO(#63): follow the same weight rule as addMember.
+// one row, so joined_at becomes the time of this join, from the database's
+// clock (#75).
+// TODO(#63): follow the same weight rule as addMember, in rejoin_member.
 export async function rejoinMember(
   groupId: string,
   userId: string,
 ): Promise<void> {
-  const { error } = await getDb()
-    .from("group_members")
-    .update({
-      left_at: null,
-      joined_at: new Date().toISOString(),
-      default_share_weight: 1,
-    })
-    .eq("group_id", groupId)
-    .eq("user_id", userId)
-    .not("left_at", "is", null);
+  const { error } = await getDb().rpc("rejoin_member", {
+    p_group_id: groupId,
+    p_user_id: userId,
+  });
   if (error) {
     throw toJoinError(error);
   }
