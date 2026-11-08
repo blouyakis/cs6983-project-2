@@ -25,8 +25,10 @@ function withoutBalance({ id, name, isPersonal }: GroupLink): GroupLink {
 // made would stay out of the sidebar while the page shows it (#89). After
 // each navigation this asks GET /api/sidebar-groups again. A navigation that
 // starts before the last answer arrives cancels it, so a late answer never
-// replaces a newer one. If the request fails, the groups stay listed without
-// balances rather than with ones that may be stale.
+// replaces a newer one, and so do new groups from router.refresh(): an answer
+// still on its way may predate the change that refresh shows. If the request
+// fails, the groups stay listed without balances rather than with ones that
+// may be stale.
 function useCurrentGroups(groups: readonly GroupLink[]) {
   const pathname = usePathname();
   const [rendered, setRendered] = useState(groups);
@@ -71,7 +73,10 @@ function useCurrentGroups(groups: readonly GroupLink[]) {
       stale = true;
       controller.abort();
     };
-  }, [pathname]);
+    // `groups` only changes when the layout renders again, after
+    // router.refresh(): the cleanup then cancels the request, and the early
+    // return above keeps it from starting another.
+  }, [pathname, groups]);
   return { pathname, groups: shown };
 }
 
