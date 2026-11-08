@@ -49,11 +49,11 @@
     "vitest": "^5.0.5"
   },
   "lint-staged": {
-    "*.{js,mjs,cjs,ts,tsx}": [
+    "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}": [
       "eslint --fix --no-warn-ignored",
       "prettier --write"
     ],
-    "!(*.{js,mjs,cjs,ts,tsx})": "prettier --write --ignore-unknown"
+    "!(*.{js,jsx,mjs,cjs,ts,tsx,mts,cts})": "prettier --write --ignore-unknown"
   },
   "engines": {
     "node": "26.x"
