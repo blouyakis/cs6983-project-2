@@ -9,7 +9,7 @@ import {
 } from "@/lib/services/expense-edit-service";
 import { addExpense } from "@/lib/services/expense-service";
 import type { UpdateExpenseInput } from "@/lib/validation/expense";
-import { cleanUp, createGroupWithMembers, db } from "./fixtures";
+import { cleanUp, createGroupWithMembers, db, dbNow } from "./fixtures";
 
 afterAll(cleanUp);
 
@@ -66,11 +66,12 @@ async function settle(groupId: string, by: string, expenseId: string) {
   }
 }
 
-// left_at may not be before joined_at, which the fixture set to now.
+// left_at from the database's clock, the one that set joined_at, so it is
+// never before it (#75).
 async function leave(groupId: string, userId: string) {
   const { error } = await db
     .from("group_members")
-    .update({ left_at: new Date(Date.now() + 1000).toISOString() })
+    .update({ left_at: await dbNow() })
     .eq("group_id", groupId)
     .eq("user_id", userId);
   if (error) {
