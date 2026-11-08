@@ -16,6 +16,18 @@ export type GroupLink = {
 
 type GroupLinksProps = { groups: readonly GroupLink[] };
 
+// AppSidebar is `hidden md:flex`, and Tailwind's md breakpoint is 48rem.
+const SIDEBAR_SHOWN = "(min-width: 48rem)";
+
+// Below md the sidebar is hidden but still mounted, so an answer would never
+// be seen. Without matchMedia, assume it is shown.
+function sidebarShown() {
+  return (
+    typeof window.matchMedia !== "function" ||
+    window.matchMedia(SIDEBAR_SHOWN).matches
+  );
+}
+
 function withoutBalance({ id, name, isPersonal }: GroupLink): GroupLink {
   return { id, name, isPersonal };
 }
@@ -43,6 +55,11 @@ function useCurrentGroups(groups: readonly GroupLink[]) {
       return;
     }
     loadedFor.current = pathname;
+    // A phone shows TabBar instead. If the window then widens, the sidebar
+    // catches up at the next navigation.
+    if (!sidebarShown()) {
+      return;
+    }
     const controller = new AbortController();
     let stale = false;
     async function load() {
