@@ -1,10 +1,12 @@
+import {
+  describePayment,
+  type PaymentAction,
+} from "@/components/payments/payment-status";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { Payment } from "@/lib/db/settlements";
 import { formatCents } from "@/lib/domain/money";
 
-// What the viewer can do to a payment: the sender marks it paid, the
-// recipient confirms it.
-export type PaymentAction = "paid" | "confirmed";
+export type { PaymentAction };
 
 type PaymentCardProps = {
   payment: Payment;
@@ -29,31 +31,9 @@ export function PaymentCard({
   busy = false,
   canAct = true,
 }: PaymentCardProps) {
-  const name = (userId: string) =>
-    userId === currentUserId ? "You" : (names[userId] ?? "a former member");
-  const from = name(payment.fromUserId);
-  const to = name(payment.toUserId);
-  const isSender = payment.fromUserId === currentUserId;
-  const isRecipient = payment.toUserId === currentUserId;
-
-  let status: string;
-  let action: PaymentAction | null = null;
-  if (payment.status === "suggested") {
-    status = isSender
-      ? "Suggested · pay however you like"
-      : `Suggested · waiting for ${from} to pay`;
-    action = isSender ? "paid" : null;
-  } else if (payment.status === "paid") {
-    status = isRecipient
-      ? "Marked paid · waiting for you to confirm"
-      : `Marked paid · waiting for ${to} to confirm`;
-    action = isRecipient ? "confirmed" : null;
-  } else {
-    status = "Confirmed · done";
-  }
-  if (!canAct) {
-    action = null;
-  }
+  const described = describePayment(payment, currentUserId, names);
+  const { from, to, status } = described;
+  const action = canAct ? described.action : null;
   const needsYou = action !== null;
 
   return (
