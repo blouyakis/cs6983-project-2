@@ -336,7 +336,8 @@ Positive means the group owes _m_; negative means _m_ owes. Balances in a group 
 |---|---|---|
 | Local | `npm run dev` | `npx supabase start` (Docker), migrations applied with `npx supabase db reset` |
 | CI | GitHub Actions jobs in [ci.yml](../.github/workflows/ci.yml) | Local Supabase started inside the `db-test` job, which runs `npm run test:db` |
-| Preview and production | Vercel (a preview per pull request, production from `main`) | Hosted Supabase project at `https://kytgqdgcurqqjrzhjxcq.supabase.co` |
+| Preview | Vercel, a preview per pull request | None yet (#114) |
+| Production | Vercel, deployed from `main` | Hosted Supabase project at `https://kytgqdgcurqqjrzhjxcq.supabase.co` |
 
 **Hosted database setup.** The Supabase project and environment variables `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are stored in Vercel (production environment) and GitHub secrets. Migrations are applied manually to the hosted database with `SUPABASE_ACCESS_TOKEN` (generated in Supabase → Settings → Access Tokens):
 
@@ -351,11 +352,11 @@ SUPABASE_ACCESS_TOKEN=sbp_... npx supabase db push --dry-run
 SUPABASE_ACCESS_TOKEN=sbp_... npx supabase db push --linked
 ```
 
-Migrations must be applied to the hosted database **before** the PR containing new migrations is merged to `main`, because Vercel deploys `main` on every merge. Preview deploys also use the same hosted database. The workflow:
+Migrations must be applied to the hosted database **before** the PR containing new migrations is merged to `main`, because Vercel deploys `main` on every merge. Preview deploys have no database yet: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set for Production only in Vercel, so on a preview `GET /api/health` answers `503` and every page that reads the database fails. #114 decides whether previews get their own Supabase project; they must not use the production one. The workflow:
 
 1. A PR with a new migration is created and tests pass locally.
 2. A partner (not an agent) runs the migration commands above to apply it to the hosted database.
-3. The partner verifies that a preview URL works (register, create a group, add an expense).
+3. The partner checks that `npx supabase migration list --linked` shows the migration on the hosted database. Previews have no database, so the pages are tested locally.
 4. The PR is merged and Vercel deploys to production.
 
 Seed data stays in `supabase/seed.sql` and is never loaded into the hosted database; CI loads it for local tests.
