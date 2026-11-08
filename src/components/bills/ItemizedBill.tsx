@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { EditExpenseButton } from "@/components/expenses/EditExpenseButton";
 import { formatDay } from "@/components/groups/format-day";
 import type { Member } from "@/lib/db/group-members";
 import { expenseLock } from "@/lib/domain/expense-lock";
@@ -8,9 +7,8 @@ import type { Bill } from "@/lib/services/bill-service";
 
 type ItemizedBillProps = {
   groupId: string;
-  groupName: string;
   bill: Bill;
-  // The group's members, for names and for the edit form.
+  // The group's members, for their names.
   members: Member[];
   currentUserId: string;
   // A group the user left, or an archived one: nothing can be edited.
@@ -55,9 +53,10 @@ function OwedWords({ name, cents }: { name: string; cents: number }) {
 // their share, and one line per member saying who owes whom. Chips switch
 // between the current period and each closed one. Every number comes from
 // the server (AGENTS.md Section 8: the browser never computes balances).
+// Editing stays in Costs: a second "Edit Groceries" on the page would be two
+// controls with one name, so a cost the user can change just has no lock.
 export function ItemizedBill({
   groupId,
-  groupName,
   bill,
   members,
   currentUserId,
@@ -148,14 +147,7 @@ export function ItemizedBill({
                         of {formatCents(line.amountCents)}
                       </p>
                     </div>
-                    {editable ? (
-                      <EditExpenseButton
-                        expense={line}
-                        groupName={groupName}
-                        members={members}
-                        currentUserId={currentUserId}
-                      />
-                    ) : (
+                    {editable ? null : (
                       <span className="text-sm text-muted">
                         <span aria-hidden="true">🔒 </span>
                         {lock === "settled"

@@ -189,7 +189,6 @@ export async function GroupDetail({ params, searchParams }: GroupDetailProps) {
         {bill ? (
           <ItemizedBill
             groupId={group.id}
-            groupName={group.name}
             bill={bill}
             members={group.members}
             currentUserId={userId}

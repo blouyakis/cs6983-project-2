@@ -66,7 +66,6 @@ function setup(
   return render(
     <ItemizedBill
       groupId={groupId}
-      groupName="🏠 Flat"
       bill={value}
       members={members}
       currentUserId={ana}

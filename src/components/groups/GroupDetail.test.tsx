@@ -548,7 +548,6 @@ describe("GroupDetail", () => {
       expect(mocks.getMyBill).toHaveBeenCalledWith(anaId, groupId, null);
       expect(billProps()).toMatchObject({
         groupId,
-        groupName: "🏠 Dorm 4B",
         bill: emptyBill,
         currentUserId: anaId,
         readOnly: false,
