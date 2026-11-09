@@ -92,7 +92,9 @@ export function PaymentHistory({
       {},
     );
     setBusyId(null);
-    focusHeadingNext.current = true;
+    // On a failure the buttons are still there, so the dialog hands focus
+    // back to I didn't get it instead.
+    focusHeadingNext.current = result.ok;
     setDeclining(null);
     if (result.ok) {
       show(describeDecline(payment, nameOf(payment.fromUserId)).done, "done");
