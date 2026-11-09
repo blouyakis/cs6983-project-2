@@ -656,9 +656,9 @@ paths:
         ignored (AGENTS.md Section 6.7). The payer must stay one of the
         sharers, or the request is 400 on `sharedBy`. A former member or an
         archived group gets 403. A member who has left the group keeps the
-        balance they left with, so an edit that changes their share, or
-        takes them out of it, is 409; the description, the day and the
-        current members' shares can still change (#22). Balances are
+        balance they left with, so an expense with a non-zero share of
+        theirs is locked like a settled one: any edit, even of the
+        description, is 409 until a settle-up claims it (#22). Balances are
         computed per request, so they reflect the edit at once.
       parameters:
         - $ref: "#/components/parameters/GroupId"
