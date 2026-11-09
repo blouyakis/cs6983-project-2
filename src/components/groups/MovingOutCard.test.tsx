@@ -1,5 +1,19 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import { MovingOutCard } from "./MovingOutCard";
 
@@ -12,6 +26,24 @@ vi.mock("@/lib/http/api-client", () => ({ postJson: mocks.postJson }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }),
 }));
+
+// jsdom has no showModal, so ConfirmDialog's dialog is opened by hand, as in
+// the other components' tests.
+const realShowModal = HTMLDialogElement.prototype.showModal;
+const realClose = HTMLDialogElement.prototype.close;
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute("open");
+    this.dispatchEvent(new Event("close"));
+  };
+});
+afterAll(() => {
+  HTMLDialogElement.prototype.showModal = realShowModal;
+  HTMLDialogElement.prototype.close = realClose;
+});
 
 const groupId = "0b7e8a10-2222-4333-8444-a55566667777";
 
@@ -40,8 +72,18 @@ function card({
   );
 }
 
+// The card's button, which opens the question.
 function leaveButton() {
   return screen.getByRole("button", { name: /Leave group/ });
+}
+
+// The question's own Leave group button, which leaves.
+function confirmLeave() {
+  fireEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", {
+      name: "Leave group",
+    }),
+  );
 }
 
 beforeEach(() => {
@@ -134,7 +176,7 @@ describe("MovingOutCard", () => {
     card();
 
     fireEvent.click(leaveButton());
-    fireEvent.click(screen.getByRole("button", { name: "Leave group" }));
+    confirmLeave();
 
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/groups"));
     expect(mocks.postJson).toHaveBeenCalledWith(`/api/groups/${groupId}/leave`);
@@ -151,7 +193,7 @@ describe("MovingOutCard", () => {
     card();
 
     fireEvent.click(leaveButton());
-    fireEvent.click(screen.getByRole("button", { name: "Leave group" }));
+    confirmLeave();
 
     expect(await screen.findByRole("status")).toHaveTextContent(message);
     expect(mocks.push).not.toHaveBeenCalled();
