@@ -42,8 +42,11 @@ function members(anaWeight: number, benWeight: number): Member[] {
   ];
 }
 
+const kim = "8b3e4f60-1111-4222-8333-944455556666";
+
 const onSaved = vi.fn();
 const onClose = vi.fn();
+const onMembersChanged = vi.fn();
 
 function open(groupMembers: Member[]) {
   render(
@@ -53,6 +56,7 @@ function open(groupMembers: Member[]) {
       open
       onClose={onClose}
       onSaved={onSaved}
+      onMembersChanged={onMembersChanged}
     />,
   );
 }
@@ -160,12 +164,74 @@ describe("DefaultSplitForm", () => {
     expect(mocks.patchJson).not.toHaveBeenCalled();
   });
 
-  it("shows a 400 from the server next to the fields and stays open", async () => {
+  // update_group's answer when the members changed after the form opened:
+  // the generic message and a field error with no field to sit next to.
+  const membersChanged = {
+    ok: false,
+    error: {
+      code: "VALIDATION_ERROR",
+      message: "Check the highlighted fields.",
+      fields: { memberWeights: "List a weight for every current member." },
+    },
+  };
+
+  it("says the members changed when the weights no longer list them, asks for fresh members and stays open", async () => {
+    mocks.patchJson.mockResolvedValue(membersChanged);
+    open(members(3, 2));
+
+    save();
+
+    expect(
+      await screen.findByText(
+        "The group's members changed while you were editing. The form now lists everyone; check the split and save again.",
+      ),
+    ).toBeInTheDocument();
+    expect(onMembersChanged).toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("gives a member who joined meanwhile an empty field and keeps what was typed for the others", async () => {
+    mocks.patchJson.mockResolvedValue(membersChanged);
+    const { rerender } = render(
+      <DefaultSplitForm
+        groupId={groupId}
+        members={members(3, 2)}
+        open
+        onClose={onClose}
+        onSaved={onSaved}
+        onMembersChanged={onMembersChanged}
+      />,
+    );
+    type("Ana (%)", "50");
+    save();
+    await screen.findByText(/members changed/);
+
+    rerender(
+      <DefaultSplitForm
+        groupId={groupId}
+        members={[
+          ...members(1, 1),
+          { userId: kim, name: "Kim", defaultShareWeight: 1 },
+        ]}
+        open
+        onClose={onClose}
+        onSaved={onSaved}
+        onMembersChanged={onMembersChanged}
+      />,
+    );
+
+    expect(screen.getByLabelText("Ana (%)")).toHaveValue("50");
+    expect(screen.getByLabelText("Ben (%)")).toHaveValue("40");
+    expect(screen.getByLabelText("Kim (%)")).toHaveValue("");
+  });
+
+  it("shows any other 400 from the server above the buttons and stays open", async () => {
     mocks.patchJson.mockResolvedValue({
       ok: false,
       error: {
         code: "VALIDATION_ERROR",
-        message: "The weights must list every current member exactly once.",
+        message: "Send a new name or new weights.",
       },
     });
     open(members(3, 2));
@@ -173,11 +239,9 @@ describe("DefaultSplitForm", () => {
     save();
 
     expect(
-      await screen.findByText(
-        "The weights must list every current member exactly once.",
-      ),
+      await screen.findByText("Send a new name or new weights."),
     ).toBeInTheDocument();
-    expect(onSaved).not.toHaveBeenCalled();
+    expect(onMembersChanged).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
   });
 });

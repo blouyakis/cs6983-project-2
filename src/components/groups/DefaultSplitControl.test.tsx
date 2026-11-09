@@ -110,4 +110,24 @@ describe("DefaultSplitControl", () => {
       "Saved the default split: 60/40 default.",
     );
   });
+
+  it("asks the server for the current members when they changed while the form was open", async () => {
+    mocks.patchJson.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Check the highlighted fields.",
+        fields: { memberWeights: "List a weight for every current member." },
+      },
+    });
+    show(members(3, 2));
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Change the default split" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save split" }));
+
+    await waitFor(() => expect(mocks.refresh).toHaveBeenCalled());
+    expect(screen.getByRole("dialog", { name: "Default split" })).toBeVisible();
+  });
 });
