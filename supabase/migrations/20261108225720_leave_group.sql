@@ -21,8 +21,10 @@
 -- and the group is archived exactly once. Not FOR UPDATE: create_expense and record_payment hold
 -- membership rows FOR SHARE and then insert a row whose foreign key takes KEY SHARE on the group
 -- row, which FOR UPDATE would block while this waits for their membership row, a deadlock. Then
--- the member's row FOR UPDATE, which their FOR SHARE waits for, so a cost or payment can't be
--- written for them between the checks and the update.
+-- the member's row FOR NO KEY UPDATE, which their FOR SHARE waits for, so a cost or payment can't
+-- be written for them between the checks and the update. Not FOR UPDATE here either: left_at is
+-- not part of a key, and FOR UPDATE would also hold up every insert whose foreign key points at
+-- the row (their list items, payments, expenses) for no reason.
 --
 -- left_at and archived_at are the database's now() (#75), the same moment for the last member.
 -- P0001 with the hint not_member, personal_space, pending_payment or nonzero_balance, so the app
@@ -48,7 +50,7 @@ begin
   perform 1
   from public.group_members as gm
   where gm.group_id = p_group_id and gm.user_id = p_user_id and gm.left_at is null
-  for update;
+  for no key update;
   if not found then
     raise exception 'You are not a current member of this group.'
       using hint = 'not_member';
