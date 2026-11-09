@@ -264,7 +264,7 @@ erDiagram
 
 - `from_user_id` and `to_user_id` are different members of the group. `amount_cents > 0`.
 - `status` is `suggested`, `paid` or `confirmed`. See the payment lifecycle below. A `suggested` payment always has a `settlement_id`.
-- `paid_at` is set when the sender marks it paid; `confirmed_at` when the recipient confirms. A check constraint requires neither for `suggested`, only `paid_at` for `paid`, and both for `confirmed`, with `confirmed_at` no earlier than `paid_at`.
+- `paid_at` is set when the sender marks it paid; `confirmed_at` when the recipient confirms. A check constraint requires neither for `suggested`, only `paid_at` for `paid`, and both for `confirmed`, with `confirmed_at` no earlier than `paid_at`. Both come from the database's clock: when the sender marks a settle-up payment paid, `markPaymentPaid` reads `db_now()` and writes it to `paid_at` in the same update that checks the payment is still `suggested`, and `confirm_payment` stamps `confirmed_at` with `now()` (#121).
 - `settlement_id` points to the settle-up that suggested it, or is null for a direct payment until the period closes. It must be a settlement of the same group.
 - A direct payment is written by `record_payment(p_group_id, p_from_user_id, p_to_user_id, p_amount_cents)` (#14). It locks both people's membership rows `FOR SHARE`, so a leave waits for it but adding a cost for them doesn't, fails with `P0001` unless both are current members, and inserts the payment as `paid` with `paid_at = now()`. The database's clock stamps `paid_at` as `confirm_payment` stamps `confirmed_at`, so `confirmed_at` is never earlier than `paid_at`, even when the app server's clock runs ahead.
 
