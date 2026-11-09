@@ -306,6 +306,25 @@ describe("SettleUpPanel", () => {
       );
     });
 
+    // ConfirmDialog hands focus back to I didn't get it, which the refresh
+    // takes away, so focus moves to the Fewest payments heading.
+    it("moves focus to the heading once a decline is answered", async () => {
+      const paid = payment({ status: "paid", paidAt: "2026-11-02T10:00:00Z" });
+      mocks.postJson.mockResolvedValue({
+        ok: true,
+        data: { payment: { ...paid, status: "suggested", paidAt: null } },
+      });
+      panel(settleUp([paid]), sam);
+      const opener = screen.getByRole("button", { name: /I didn't get it/ });
+      opener.focus();
+
+      fireEvent.click(opener);
+      fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
+
+      const heading = screen.getByRole("heading", { name: "Fewest payments" });
+      await waitFor(() => expect(heading).toHaveFocus());
+    });
+
     it("sends nothing when the recipient changes their mind", () => {
       const paid = payment({ status: "paid", paidAt: "2026-11-02T10:00:00Z" });
       panel(settleUp([paid]), sam);

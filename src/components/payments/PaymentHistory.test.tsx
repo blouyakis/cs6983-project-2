@@ -263,8 +263,12 @@ describe("PaymentHistory", () => {
   it("moves focus to the Payments heading once a decline is answered", async () => {
     mocks.postJson.mockResolvedValue({ ok: true, data: undefined });
     history([payment({})], sam);
+    // In a browser the button has focus when pressed, and ConfirmDialog
+    // hands focus back to it on close.
+    const opener = screen.getByRole("button", { name: /I didn't get it/ });
+    opener.focus();
 
-    fireEvent.click(screen.getByRole("button", { name: /I didn't get it/ }));
+    fireEvent.click(opener);
     fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
 
     const heading = screen.getByRole("heading", { name: "Payments" });
