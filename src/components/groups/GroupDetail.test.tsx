@@ -548,12 +548,14 @@ describe("GroupDetail", () => {
       });
     });
 
-    it("gives a zero balance to a user the balances leave out", async () => {
+    // An unknown balance is not a zero one: the card keeps Leave group off
+    // instead of offering a leave the server would refuse (#22 review).
+    it("gives no balance to a user the balances leave out", async () => {
       mocks.getGroup.mockResolvedValue(details());
 
       render(await detail());
 
-      expect(movingOutProps().balanceCents).toBe(0);
+      expect(movingOutProps().balanceCents).toBeNull();
     });
 
     it("says a payment is waiting when one to the user is paid but not confirmed", async () => {

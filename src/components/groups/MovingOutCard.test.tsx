@@ -48,7 +48,7 @@ afterAll(() => {
 const groupId = "0b7e8a10-2222-4333-8444-a55566667777";
 
 type CardProps = {
-  balanceCents?: number;
+  balanceCents?: number | null;
   hasWaitingPayment?: boolean;
   isLastMember?: boolean;
 };
@@ -75,6 +75,19 @@ function card({
 // The card's button, which opens the question.
 function leaveButton() {
   return screen.getByRole("button", { name: /Leave group/ });
+}
+
+// Leave group is off but still focusable, with aria-disabled rather than
+// disabled, so a keyboard or screen reader user reaches it and hears why
+// (AGENTS.md Section 8). Pressing it asks nothing.
+function expectLeaveBlocked() {
+  const button = leaveButton();
+  expect(button).toHaveAttribute("aria-disabled", "true");
+  expect(button).toBeEnabled();
+  button.focus();
+  expect(button).toHaveFocus();
+  fireEvent.click(button);
+  expect(screen.queryByRole("dialog")).toBeNull();
 }
 
 // The question's own Leave group button, which leaves.
@@ -108,7 +121,7 @@ describe("MovingOutCard", () => {
   it("keeps Leave group disabled while the user owes, says so in words and links to settling up", () => {
     card({ balanceCents: -3100 });
 
-    expect(leaveButton()).toBeDisabled();
+    expectLeaveBlocked();
     expect(leaveButton()).toHaveAccessibleDescription(
       "You owe $31.00 in this group.",
     );
@@ -120,7 +133,7 @@ describe("MovingOutCard", () => {
   it("keeps Leave group disabled while the user is owed, and says so in words", () => {
     card({ balanceCents: 4200 });
 
-    expect(leaveButton()).toBeDisabled();
+    expectLeaveBlocked();
     expect(leaveButton()).toHaveAccessibleDescription(
       "You are owed $42.00 in this group.",
     );
@@ -132,16 +145,27 @@ describe("MovingOutCard", () => {
   it("keeps Leave group disabled at a zero balance while a payment is still waiting", () => {
     card({ hasWaitingPayment: true });
 
-    expect(leaveButton()).toBeDisabled();
+    expectLeaveBlocked();
     expect(leaveButton()).toHaveAccessibleDescription(
       "A payment to or from you is still waiting to be paid or confirmed.",
     );
+  });
+
+  it("keeps Leave group off when the user's balance is unknown, without a settle-up link (#22 review)", () => {
+    card({ balanceCents: null });
+
+    expectLeaveBlocked();
+    expect(leaveButton()).toHaveAccessibleDescription(
+      "Your balance in this group couldn't be worked out, so you can't leave right now.",
+    );
+    expect(screen.queryByRole("link", { name: /Settle my/ })).toBeNull();
   });
 
   it("offers Leave group at a zero balance, without a settle-up link", () => {
     card();
 
     expect(leaveButton()).toBeEnabled();
+    expect(leaveButton()).not.toHaveAttribute("aria-disabled");
     expect(screen.queryByRole("link", { name: /Settle my/ })).toBeNull();
   });
 

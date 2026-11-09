@@ -83,7 +83,8 @@ test("a member leaves at zero, keeps read-only history, and the last one to leav
   const card = movingOut(ren.page);
   await expect(card).toContainText("You owe $10.00 in this group.");
   const leave = card.getByRole("button", { name: "Leave group" });
-  await expect(leave).toBeDisabled();
+  // Off but still focusable, so a keyboard user hears why (aria-disabled).
+  await expect(leave).toHaveAttribute("aria-disabled", "true");
   await expect(
     card.getByRole("link", { name: /Settle my \$10\.00 first/ }),
   ).toHaveAttribute("href", `/groups/${groupId}/settle-up`);
@@ -91,7 +92,7 @@ test("a member leaves at zero, keeps read-only history, and the last one to leav
   // He pays for the next shop, which evens him out.
   await logCost(ren.page, "Toilet paper", "20");
   await expect(card.getByRole("link", { name: /Settle my/ })).toHaveCount(0);
-  await expect(leave).toBeEnabled();
+  await expect(leave).not.toHaveAttribute("aria-disabled");
 
   // Leaving asks first, and Cancel keeps him in.
   await leave.click();
