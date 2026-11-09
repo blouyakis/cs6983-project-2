@@ -103,81 +103,83 @@ export async function GroupDetail({ params }: GroupDetailProps) {
   // One notice for the whole page, in one place right above the list, whether
   // it came from Log a cost, the list's form or a row.
   const page = (
-    <NoticeProvider>
-      <div className="flex flex-col gap-8">
-        <header className="flex flex-wrap items-center gap-3">
-          <GroupTile name={group.name} />
-          <h1 className="text-3xl font-bold">{group.name}</h1>
-          {group.readOnly ? <Badge>Read only</Badge> : null}
-          {group.isPersonal ? null : (
-            <Link
-              href={`/groups/${group.id}/settle-up`}
-              aria-label={`Settle up ${group.name}`}
-              className="ml-auto rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-ink)]"
-            >
-              <span aria-hidden="true">💸 </span>Settle up
-            </Link>
-          )}
-        </header>
-        {group.isPersonal ? (
-          <p>Private · nothing here is split or visible to anyone.</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <MemberList
-              members={group.members}
-              currentUserId={userId}
-              balances={balances}
-            />
-            {canSetSplit ? <DefaultSplitControl /> : null}
-          </div>
+    <div className="flex flex-col gap-8">
+      <header className="flex flex-wrap items-center gap-3">
+        <GroupTile name={group.name} />
+        <h1 className="text-3xl font-bold">{group.name}</h1>
+        {group.readOnly ? <Badge>Read only</Badge> : null}
+        {group.isPersonal ? null : (
+          <Link
+            href={`/groups/${group.id}/settle-up`}
+            aria-label={`Settle up ${group.name}`}
+            className="ml-auto rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-ink)]"
+          >
+            <span aria-hidden="true">💸 </span>Settle up
+          </Link>
         )}
-        {group.readOnly ? (
-          <p>You can read this group&apos;s history, but not add to it.</p>
-        ) : null}
-        {group.readOnly ? null : (
-          <AddExpenseButton
-            groups={addableGroups}
+      </header>
+      {group.isPersonal ? (
+        <p>Private · nothing here is split or visible to anyone.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <MemberList
+            members={group.members}
             currentUserId={userId}
-            defaultGroupId={group.id}
+            balances={balances}
           />
-        )}
-        <NoticeLine />
-        <GroupList
+          {canSetSplit ? <DefaultSplitControl /> : null}
+        </div>
+      )}
+      {group.readOnly ? (
+        <p>You can read this group&apos;s history, but not add to it.</p>
+      ) : null}
+      {group.readOnly ? null : (
+        <AddExpenseButton
+          groups={addableGroups}
+          currentUserId={userId}
+          defaultGroupId={group.id}
+        />
+      )}
+      <NoticeLine />
+      <GroupList
+        groupId={group.id}
+        isPersonal={group.isPersonal}
+        readOnly={group.readOnly}
+        items={items}
+        names={names}
+        currentUserId={userId}
+        entryGroups={addableGroups}
+        spentThisMonthCents={spentThisMonthCents}
+      />
+      <ExpenseList
+        expenses={expenses}
+        members={group.members}
+        currentUserId={userId}
+        groupName={group.name}
+        readOnly={group.readOnly}
+        settleUpStartedAt={openSettleUp?.startedAt ?? null}
+      />
+      {payments ? (
+        <PaymentHistory
           groupId={group.id}
-          isPersonal={group.isPersonal}
-          readOnly={group.readOnly}
-          items={items}
+          payments={payments}
           names={names}
           currentUserId={userId}
-          entryGroups={addableGroups}
-          spentThisMonthCents={spentThisMonthCents}
-        />
-        <ExpenseList
-          expenses={expenses}
-          members={group.members}
-          currentUserId={userId}
-          groupName={group.name}
           readOnly={group.readOnly}
-          settleUpStartedAt={openSettleUp?.startedAt ?? null}
         />
-        {payments ? (
-          <PaymentHistory
-            groupId={group.id}
-            payments={payments}
-            names={names}
-            currentUserId={userId}
-            readOnly={group.readOnly}
-          />
-        ) : null}
-        {canSetSplit ? <InviteForm groupId={group.id} /> : null}
-      </div>
-    </NoticeProvider>
+      ) : null}
+      {canSetSplit ? <InviteForm groupId={group.id} /> : null}
+    </div>
   );
-  return canSetSplit ? (
-    <DefaultSplitProvider groupId={group.id} members={group.members}>
-      {page}
-    </DefaultSplitProvider>
-  ) : (
-    page
+  return (
+    <NoticeProvider>
+      {canSetSplit ? (
+        <DefaultSplitProvider groupId={group.id} members={group.members}>
+          {page}
+        </DefaultSplitProvider>
+      ) : (
+        page
+      )}
+    </NoticeProvider>
   );
 }

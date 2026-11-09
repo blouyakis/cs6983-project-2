@@ -25,11 +25,6 @@ export function DefaultSplitControl() {
       >
         Change
       </button>
-      {/* The region stays in the page, so the message is announced when it
-          appears instead of being created along with its text. */}
-      <span role="status" className="sr-only">
-        {split.saved}
-      </span>
     </div>
   );
 }
