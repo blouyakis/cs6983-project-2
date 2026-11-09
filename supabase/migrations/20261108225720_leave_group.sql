@@ -16,11 +16,13 @@
 -- review). A suggested one is part of an open settle-up that can only close once it is paid and
 -- confirmed, even if a cost added since has brought their balance to zero.
 --
--- Locks: the group row first, as start_settlement and the member-cap trigger on a join do, so a
--- settle-up starting, a member joining and the last two members leaving at once each wait for
--- the other and the group is archived exactly once. Then the member's row FOR UPDATE, which
--- record_payment's FOR SHARE waits for, so a payment can't be recorded for them between the
--- checks and the update.
+-- Locks: the group row first, FOR NO KEY UPDATE, so a settle-up starting and a member joining
+-- (both lock it FOR UPDATE) and the last two members leaving at once each wait for the other,
+-- and the group is archived exactly once. Not FOR UPDATE: create_expense and record_payment hold
+-- membership rows FOR SHARE and then insert a row whose foreign key takes KEY SHARE on the group
+-- row, which FOR UPDATE would block while this waits for their membership row, a deadlock. Then
+-- the member's row FOR UPDATE, which their FOR SHARE waits for, so a cost or payment can't be
+-- written for them between the checks and the update.
 --
 -- left_at and archived_at are the database's now() (#75), the same moment for the last member.
 -- P0001 with the hint not_member, personal_space, pending_payment or nonzero_balance, so the app
@@ -41,7 +43,7 @@ begin
   select g.is_personal into v_is_personal
   from public.groups as g
   where g.id = p_group_id
-  for update;
+  for no key update;
 
   perform 1
   from public.group_members as gm
