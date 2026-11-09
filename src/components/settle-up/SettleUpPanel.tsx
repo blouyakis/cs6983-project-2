@@ -6,6 +6,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useNotice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { Payment } from "@/lib/db/settlements";
+import { describeDecline } from "@/components/payments/payment-status";
 import { postJson } from "@/lib/http/api-client";
 import type { SettleUp } from "@/lib/services/settlement-service";
 import { PaymentCard, type PaymentAction } from "./PaymentCard";
@@ -44,6 +45,9 @@ export function SettleUpPanel({
   const { show, clear } = useNotice();
   const [busy, setBusy] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  // The paid payment the recipient is asked about before declining (#108).
+  const [declining, setDeclining] = useState<Payment | null>(null);
+  const nameOf = (userId: string) => names[userId] ?? "a former member";
 
   async function start() {
     setBusy(true);
@@ -91,6 +95,25 @@ export function SettleUpPanel({
         "Confirmed. The period closes when every payment is confirmed.",
         "done",
       );
+    }
+    router.refresh();
+  }
+
+  // The recipient says the money never arrived (#108): the payment goes back
+  // to suggested, so the payer can mark it again.
+  async function decline(payment: Payment) {
+    setBusy(true);
+    clear();
+    const result = await postJson<{ payment: Payment }>(
+      `/api/groups/${groupId}/payments/${payment.id}/decline`,
+      {},
+    );
+    setBusy(false);
+    setDeclining(null);
+    if (result.ok) {
+      show(describeDecline(payment, nameOf(payment.fromUserId)).done, "done");
+    } else {
+      show(result.error.message, "problem");
     }
     router.refresh();
   }
@@ -155,6 +178,7 @@ export function SettleUpPanel({
                   names={names}
                   currentUserId={currentUserId}
                   onAct={act}
+                  onDecline={setDeclining}
                   busy={busy}
                   canAct={!readOnly}
                 />
@@ -179,6 +203,23 @@ export function SettleUpPanel({
             confirmLabel="Yes, cancel it"
             onConfirm={cancel}
             onCancel={() => setConfirmingCancel(false)}
+            busy={busy}
+          />
+          <ConfirmDialog
+            open={declining !== null}
+            message={
+              declining
+                ? describeDecline(declining, nameOf(declining.fromUserId))
+                    .question
+                : ""
+            }
+            confirmLabel="Decline payment"
+            onConfirm={() => {
+              if (declining) {
+                void decline(declining);
+              }
+            }}
+            onCancel={() => setDeclining(null)}
             busy={busy}
           />
         </>
