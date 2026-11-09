@@ -301,8 +301,14 @@ paths:
       summary: Invite by email
       description: |
         Issue #6. Any current member can invite someone who already has an
-        account. The invitee joins right away at share weight 1; there is
-        no accept step. A former member rejoins from now.
+        account. The invitee joins right away; there is no accept step. A
+        former member rejoins from now.
+
+        Issue #63. If every current member has the same share weight, the
+        invitee gets it too, so an even group stays even. If the weights
+        differ, every current member, the invitee included, goes back to
+        weight 1, and `splitReset` is `true`. Joining and the weights change
+        in one transaction, so a `409` changes no weight.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       requestBody:
@@ -313,11 +319,11 @@ paths:
               $ref: "#/components/schemas/InviteRequest"
       responses:
         "201":
-          description: The new member.
+          description: The new member, and whether the group's split was reset to even.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MemberResponse"
+                $ref: "#/components/schemas/InvitationResponse"
         "400":
           description: 'Invalid input, for example `{ "email": "Enter a valid email address." }`.'
           content:
@@ -1667,12 +1673,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GroupSummary"
-    MemberResponse:
+    InvitationResponse:
       type: object
-      required: [member]
+      required: [member, splitReset]
       properties:
         member:
           $ref: "#/components/schemas/Member"
+        splitReset:
+          type: boolean
+          description: |
+            True when the group's members had different weights, so every
+            current member, the new one included, went back to weight 1 (#63).
     GroupName:
       type: string
       description: Trimmed. An emoji at the start becomes the group's tile.

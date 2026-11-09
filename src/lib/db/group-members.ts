@@ -80,7 +80,7 @@ function toMember(row: MemberRow): Member {
   };
 }
 
-// The trigger from #40 and the primary key on (group_id, user_id) both reject
+// The trigger from #40 and add_member's check for a current member both reject
 // a join; the service shows either as a 409.
 function toJoinError(error: { code: string; message: string }): Error {
   if (error.code === CHECK_VIOLATION && error.message.includes("at most 12")) {
@@ -212,34 +212,28 @@ export async function listMemberships(
   }));
 }
 
-// A new member starts at weight 1, an even split (#6).
-// TODO(#63): give the newcomer the shared weight when every weight is equal,
-// or reset the group to 1 when they differ, in one SQL function with the join.
+// What add_member gives back: the newcomer's weight, and whether the group's
+// uneven split went back to even for them (#63).
+export type JoinResult = { weight: number; splitReset: boolean };
+
+type JoinRow = { weight: number; split_reset: boolean };
+
+// Adds a member, or makes a former one current again from now, in one SQL
+// function with the weight rule (#63): the newcomer gets the weight every
+// current member shares, or, when the weights differ, everyone goes back to 1.
+// joined_at comes from the database's clock (#75). A failed join changes no
+// weight.
 export async function addMember(
   groupId: string,
   userId: string,
-): Promise<void> {
-  const { error } = await getDb()
-    .from("group_members")
-    .insert({ group_id: groupId, user_id: userId, default_share_weight: 1 });
-  if (error) {
-    throw toJoinError(error);
-  }
-}
-
-// A former member who is invited again joins from now, at weight 1. They keep
-// one row, so joined_at becomes the time of this join, from the database's
-// clock (#75).
-// TODO(#63): follow the same weight rule as addMember, in rejoin_member.
-export async function rejoinMember(
-  groupId: string,
-  userId: string,
-): Promise<void> {
-  const { error } = await getDb().rpc("rejoin_member", {
+): Promise<JoinResult> {
+  const { data, error } = await getDb().rpc("add_member", {
     p_group_id: groupId,
     p_user_id: userId,
   });
   if (error) {
     throw toJoinError(error);
   }
+  const row = data as JoinRow;
+  return { weight: row.weight, splitReset: row.split_reset };
 }

@@ -15,8 +15,8 @@ export async function POST(
     const userId = await requireSessionUserId(request);
     const { groupId } = parseInput(groupParamsSchema, await context.params);
     const input = parseInput(inviteSchema, await readJson(request));
-    const member = await inviteMember(userId, groupId, input);
-    return NextResponse.json({ member }, { status: 201 });
+    const invitation = await inviteMember(userId, groupId, input);
+    return NextResponse.json(invitation, { status: 201 });
   } catch (error) {
     return toErrorResponse(error);
   }
