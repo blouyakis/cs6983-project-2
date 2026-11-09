@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useNotice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
@@ -48,6 +48,18 @@ export function SettleUpPanel({
   // The paid payment the recipient is asked about before declining (#108).
   const [declining, setDeclining] = useState<Payment | null>(null);
   const nameOf = (userId: string) => names[userId] ?? "a former member";
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Set when a decline is answered; the render that closes the dialog reads it.
+  const focusHeadingNext = useRef(false);
+  // ConfirmDialog hands focus back to I didn't get it when it closes, and the
+  // refresh then takes that button away. This effect runs after the dialog's,
+  // since a parent's effects run after its children's, so the heading wins.
+  useEffect(() => {
+    if (focusHeadingNext.current) {
+      focusHeadingNext.current = false;
+      headingRef.current?.focus();
+    }
+  });
 
   async function start() {
     setBusy(true);
@@ -109,6 +121,7 @@ export function SettleUpPanel({
       {},
     );
     setBusy(false);
+    focusHeadingNext.current = true;
     setDeclining(null);
     if (result.ok) {
       show(describeDecline(payment, nameOf(payment.fromUserId)).done, "done");
@@ -144,7 +157,12 @@ export function SettleUpPanel({
   return (
     <section aria-labelledby="payments-heading" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 id="payments-heading" className="text-xl font-bold">
+        <h2
+          id="payments-heading"
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-xl font-bold"
+        >
           <span aria-hidden="true">🧮 </span>Fewest payments
         </h2>
         {settleUp ? (
