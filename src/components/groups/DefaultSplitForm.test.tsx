@@ -203,7 +203,8 @@ describe("DefaultSplitForm", () => {
         onMembersChanged={onMembersChanged}
       />,
     );
-    type("Ana (%)", "50");
+    type("Ana (%)", "55");
+    type("Ben (%)", "45");
     save();
     await screen.findByText(/members changed/);
 
@@ -221,8 +222,8 @@ describe("DefaultSplitForm", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Ana (%)")).toHaveValue("50");
-    expect(screen.getByLabelText("Ben (%)")).toHaveValue("40");
+    expect(screen.getByLabelText("Ana (%)")).toHaveValue("55");
+    expect(screen.getByLabelText("Ben (%)")).toHaveValue("45");
     expect(screen.getByLabelText("Kim (%)")).toHaveValue("");
   });
 
