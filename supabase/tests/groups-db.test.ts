@@ -440,11 +440,12 @@ describe("addMember", () => {
 
   it("turns a current member into a ConflictError and changes no weight", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(2);
-    await setWeights(groupId, { [memberIds[0]]: 60, [memberIds[1]]: 40 });
+    const weights = { [memberIds[0]]: 60, [memberIds[1]]: 40 };
+    await setWeights(groupId, weights);
 
     await expect(addMember(groupId, memberIds[0])).rejects.toEqual(
       new ConflictError("They are already in this group."),
     );
-    expect(await weightsOf(groupId)).toEqual([60, 40]);
+    expect(await weightsByMember(groupId)).toEqual(weights);
   });
 });
