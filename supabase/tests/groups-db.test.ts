@@ -239,6 +239,19 @@ async function setWeights(
   });
 }
 
+// Each current member's weight by user id, for members who joined in one
+// insert and so share a joined_at, which leaves their order open.
+async function weightsByMember(
+  groupId: string,
+): Promise<Record<string, number>> {
+  return Object.fromEntries(
+    (await listCurrentMemberWeights(groupId)).map((sharer) => [
+      sharer.userId,
+      sharer.weight,
+    ]),
+  );
+}
+
 async function weightsOf(groupId: string): Promise<number[]> {
   return (await listCurrentMemberWeights(groupId)).map(
     (sharer) => sharer.weight,
@@ -395,38 +408,34 @@ describe("addMember", () => {
 
   it("turns a 13th current member into a ConflictError and changes no weight", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(12);
-    await setWeights(
-      groupId,
-      Object.fromEntries(memberIds.map((id, index) => [id, index + 1])),
+    const weights = Object.fromEntries(
+      memberIds.map((id, index) => [id, index + 1]),
     );
+    await setWeights(groupId, weights);
     const newcomer = await createUser();
 
     await expect(addMember(groupId, newcomer)).rejects.toEqual(
       new ConflictError("A group can have at most 12 members."),
     );
-    expect(await weightsOf(groupId)).toEqual(
-      memberIds.map((_, index) => index + 1),
-    );
+    expect(await weightsByMember(groupId)).toEqual(weights);
   });
 
   it("turns a former member rejoining a full group into a ConflictError and changes no weight", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(12);
     await leave(groupId, memberIds[11]);
     await addMember(groupId, await createUser());
-    const current = (await listCurrentMemberWeights(groupId)).map(
-      (sharer) => sharer.userId,
+    const weights = Object.fromEntries(
+      Object.keys(await weightsByMember(groupId)).map((id, index) => [
+        id,
+        index + 1,
+      ]),
     );
-    await setWeights(
-      groupId,
-      Object.fromEntries(current.map((id, index) => [id, index + 1])),
-    );
+    await setWeights(groupId, weights);
 
     await expect(addMember(groupId, memberIds[11])).rejects.toEqual(
       new ConflictError("A group can have at most 12 members."),
     );
-    expect(await weightsOf(groupId)).toEqual(
-      current.map((_, index) => index + 1),
-    );
+    expect(await weightsByMember(groupId)).toEqual(weights);
   });
 
   it("turns a current member into a ConflictError and changes no weight", async () => {
