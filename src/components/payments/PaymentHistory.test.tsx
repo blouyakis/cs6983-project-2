@@ -275,6 +275,26 @@ describe("PaymentHistory", () => {
     await waitFor(() => expect(heading).toHaveFocus());
   });
 
+  // When the decline fails, the row and its buttons are still there, so
+  // ConfirmDialog hands focus back to I didn't get it, ready to retry.
+  it("keeps focus on I didn't get it when the decline fails", async () => {
+    mocks.postJson.mockResolvedValue({
+      ok: false,
+      error: { code: "NETWORK_ERROR", message: "Something went wrong." },
+    });
+    history([payment({})], sam);
+    const opener = screen.getByRole("button", { name: /I didn't get it/ });
+    opener.focus();
+
+    fireEvent.click(opener);
+    fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Something went wrong.")).toBeInTheDocument(),
+    );
+    await waitFor(() => expect(opener).toHaveFocus());
+  });
+
   it("says a declined settle-up payment can be marked paid again", async () => {
     mocks.postJson.mockResolvedValue({
       ok: true,

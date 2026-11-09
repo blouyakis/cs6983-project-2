@@ -325,6 +325,29 @@ describe("SettleUpPanel", () => {
       await waitFor(() => expect(heading).toHaveFocus());
     });
 
+    // When the decline fails, the card and its buttons are still there, so
+    // ConfirmDialog hands focus back to I didn't get it, ready to retry.
+    it("keeps focus on I didn't get it when the decline fails", async () => {
+      const paid = payment({ status: "paid", paidAt: "2026-11-02T10:00:00Z" });
+      mocks.postJson.mockResolvedValue({
+        ok: false,
+        error: { code: "NETWORK_ERROR", message: "Something went wrong." },
+      });
+      panel(settleUp([paid]), sam);
+      const opener = screen.getByRole("button", { name: /I didn't get it/ });
+      opener.focus();
+
+      fireEvent.click(opener);
+      fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
+
+      await waitFor(() =>
+        expect(screen.getByRole("status")).toHaveTextContent(
+          "Something went wrong.",
+        ),
+      );
+      await waitFor(() => expect(opener).toHaveFocus());
+    });
+
     it("sends nothing when the recipient changes their mind", () => {
       const paid = payment({ status: "paid", paidAt: "2026-11-02T10:00:00Z" });
       panel(settleUp([paid]), sam);
