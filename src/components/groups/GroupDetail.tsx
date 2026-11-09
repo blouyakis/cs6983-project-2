@@ -92,10 +92,12 @@ export async function GroupDetail({ params }: GroupDetailProps) {
   const spentThisMonthCents = group.isPersonal
     ? spentInMonthCents(expenses, monthOf(new Date()))
     : null;
-  // Moving out (#22): the user's balance as the server computed it, and
-  // whether a payment of theirs is waiting, in the payment list or the open
-  // settle-up. Only a current member of a shared group can leave.
-  const canMoveOut = !group.isPersonal && !group.readOnly;
+  // A current member of a shared group, who can invite someone and leave
+  // (#22). Not the personal space, which has no invitations and can't be
+  // left, nor a group they left or that is archived.
+  const isActiveSharedMember = !group.isPersonal && !group.readOnly;
+  // Moving out: the user's balance as the server computed it, and whether a
+  // payment of theirs is waiting, in the payment list or the open settle-up.
   // Null, not zero, when the balances leave the user out, so the card keeps
   // Leave group off instead of offering a leave the server would refuse.
   const myBalanceCents =
@@ -175,8 +177,8 @@ export async function GroupDetail({ params }: GroupDetailProps) {
             readOnly={group.readOnly}
           />
         ) : null}
-        {canMoveOut ? <InviteForm groupId={group.id} /> : null}
-        {canMoveOut ? (
+        {isActiveSharedMember ? <InviteForm groupId={group.id} /> : null}
+        {isActiveSharedMember ? (
           <MovingOutCard
             groupId={group.id}
             groupName={group.name}
