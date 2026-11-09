@@ -20,6 +20,8 @@ import {
 import { listGroupListItems } from "@/lib/services/list-item-service";
 import { listPayments } from "@/lib/services/payment-service";
 import { groupParamsSchema } from "@/lib/validation/group";
+import { DefaultSplitControl } from "./DefaultSplitControl";
+import { DefaultSplitProvider } from "./DefaultSplitProvider";
 import { GroupTile } from "./GroupTile";
 import { InviteForm } from "./InviteForm";
 import { MemberList } from "./MemberList";
@@ -94,9 +96,13 @@ export async function GroupDetail({ params }: GroupDetailProps) {
     group.members.map((member) => [member.userId, member.name]),
   );
 
+  // The Default split form, for a current member of a shared group (#63).
+  // DefaultSplitControl and the invite form both open it.
+  const canSetSplit = !group.isPersonal && !group.readOnly;
+
   // One notice for the whole page, in one place right above the list, whether
   // it came from Log a cost, the list's form or a row.
-  return (
+  const page = (
     <NoticeProvider>
       <div className="flex flex-col gap-8">
         <header className="flex flex-wrap items-center gap-3">
@@ -116,11 +122,14 @@ export async function GroupDetail({ params }: GroupDetailProps) {
         {group.isPersonal ? (
           <p>Private · nothing here is split or visible to anyone.</p>
         ) : (
-          <MemberList
-            members={group.members}
-            currentUserId={userId}
-            balances={balances}
-          />
+          <div className="flex flex-col gap-3">
+            <MemberList
+              members={group.members}
+              currentUserId={userId}
+              balances={balances}
+            />
+            {canSetSplit ? <DefaultSplitControl /> : null}
+          </div>
         )}
         {group.readOnly ? (
           <p>You can read this group&apos;s history, but not add to it.</p>
@@ -160,10 +169,15 @@ export async function GroupDetail({ params }: GroupDetailProps) {
             readOnly={group.readOnly}
           />
         ) : null}
-        {!group.isPersonal && !group.readOnly ? (
-          <InviteForm groupId={group.id} />
-        ) : null}
+        {canSetSplit ? <InviteForm groupId={group.id} /> : null}
       </div>
     </NoticeProvider>
+  );
+  return canSetSplit ? (
+    <DefaultSplitProvider groupId={group.id} members={group.members}>
+      {page}
+    </DefaultSplitProvider>
+  ) : (
+    page
   );
 }
