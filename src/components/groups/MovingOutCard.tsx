@@ -64,11 +64,13 @@ export function MovingOutCard({
     setBusy(true);
     clear();
     const result = await postJson(`/api/groups/${groupId}/leave`);
-    setBusy(false);
-    setConfirming(false);
     if (result.ok) {
+      // Stay busy until the page changes: closing the question first would
+      // offer Leave group again for a group the user has already left.
       router.push("/groups");
     } else {
+      setBusy(false);
+      setConfirming(false);
       show(result.error.message, "problem");
     }
     // The sidebar and the page read the groups again, whichever way it went.
