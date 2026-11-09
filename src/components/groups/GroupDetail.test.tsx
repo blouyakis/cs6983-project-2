@@ -210,6 +210,34 @@ describe("GroupDetail", () => {
     expect(screen.getByRole("button", { name: "Invite" })).toBeInTheDocument();
   });
 
+  it("shows the group's default split with a way to change it, next to the members (#63)", async () => {
+    mocks.getGroup.mockResolvedValue(details());
+
+    render(await detail());
+
+    expect(screen.getByText(/^Default split: /)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Change the default split" }),
+    ).toBeInTheDocument();
+  });
+
+  it("has no default split control in the personal space or a read-only group (#63)", async () => {
+    mocks.getGroup.mockResolvedValue(
+      details({ name: "Personal space", isPersonal: true }),
+    );
+    const { unmount } = render(await detail());
+    expect(
+      screen.queryByRole("button", { name: "Change the default split" }),
+    ).not.toBeInTheDocument();
+    unmount();
+
+    mocks.getGroup.mockResolvedValue(details({ readOnly: true }));
+    render(await detail());
+    expect(
+      screen.queryByRole("button", { name: "Change the default split" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("links to the group's settle-up page (#19)", async () => {
     mocks.getGroup.mockResolvedValue(details());
 
