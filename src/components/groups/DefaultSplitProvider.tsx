@@ -17,6 +17,9 @@ type DefaultSplitContextValue = {
   // The current members with their weights, as the page was rendered.
   members: Member[];
   openForm: () => void;
+  // How many times the form has saved, so a message about the split from
+  // before a save can tell it is out of date.
+  saves: number;
 };
 
 const DefaultSplitContext = createContext<DefaultSplitContextValue | null>(
@@ -43,6 +46,7 @@ export function DefaultSplitProvider({
   const [open, setOpen] = useState(false);
   // A new key for each opening, so the form starts from the current weights.
   const [opening, setOpening] = useState(0);
+  const [saves, setSaves] = useState(0);
 
   const value = useMemo(
     () => ({
@@ -52,8 +56,9 @@ export function DefaultSplitProvider({
         setOpening((count) => count + 1);
         setOpen(true);
       },
+      saves,
     }),
-    [members, clear],
+    [members, clear, saves],
   );
 
   return (
@@ -68,6 +73,7 @@ export function DefaultSplitProvider({
         onMembersChanged={() => router.refresh()}
         onSaved={(weights) => {
           show(`Saved the default split: ${describeSplit(weights)}.`, "done");
+          setSaves((count) => count + 1);
           router.refresh();
         }}
       />

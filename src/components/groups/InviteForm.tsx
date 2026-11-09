@@ -20,7 +20,12 @@ export function InviteForm({ groupId }: { groupId: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [joined, setJoined] = useState("");
-  const [splitReset, setSplitReset] = useState(false);
+  // Set when joining reset the split: what it was, and how many saves the
+  // Default split form had made then. A later save makes it out of date.
+  const [reset, setReset] = useState<{ before: string; saves: number }>();
+
+  // The reset message holds only until the Default split form saves again.
+  const stillEven = reset !== undefined && reset.saves === (split?.saves ?? 0);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,7 +33,7 @@ export function InviteForm({ groupId }: { groupId: string }) {
     setPending(true);
     setError(undefined);
     setJoined("");
-    setSplitReset(false);
+    setReset(undefined);
     // The ratio before this join, from the weights the page was rendered with.
     const before = split?.members ?? [];
     const result = await postJson<Invited>(
@@ -38,17 +43,15 @@ export function InviteForm({ groupId }: { groupId: string }) {
     setPending(false);
     if (result.ok) {
       form.reset();
-      const name = result.data.member.name;
+      setJoined(result.data.member.name);
       if (result.data.splitReset) {
         const ratio = toPercents(
           before.map((member) => member.defaultShareWeight),
         ).join("/");
-        setJoined(
-          `${name} joined the group. The default split is now even, because ${ratio} was set for ${before.length} people.`,
-        );
-        setSplitReset(true);
-      } else {
-        setJoined(`${name} joined the group.`);
+        setReset({
+          before: `${ratio} was set for ${before.length} people`,
+          saves: split?.saves ?? 0,
+        });
       }
       router.refresh();
       return;
@@ -79,9 +82,12 @@ export function InviteForm({ groupId }: { groupId: string }) {
         </PrimaryButton>
       </div>
       <p aria-live="polite" className="text-sm font-semibold text-action">
-        {joined}
+        {joined ? `${joined} joined the group.` : null}
+        {joined && stillEven
+          ? ` The default split is now even, because ${reset?.before}.`
+          : null}
       </p>
-      {splitReset && split ? (
+      {stillEven && split ? (
         <button
           type="button"
           onClick={split.openForm}

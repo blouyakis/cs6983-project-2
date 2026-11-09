@@ -9,6 +9,7 @@ import { patchJson } from "@/lib/http/api-client";
 import {
   initialDefaultSplit,
   resolveDefaultSplit,
+  totalPercent,
   type DefaultSplitErrors,
   type DefaultSplitState,
 } from "./default-split";
@@ -53,10 +54,7 @@ export function DefaultSplitForm({
   const [serverError, setServerError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
 
-  const total = members.reduce((sum, member) => {
-    const typed = Number((state.percents[member.userId] ?? "").trim());
-    return Number.isInteger(typed) ? sum + typed : sum;
-  }, 0);
+  const total = totalPercent(state, members);
 
   async function handleSubmit() {
     setServerError(undefined);

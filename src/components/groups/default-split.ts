@@ -42,10 +42,30 @@ export function initialDefaultSplit(
   };
 }
 
+// What a typed percent counts as: a whole number, or nothing. The Total line
+// and a save read the fields the same way.
+function wholePercent(typed: string | undefined): number {
+  const trimmed = (typed ?? "").trim();
+  return WHOLE_NUMBER.test(trimmed) ? Number(trimmed) : NaN;
+}
+
+// The Total line under the percent fields.
+export function totalPercent(
+  state: DefaultSplitState,
+  members: readonly Member[],
+): number {
+  return members.reduce((sum, member) => {
+    const percent = wholePercent(state.percents[member.userId]);
+    return Number.isNaN(percent) ? sum : sum + percent;
+  }, 0);
+}
+
 // Evenly sends weight 1 for everyone. Custom percentages sends each percent as
 // the weight as it is, so 60 and 40 are stored as 60 and 40 (#63); each must be
-// a whole number from 1 to 100 and together they must make 100. Every current
-// member is listed once, as update_group requires.
+// a whole number from 1 to 100 and together they must make 100. Percents left
+// as the form opened them keep the weights they were rounded from, so saving
+// 67 and 33 untouched leaves 60:30 as it was. Every current member is listed
+// once, as update_group requires.
 export function resolveDefaultSplit(
   state: DefaultSplitState,
   members: readonly Member[],
@@ -58,10 +78,23 @@ export function resolveDefaultSplit(
       })),
     };
   }
+  const shown = initialDefaultSplit(members).percents;
+  const untouched = members.every(
+    (member) =>
+      wholePercent(state.percents[member.userId]) ===
+      Number(shown[member.userId]),
+  );
+  if (untouched) {
+    return {
+      memberWeights: members.map((member) => ({
+        userId: member.userId,
+        weight: member.defaultShareWeight,
+      })),
+    };
+  }
   const errors: DefaultSplitErrors = {};
   const memberWeights = members.map((member) => {
-    const typed = (state.percents[member.userId] ?? "").trim();
-    const weight = WHOLE_NUMBER.test(typed) ? Number(typed) : NaN;
+    const weight = wholePercent(state.percents[member.userId]);
     if (!(weight >= 1 && weight <= 100)) {
       errors[member.userId] = ENTER_PERCENT;
     }
