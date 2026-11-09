@@ -45,12 +45,13 @@ export function PaymentHistory({
   // ConfirmDialog hands focus back to I didn't get it when it closes, and the
   // refresh then takes that button away. This effect runs after the dialog's,
   // since a parent's effects run after its children's, so the heading wins.
+  // It only has work to do when the dialog closes.
   useEffect(() => {
-    if (focusHeadingNext.current) {
+    if (declining === null && focusHeadingNext.current) {
       focusHeadingNext.current = false;
       headingRef.current?.focus();
     }
-  });
+  }, [declining]);
   const nameOf = (userId: string) => names[userId] ?? "a former member";
 
   // Disabling the button while the request is on its way drops focus to body

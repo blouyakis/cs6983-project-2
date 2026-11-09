@@ -54,12 +54,13 @@ export function SettleUpPanel({
   // ConfirmDialog hands focus back to I didn't get it when it closes, and the
   // refresh then takes that button away. This effect runs after the dialog's,
   // since a parent's effects run after its children's, so the heading wins.
+  // It only has work to do when the dialog closes.
   useEffect(() => {
-    if (focusHeadingNext.current) {
+    if (declining === null && focusHeadingNext.current) {
       focusHeadingNext.current = false;
       headingRef.current?.focus();
     }
-  });
+  }, [declining]);
 
   async function start() {
     setBusy(true);
@@ -87,7 +88,6 @@ export function SettleUpPanel({
   async function act(payment: Payment, action: PaymentAction) {
     setBusy(true);
     clear();
-    const other = (userId: string) => names[userId] ?? "a former member";
     const result = await postJson<{ payment: Payment; closed?: boolean }>(
       `/api/groups/${groupId}/payments/${payment.id}/${action === "paid" ? "paid" : "confirm"}`,
       {},
@@ -97,7 +97,7 @@ export function SettleUpPanel({
       show(result.error.message, "problem");
     } else if (action === "paid") {
       show(
-        `Marked paid. ${other(payment.toUserId)} can confirm it now.`,
+        `Marked paid. ${nameOf(payment.toUserId)} can confirm it now.`,
         "done",
       );
     } else if (result.data.closed) {
