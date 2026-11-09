@@ -64,6 +64,8 @@ export default defineConfig({
           globalSetup: ["./supabase/tests/global-setup.ts"],
           setupFiles: ["./supabase/tests/setup.ts"],
           sequence: { groupOrder: 1 },
+          // And one at a time, or two of them would race each other.
+          fileParallelism: false,
         },
       },
     ],
