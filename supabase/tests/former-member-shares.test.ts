@@ -1,10 +1,9 @@
 // A former member's balance stays as it was when they left (#22, AGENTS.md
 // Sections 6.7 and 6.8). They left at zero and can no longer settle, so no
-// write may change their share: a new cost can't include them, an edit can't
-// change what they owe, and an expense they have a share in can't be deleted
-// or its list item unchecked until a settle-up locks it. Editing what doesn't
-// touch them, like the description, still works. The database is the last
-// word: P0001 with the hint member_left, which the app answers with 409.
+// write may change their share: a new cost can't include them, and an
+// expense they have a non-zero share in can't be edited, deleted or its list
+// item unchecked until a settle-up locks it. The database is the last word:
+// P0001 with the hint member_left, which the app answers with 409.
 import { afterAll, describe, expect, it } from "vitest";
 import { cleanUp, createGroupWithMembers, db } from "./fixtures";
 
@@ -232,8 +231,11 @@ describe("a new cost", () => {
   });
 });
 
+// Locked like a settled expense (#22 review): any edit is refused while a
+// member who left has a non-zero share, even one that only changes the
+// description, so the rule is the same as for deleting.
 describe("editing an expense a former member shares", () => {
-  it("can change the description and day", async () => {
+  it("is refused, even when only the description and day change", async () => {
     const { ana, ren, expenseId } = await renLeftWithAShare();
 
     const { error } = await updateExpense(
@@ -243,19 +245,8 @@ describe("editing an expense a former member shares", () => {
       "Weekly groceries",
     );
 
-    expect(error).toBeNull();
-  });
-
-  it("can change the current members' shares when the former member's stays the same", async () => {
-    const { ana, ren, expenseId } = await renLeftWithAShare();
-
-    const { error } = await updateExpense(expenseId, 1200, {
-      [ana]: 700,
-      [ren]: 500,
-    });
-
-    expect(error).toBeNull();
-    expect(await sharesOf(expenseId)).toEqual({ [ana]: 700, [ren]: 500 });
+    expect(error?.code).toBe("P0001");
+    expect(error?.hint).toBe("member_left");
   });
 
   it("can't change the former member's share", async () => {
@@ -279,6 +270,47 @@ describe("editing an expense a former member shares", () => {
     expect(error?.code).toBe("P0001");
     expect(error?.hint).toBe("member_left");
     expect(await sharesOf(expenseId)).toEqual({ [ana]: 500, [ren]: 500 });
+  });
+
+  it("is allowed when their share is zero", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(3);
+    const [ana, ren, jo] = memberIds;
+    const expenseId = await mustCreateExpense(groupId, ana, 1000, {
+      [ana]: 1000,
+      [ren]: 0,
+    });
+    await leave(groupId, ren);
+
+    const { error } = await updateExpense(expenseId, 1200, {
+      [ana]: 600,
+      [ren]: 0,
+      [jo]: 600,
+    });
+
+    expect(error).toBeNull();
+    expect(await sharesOf(expenseId)).toEqual({
+      [ana]: 600,
+      [ren]: 0,
+      [jo]: 600,
+    });
+  });
+
+  it("can't give a former member a share they didn't have", async () => {
+    const { groupId, ana, ren, jo } = await renLeftWithAShare();
+    const expenseId = await mustCreateExpense(groupId, ana, 1000, {
+      [ana]: 500,
+      [jo]: 500,
+    });
+
+    const { error } = await updateExpense(expenseId, 1000, {
+      [ana]: 400,
+      [ren]: 100,
+      [jo]: 500,
+    });
+
+    expect(error?.code).toBe("P0001");
+    expect(error?.hint).toBe("member_left");
+    expect(await sharesOf(expenseId)).toEqual({ [ana]: 500, [jo]: 500 });
   });
 });
 

@@ -165,9 +165,15 @@ describe("listGroupListItems", () => {
   describe("a done item with an expense (#12)", () => {
     const expenseId = "5e4f3a2b-5555-4666-8777-d88899990000";
     const paidMilk: ListItem = { ...doneMilk, expenseId };
+    const shares = [
+      { userId: ana, shareCents: 617 },
+      { userId: sam, shareCents: 617 },
+    ];
 
-    it("carries the actual cost, and no lock while the expense can be deleted", async () => {
-      listItems.listListItems.mockResolvedValue([paidMilk, milk]);
+    function checkedOffWith(expense: {
+      settled?: boolean;
+      createdAt?: string;
+    }) {
       listItems.listCheckOffExpenses.mockResolvedValue(
         new Map([
           [
@@ -176,11 +182,25 @@ describe("listGroupListItems", () => {
               amountCents: 1234,
               settled: false,
               createdAt: "2026-11-04T19:00:00+00:00",
+              shares,
+              ...expense,
             },
           ],
         ]),
       );
+    }
+
+    beforeEach(() => {
+      members.listCurrentMemberWeights.mockResolvedValue([
+        { userId: ana, weight: 1 },
+        { userId: sam, weight: 1 },
+      ]);
       settlements.findOpenSettlement.mockResolvedValue(null);
+    });
+
+    it("carries the actual cost, and no lock while the expense can be deleted", async () => {
+      listItems.listListItems.mockResolvedValue([paidMilk, milk]);
+      checkedOffWith({});
 
       expect(await listGroupListItems(ana, groupId)).toEqual([
         { ...paidMilk, costCents: 1234, expenseLock: null },
@@ -191,19 +211,7 @@ describe("listGroupListItems", () => {
 
     it("says the expense is settled", async () => {
       listItems.listListItems.mockResolvedValue([paidMilk]);
-      listItems.listCheckOffExpenses.mockResolvedValue(
-        new Map([
-          [
-            expenseId,
-            {
-              amountCents: 1234,
-              settled: true,
-              createdAt: "2026-11-04T19:00:00+00:00",
-            },
-          ],
-        ]),
-      );
-      settlements.findOpenSettlement.mockResolvedValue(null);
+      checkedOffWith({ settled: true });
 
       const [listed] = await listGroupListItems(ana, groupId);
 
@@ -212,18 +220,7 @@ describe("listGroupListItems", () => {
 
     it("says the expense is in the open settle-up when it was created before it started (#86)", async () => {
       listItems.listListItems.mockResolvedValue([paidMilk]);
-      listItems.listCheckOffExpenses.mockResolvedValue(
-        new Map([
-          [
-            expenseId,
-            {
-              amountCents: 1234,
-              settled: false,
-              createdAt: "2026-11-04T19:00:00+00:00",
-            },
-          ],
-        ]),
-      );
+      checkedOffWith({});
       settlements.findOpenSettlement.mockResolvedValue({
         startedAt: "2026-11-05T09:00:00+00:00",
       });
@@ -231,6 +228,19 @@ describe("listGroupListItems", () => {
       const [listed] = await listGroupListItems(ana, groupId);
 
       expect(listed.expenseLock).toBe("settle-up");
+    });
+
+    it("says someone who shares the expense has left, so it can't be unchecked (#22)", async () => {
+      listItems.listListItems.mockResolvedValue([paidMilk]);
+      checkedOffWith({});
+      members.listCurrentMemberWeights.mockResolvedValue([
+        { userId: ana, weight: 1 },
+      ]);
+
+      const [listed] = await listGroupListItems(ana, groupId);
+
+      expect(listed.expenseLock).toBe("member-left");
+      expect(members.listCurrentMemberWeights).toHaveBeenCalledWith(groupId);
     });
 
     it("has no cost when the expense was deleted on its own", async () => {

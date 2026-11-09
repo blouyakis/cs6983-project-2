@@ -216,6 +216,53 @@ describe("leaving a group through the API", () => {
     expect(await expenseDescriptions(ana, groupId)).toEqual([]);
   });
 
+  it("locks a cost shared with a member who has left: no edit, not even the description, and no delete", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(3);
+    const [ana, ren] = memberIds;
+    // Each cost is 10.00, split evenly between Ana and Ren. He owes 5.00 for
+    // Groceries and is owed 5.00 for Bread, so he leaves at zero with a 5.00
+    // share in Groceries.
+    const shared = await addedExpenseId(
+      addExpense(ana, groupId, [ana, ren], "Groceries"),
+    );
+    await addedExpenseId(addExpense(ren, groupId, [ren, ana], "Bread"));
+    expect((await leave(ren, groupId)).status).toBe(204);
+
+    const locked = {
+      error: {
+        code: "CONFLICT",
+        message:
+          "Someone who shares this expense has left the group, so it can't be changed until it's settled.",
+      },
+    };
+    const edit = await call(
+      editExpenseRoute as Handler,
+      ana,
+      "PATCH",
+      { groupId, expenseId: shared },
+      {
+        description: "Weekly groceries",
+        amountCents: 1000,
+        spentOn: "2026-11-01",
+        mode: "even",
+        sharedBy: [ana],
+      },
+    );
+    expect(edit.status).toBe(409);
+    expect(await edit.json()).toEqual(locked);
+
+    const remove = await call(deleteExpenseRoute as Handler, ana, "DELETE", {
+      groupId,
+      expenseId: shared,
+    });
+    expect(remove.status).toBe(409);
+    expect(await remove.json()).toEqual(locked);
+    expect(await expenseDescriptions(ana, groupId)).toEqual([
+      "Bread",
+      "Groceries",
+    ]);
+  });
+
   it("keeps a group with one member left working, and they can invite someone", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(2);
     const [ana, ren] = memberIds;

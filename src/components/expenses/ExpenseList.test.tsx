@@ -134,6 +134,36 @@ describe("ExpenseList", () => {
     ).toBeInTheDocument();
   });
 
+  it("locks the user's own expense while someone who has left has a share in it, and says so (#22)", () => {
+    setup([
+      expense({
+        id: "a",
+        shares: [
+          { userId: ana, shareCents: 2255 },
+          { userId: gone, shareCents: 2255 },
+        ],
+      }),
+      expense({
+        id: "b",
+        description: "Pizza",
+        shares: [
+          { userId: ana, shareCents: 4510 },
+          { userId: gone, shareCents: 0 },
+        ],
+      }),
+    ]);
+
+    const rows = within(screen.getByRole("list")).getAllByRole("listitem");
+    expect(within(rows[0]).queryByRole("button")).toBeNull();
+    expect(
+      within(rows[0]).getByText("Shared with someone who left"),
+    ).toBeInTheDocument();
+    // A zero share doesn't count: deleting or editing it changes no balance.
+    expect(
+      within(rows[1]).getByRole("button", { name: /Edit Pizza/ }),
+    ).toBeInTheDocument();
+  });
+
   it("offers no Edit in a read-only group, even on the user's own", () => {
     setup([expense({ id: "mine" })], true);
 

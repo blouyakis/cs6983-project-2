@@ -118,6 +118,19 @@ test("a member leaves at zero, keeps read-only history, and the last one to leav
   await expect(
     costs(ana.page).getByRole("listitem").filter({ hasText: "Light bulbs" }),
   ).toBeVisible();
+  // Ren keeps the balance he left with, so the costs he shares are locked
+  // until a settle-up claims them, and the lock says why.
+  const groceries = costs(ana.page)
+    .getByRole("listitem")
+    .filter({ hasText: "Groceries" });
+  await expect(groceries).toContainText("Shared with someone who left");
+  await expect(groceries.getByRole("button", { name: /Edit/ })).toHaveCount(0);
+  await expect(
+    costs(ana.page)
+      .getByRole("listitem")
+      .filter({ hasText: "Light bulbs" })
+      .getByRole("button", { name: "Edit Light bulbs" }),
+  ).toBeVisible();
 
   // Ren reads what was there before he left, not what was added after, and
   // can add nothing.
