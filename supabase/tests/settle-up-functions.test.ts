@@ -103,10 +103,14 @@ async function paymentsOf(settlementId: string) {
   return data!;
 }
 
+// paid_at comes from the database's clock, like confirm_payment's
+// confirmed_at, so a Docker VM clock behind the host's can't break
+// payments_confirmed_after_paid (#121).
 async function markPaid(paymentId: string) {
+  const { data: paidAt } = await db.rpc("db_now");
   const { error } = await db
     .from("payments")
-    .update({ status: "paid", paid_at: new Date().toISOString() })
+    .update({ status: "paid", paid_at: paidAt })
     .eq("id", paymentId);
   if (error) {
     throw error;
