@@ -104,7 +104,7 @@ Built components are in `src/components/ui/`, so reuse them before making a new 
 
 - **MemberList** is titled "Members · all equal, anyone can invite". Each row has an avatar, a name and a balance `Badge`.
 - **InviteForm** is an email field with an Invite button. It is not shown in the personal space.
-- **MovingOutCard** has a dashed `owe` border and says "You can leave once your balance is $0.00, through a group settle-up or a direct payment." Its buttons are Settle my $31 first and Leave group. Leave group stays disabled until the balance is zero.
+- **MovingOutCard** (#22) has a dashed `owe` border and says "You can leave once your balance is $0.00, through a group settle-up or a direct payment." Its buttons are Settle my $31 first, a link to the group's settle-up page, and Leave group. Leave group stays disabled until the balance is zero and no payment to or from the user is waiting, and a line under the text says why in words ("You owe $31.00 in this group.", "You are owed $42.00 in this group." or "A payment to or from you is still waiting to be paid or confirmed."), tied to the button with `aria-describedby`. At a zero balance there is nothing to settle, so Settle my $X first is hidden. Leave group asks first in a `ConfirmDialog` ("Leave Flat? You'll keep read-only access to its history up to today.", adding that the group will be archived when the user is its last member), then goes to Groups. The card is only on a shared group the user can still write to.
 
 ## Do's and Don'ts
 
