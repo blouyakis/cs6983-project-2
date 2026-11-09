@@ -96,8 +96,11 @@ export async function GroupDetail({ params }: GroupDetailProps) {
   // whether a payment of theirs is waiting, in the payment list or the open
   // settle-up. Only a current member of a shared group can leave.
   const canMoveOut = !group.isPersonal && !group.readOnly;
+  // Null, not zero, when the balances leave the user out, so the card keeps
+  // Leave group off instead of offering a leave the server would refuse.
   const myBalanceCents =
-    balances?.find((balance) => balance.userId === userId)?.balanceCents ?? 0;
+    balances?.find((balance) => balance.userId === userId)?.balanceCents ??
+    null;
   const myPaymentWaiting = hasWaitingPayment(userId, [
     ...(payments ?? []),
     ...(openSettleUp?.payments ?? []),

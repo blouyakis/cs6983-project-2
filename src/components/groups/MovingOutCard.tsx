@@ -12,7 +12,8 @@ type MovingOutCardProps = {
   groupId: string;
   groupName: string;
   // The user's balance from the server: positive when the group owes them.
-  balanceCents: number;
+  // Null when it couldn't be worked out, which blocks leaving like a debt.
+  balanceCents: number | null;
   // A payment to or from the user is still suggested or paid.
   hasWaitingPayment: boolean;
   // The user is the group's only current member, so leaving archives it.
@@ -22,9 +23,12 @@ type MovingOutCardProps = {
 // Why Leave group is off, in words (AGENTS.md Section 8: never color alone),
 // or null when the user can leave. The server checks the same again.
 function blockedReason(
-  balanceCents: number,
+  balanceCents: number | null,
   hasWaitingPayment: boolean,
 ): string | null {
+  if (balanceCents === null) {
+    return "Your balance in this group couldn't be worked out, so you can't leave right now.";
+  }
   if (balanceCents < 0) {
     return `You owe ${formatCents(-balanceCents)} in this group.`;
   }
@@ -93,7 +97,7 @@ export function MovingOutCard({
         </p>
       ) : null}
       <div className="flex flex-wrap justify-end gap-3">
-        {balanceCents !== 0 ? (
+        {balanceCents !== null && balanceCents !== 0 ? (
           <Link
             href={`/groups/${groupId}/settle-up`}
             className="rounded-lg border-2 border-ink bg-action px-4 py-2 font-semibold text-white shadow-[3px_3px_0_0_var(--color-ink)]"
@@ -102,15 +106,21 @@ export function MovingOutCard({
             <span aria-hidden="true"> 💸</span>
           </Link>
         ) : null}
+        {/* aria-disabled, not disabled, keeps it focusable, so a keyboard or
+            screen reader user reaches it and hears the reason (as in
+            ConfirmDialog). */}
         <button
           type="button"
-          disabled={reason !== null}
+          aria-disabled={reason !== null || undefined}
           aria-describedby={reason ? reasonId : undefined}
           onClick={() => {
+            if (reason !== null) {
+              return;
+            }
             clear();
             setConfirming(true);
           }}
-          className="rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold disabled:border-muted disabled:bg-disabled disabled:text-muted"
+          className="rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold aria-disabled:cursor-not-allowed aria-disabled:border-muted aria-disabled:bg-disabled aria-disabled:text-muted"
         >
           Leave group<span aria-hidden="true"> 🚪</span>
         </button>
