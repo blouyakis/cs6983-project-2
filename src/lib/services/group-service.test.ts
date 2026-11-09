@@ -11,6 +11,7 @@ import {
   createGroup,
   getGroup,
   inviteMember,
+  leaveGroup,
   listGroups,
   updateGroup,
 } from "./group-service";
@@ -21,6 +22,7 @@ vi.mock("./access", () => access);
 const members = vi.hoisted(() => ({
   addMember: vi.fn(),
   findMembership: vi.fn(),
+  leaveGroup: vi.fn(),
   listCurrentMembers: vi.fn(),
   listMembersAt: vi.fn(),
   listMemberships: vi.fn(),
@@ -408,5 +410,52 @@ describe("updateGroup", () => {
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
     expect(groups.updateGroup).not.toHaveBeenCalled();
+  });
+});
+
+describe("leaveGroup", () => {
+  it("leaves through the database after checking write access (#22)", async () => {
+    grantAccess();
+
+    await leaveGroup(userId, groupId);
+
+    expect(access.requireGroupAccess).toHaveBeenCalledWith(
+      userId,
+      groupId,
+      "write",
+    );
+    expect(members.leaveGroup).toHaveBeenCalledWith(groupId, userId);
+  });
+
+  it("passes on the 403 for a former member, an archived group or a stranger, leaving nothing", async () => {
+    access.requireGroupAccess.mockRejectedValue(
+      new ForbiddenError(
+        "You left this group, so you can only read its history.",
+      ),
+    );
+
+    await expect(leaveGroup(userId, groupId)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(members.leaveGroup).not.toHaveBeenCalled();
+  });
+
+  it("refuses to leave a personal space with 403, before asking the database", async () => {
+    grantAccess({ isPersonal: true });
+
+    await expect(leaveGroup(userId, groupId)).rejects.toEqual(
+      new ForbiddenError("You can't leave your personal space."),
+    );
+    expect(members.leaveGroup).not.toHaveBeenCalled();
+  });
+
+  it("passes on the 409 for a balance that isn't zero", async () => {
+    grantAccess();
+    const refusal = new ConflictError(
+      "Settle up first: you can leave once your balance in this group is $0.00.",
+    );
+    members.leaveGroup.mockRejectedValue(refusal);
+
+    await expect(leaveGroup(userId, groupId)).rejects.toBe(refusal);
   });
 });

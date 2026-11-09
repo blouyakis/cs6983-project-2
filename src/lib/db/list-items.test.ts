@@ -16,7 +16,7 @@ import {
 
 type Result = {
   data: unknown;
-  error: { message: string; code?: string } | null;
+  error: { message: string; code?: string; hint?: string } | null;
 };
 
 const queries: { method: string; args: unknown[] }[] = [];
@@ -386,6 +386,22 @@ describe("completeOpenListItem", () => {
         shares: {},
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("is a 409 with the database's reason when a sharer has left the group (#22)", async () => {
+    const message =
+      "This would change the balance of someone who has left this group.";
+    result = {
+      data: null,
+      error: { message, code: "P0001", hint: "member_left" },
+    };
+
+    await expect(
+      completeOpenListItem(groupId, itemId, anaId, {
+        amountCents: 1000,
+        shares: { [anaId]: 1000 },
+      }),
+    ).rejects.toEqual(new ConflictError(message));
   });
 
   it("throws when the call fails", async () => {
