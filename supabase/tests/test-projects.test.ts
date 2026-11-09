@@ -13,6 +13,7 @@ type Project = {
     name?: string;
     include?: string[];
     exclude?: string[];
+    fileParallelism?: boolean;
     sequence?: { groupOrder?: number };
   };
 };
@@ -62,4 +63,12 @@ describe("db test projects", () => {
       );
     },
   );
+
+  // Two whole-table files side by side would race each other the same way.
+  it.each(files)("runs %s one file at a time", (file) => {
+    const later = projects
+      .map((p) => p.test)
+      .find((p) => p?.include?.includes(file));
+    expect(later?.fileParallelism).toBe(false);
+  });
 });
