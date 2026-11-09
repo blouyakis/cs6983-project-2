@@ -3,6 +3,7 @@ import type { ExpenseLock } from "@/lib/domain/expense-lock";
 import type { ListItemStatus } from "@/lib/domain/list-stats";
 import { ConflictError, ForbiddenError } from "@/lib/http/errors";
 import { getDb } from "./client";
+import { MEMBER_LEFT_HINT } from "./expenses";
 
 // Things to do or buy, in a group or a personal space (#11). Checking an item
 // off and unchecking it write two tables, so they are Postgres functions (#12).
@@ -296,6 +297,10 @@ export async function completeOpenListItem(
     }
     if (error.code === NOT_ALLOWED_ERROR_CODE) {
       throw new ForbiddenError();
+    }
+    // A sharer left the group after the service checked (#22).
+    if (error.hint === MEMBER_LEFT_HINT) {
+      throw new ConflictError(error.message);
     }
     throw new Error(`Could not check off the list item: ${error.message}`);
   }
