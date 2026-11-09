@@ -66,6 +66,38 @@ async function inviteSomeone(page: Page, browser: Browser, name: string) {
   await expect(page.getByText(`${name} joined the group.`)).toBeVisible();
 }
 
+// Registers someone else, invites them to the group on `page`, and has them
+// record a direct payment to the owner of `page`, so `page` has a paid payment
+// to decline (#108). Leaves `page` on the group page.
+async function invitePayer(
+  page: Page,
+  browser: Browser,
+  groupId: string,
+  name: string,
+) {
+  const context = await browser.newContext();
+  const other = await context.newPage();
+  const email = uniqueEmail(name.toLowerCase());
+  await other.goto("/register");
+  await other.getByLabel("Name").fill(name);
+  await other.getByLabel("Email").fill(email);
+  await other.getByLabel("Password").fill("correct horse");
+  await other.getByRole("button", { name: "Create account" }).click();
+  await expect(other).toHaveURL("/");
+
+  const invite = page.getByRole("form", { name: "Invite a member" });
+  await invite.getByLabel("Email").fill(email);
+  await invite.getByRole("button", { name: "Invite" }).click();
+  await expect(page.getByText(`${name} joined the group.`)).toBeVisible();
+
+  const form = await openPaymentForm(other, groupId);
+  await form.getByLabel("Amount").fill("5");
+  await form.getByRole("button", { name: "Record payment" }).click();
+  await expect(form).toBeHidden();
+  await context.close();
+  await page.goto(`/groups/${groupId}`);
+}
+
 // Opens the Pay one person directly form on the group's settle-up page.
 async function openPaymentForm(page: Page, groupId: string) {
   await page.goto(`/groups/${groupId}/settle-up`);
@@ -294,6 +326,30 @@ for (const viewport of viewports) {
     }
     await page.keyboard.press("Escape");
     await expect(form).toBeHidden();
+  });
+
+  test(`the decline dialog passes the WCAG 2.1 AA check, traps focus and closes with Escape on ${viewport.name}`, async ({
+    page,
+    browser,
+  }) => {
+    await page.setViewportSize(viewport);
+    await register(page, "Fay");
+    const groupId = await createGroup(page, "🏠 Dorm 4B");
+    await invitePayer(page, browser, groupId, "Gus");
+
+    const opener = page.getByRole("button", { name: /I didn't get it/ });
+    await opener.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText("Didn't get $5.00 from Gus?");
+    await expectNoViolations(page);
+    await expectFitsTheScreen(page);
+    for (let press = 0; press < 6; press += 1) {
+      await page.keyboard.press("Tab");
+      await focusIsInside(page, dialog);
+    }
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await expect(opener).toBeFocused();
   });
 }
 

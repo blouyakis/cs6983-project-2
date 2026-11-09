@@ -116,3 +116,56 @@ test("pay one person directly, and the balances move once the recipient confirms
   );
   expect(byAna.status()).toBe(403);
 });
+
+// #108: the recipient says a direct payment never arrived, and it is removed.
+test("the recipient declines a direct payment, and it is removed with no balance change", async ({
+  browser,
+}) => {
+  const ana = await newUser(browser, "Ana");
+  const sam = await newUser(browser, "Sam");
+  const groupId = await groupOfTwo(ana, sam);
+
+  await ana.page.goto(`/groups/${groupId}/settle-up`);
+  await ana.page.getByRole("button", { name: /^Pay/ }).click();
+  const form = ana.page.getByRole("dialog", {
+    name: "Pay one person directly",
+  });
+  await form.getByLabel("Amount").fill("8.83");
+  await form.getByRole("button", { name: "Record payment" }).click();
+  await expect(form).toBeHidden();
+
+  // Only the recipient can decline it.
+  const listed = await ana.page.request.get(`/api/groups/${groupId}/payments`);
+  const [payment] = (await listed.json()).payments;
+  const byAna = await ana.page.request.post(
+    `/api/groups/${groupId}/payments/${payment.id}/decline`,
+  );
+  expect(byAna.status()).toBe(403);
+
+  await sam.page.goto(`/groups/${groupId}`);
+  await paymentRows(sam.page)
+    .first()
+    .getByRole("button", { name: /I didn't get it/ })
+    .click();
+  const dialog = sam.page.getByRole("dialog");
+  await expect(dialog).toContainText(
+    "Didn't get $8.83 from Ana? The payment is removed, and Ana can record it again once it's sent.",
+  );
+  await dialog.getByRole("button", { name: "Decline payment" }).click();
+  await expect(sam.page.getByRole("status")).toHaveText(
+    "Declined. The $8.83 from Ana is removed.",
+  );
+  await expect(sam.page.getByText("No payments yet.")).toBeVisible();
+  await expect(
+    sam.page.getByRole("heading", { name: "Payments", exact: true }),
+  ).toBeFocused();
+
+  // Nobody's balance moved, and the payment is gone for Ana too.
+  await ana.page.goto(`/groups/${groupId}`);
+  await expect(paymentRows(ana.page)).toHaveCount(0);
+  await expect(memberRow(ana.page, "Sam")).toContainText("settled up");
+  const gone = await sam.page.request.post(
+    `/api/groups/${groupId}/payments/${payment.id}/decline`,
+  );
+  expect(gone.status()).toBe(404);
+});
