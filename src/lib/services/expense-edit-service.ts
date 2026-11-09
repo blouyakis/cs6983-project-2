@@ -33,7 +33,10 @@ async function requireEditableExpense(
   expenseId: string,
 ): Promise<{ expense: Expense; currentMemberIds: Set<string> }> {
   await requireGroupAccess(userId, groupId, "write");
-  const expense = await findExpense(expenseId);
+  const [expense, current] = await Promise.all([
+    findExpense(expenseId),
+    listCurrentMemberWeights(groupId),
+  ]);
   if (!expense || expense.groupId !== groupId) {
     throw new NotFoundError("This expense doesn't exist.");
   }
@@ -42,9 +45,7 @@ async function requireEditableExpense(
       "Only the person who paid can change this expense.",
     );
   }
-  const currentMemberIds = new Set(
-    (await listCurrentMemberWeights(groupId)).map((member) => member.userId),
-  );
+  const currentMemberIds = new Set(current.map((member) => member.userId));
   const lock = expenseLock(expense, null, currentMemberIds);
   if (lock === "settled") {
     throw new ConflictError(
