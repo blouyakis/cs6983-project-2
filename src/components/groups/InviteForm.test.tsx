@@ -122,6 +122,37 @@ describe("InviteForm", () => {
     expect(screen.getByRole("dialog", { name: "Default split" })).toBeVisible();
   });
 
+  it("stops saying the split is even once a new split is saved (#63)", async () => {
+    mocks.postJson.mockResolvedValue({
+      ok: true,
+      data: {
+        member: { userId: "s", name: "Sam", defaultShareWeight: 1 },
+        splitReset: true,
+      },
+    });
+    mocks.patchJson.mockResolvedValue({ ok: true, data: {} });
+
+    inviteInto([ana, ben], "sam@example.com");
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Set a new split" }),
+    );
+    fireEvent.change(screen.getByLabelText("Ana (%)"), {
+      target: { value: "70" },
+    });
+    fireEvent.change(screen.getByLabelText("Ben (%)"), {
+      target: { value: "30" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save split" }));
+
+    expect(
+      await screen.findByText("Sam joined the group."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/is now even/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Set a new split" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("says only who joined when the split was not reset", async () => {
     mocks.postJson.mockResolvedValue({
       ok: true,

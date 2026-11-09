@@ -3,6 +3,7 @@ import type { Member } from "@/lib/db/group-members";
 import {
   initialDefaultSplit,
   resolveDefaultSplit,
+  totalPercent,
   type DefaultSplitState,
 } from "./default-split";
 
@@ -110,9 +111,52 @@ describe("resolveDefaultSplit", () => {
     },
   );
 
+  it("keeps weights 60 and 30 when the 67 and 33 shown for them are saved untouched", () => {
+    const members = [weighted(ana, 60), weighted(ben, 30)];
+    expect(
+      resolveDefaultSplit(custom({ "ana-id": "67", "ben-id": "33" }), members),
+    ).toEqual({
+      memberWeights: [
+        { userId: "ana-id", weight: 60 },
+        { userId: "ben-id", weight: 30 },
+      ],
+    });
+  });
+
+  it("stores the typed percents once one of them changes", () => {
+    const members = [weighted(ana, 60), weighted(ben, 30)];
+    expect(
+      resolveDefaultSplit(custom({ "ana-id": "70", "ben-id": "30" }), members),
+    ).toEqual({
+      memberWeights: [
+        { userId: "ana-id", weight: 70 },
+        { userId: "ben-id", weight: 30 },
+      ],
+    });
+  });
+
   it("treats a member with no field as empty", () => {
     expect(
       resolveDefaultSplit(custom({ "ana-id": "100" }), [ana, ben]),
     ).toEqual({ errors: { "ben-id": "Enter a whole percent from 1 to 100." } });
   });
+});
+
+describe("totalPercent", () => {
+  it("adds up the whole percents typed", () => {
+    expect(
+      totalPercent(custom({ "ana-id": " 60 ", "ben-id": "40" }), [ana, ben]),
+    ).toBe(100);
+  });
+
+  it.each([
+    [{ "ana-id": "1e2", "ben-id": "0x32" }, 0],
+    [{ "ana-id": "-20", "ben-id": "120" }, 120],
+    [{ "ana-id": "12.5", "ben-id": "" }, 0],
+  ])(
+    "counts only what a save reads as a whole number: %j is %i",
+    (percents, total) => {
+      expect(totalPercent(custom(percents), [ana, ben])).toBe(total);
+    },
+  );
 });
