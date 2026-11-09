@@ -6,7 +6,7 @@
 // PostgREST (each request is its own transaction), so these test the states
 // each race ends in, and the locks are reviewed in the migration.
 import { afterAll, describe, expect, it } from "vitest";
-import { anonDb, cleanUp, createGroupWithMembers, db } from "./fixtures";
+import { anonDb, cleanUp, createGroupWithMembers, db, dbNow } from "./fixtures";
 
 afterAll(cleanUp);
 
@@ -16,14 +16,6 @@ type Suggested = {
   amount_cents: number;
 };
 type Balance = { user_id: string; balance_cents: number };
-
-async function dbNow(): Promise<string> {
-  const { data, error } = await db.rpc("db_now");
-  if (error) {
-    throw error;
-  }
-  return data as string;
-}
 
 async function addExpense(
   groupId: string,
@@ -84,10 +76,9 @@ async function statusOf(settlementId: string) {
 // confirmed_at, so a Docker VM clock behind the host's can't break
 // payments_confirmed_after_paid (#121).
 async function markPaid(paymentId: string) {
-  const { data: paidAt } = await db.rpc("db_now");
   const { error } = await db
     .from("payments")
-    .update({ status: "paid", paid_at: paidAt })
+    .update({ status: "paid", paid_at: await dbNow() })
     .eq("id", paymentId);
   if (error) {
     throw error;
@@ -305,7 +296,7 @@ describe("cancel_settlement", () => {
   it("never deletes a payment that was marked paid, even when both land at once", async () => {
     const { groupId, settlementId } = await startedWithDebt();
     const [suggested] = await paymentsOf(settlementId);
-    const { data: paidAt } = await db.rpc("db_now");
+    const paidAt = await dbNow();
 
     const [cancelled, paid] = await Promise.all([
       db.rpc("cancel_settlement", { p_group_id: groupId }),
