@@ -70,7 +70,7 @@ export function PaymentCard({
               type="button"
               disabled={busy}
               onClick={() => onDecline(payment)}
-              className="rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action"
+              className="rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:bg-disabled disabled:text-ink"
             >
               {"I didn't get it"}
             </button>
