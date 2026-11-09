@@ -1,6 +1,7 @@
 import "server-only";
 import type { ExpenseLock } from "@/lib/domain/expense-lock";
 import type { ListItemStatus } from "@/lib/domain/list-stats";
+import type { Share } from "@/lib/domain/splits";
 import { ConflictError, ForbiddenError } from "@/lib/http/errors";
 import { getDb } from "./client";
 import { MEMBER_LEFT_HINT } from "./expenses";
@@ -226,6 +227,7 @@ export type CheckOffExpense = {
   amountCents: number;
   settled: boolean;
   createdAt: string;
+  shares: Share[];
 };
 
 type CheckOffExpenseRow = {
@@ -233,10 +235,12 @@ type CheckOffExpenseRow = {
   amount_cents: number;
   settlement_id: string | null;
   created_at: string;
+  expense_shares: { user_id: string; share_cents: number }[];
 };
 
 // The expenses done items were checked off with, by id: what each cost, and
-// what it takes to tell whether it is locked (lib/domain/expense-lock.ts).
+// what it takes to tell whether it is locked (lib/domain/expense-lock.ts),
+// including the shares, for a sharer who has left (#22).
 export async function listCheckOffExpenses(
   expenseIds: readonly string[],
 ): Promise<Map<string, CheckOffExpense>> {
@@ -246,7 +250,9 @@ export async function listCheckOffExpenses(
   }
   const { data, error } = await getDb()
     .from("expenses")
-    .select("id, amount_cents, settlement_id, created_at")
+    .select(
+      "id, amount_cents, settlement_id, created_at, expense_shares(user_id, share_cents)",
+    )
     .in("id", expenseIds);
   if (error) {
     throw new Error(`Could not load the list's expenses: ${error.message}`);
@@ -256,6 +262,10 @@ export async function listCheckOffExpenses(
       amountCents: row.amount_cents,
       settled: row.settlement_id !== null,
       createdAt: row.created_at,
+      shares: row.expense_shares.map((share) => ({
+        userId: share.user_id,
+        shareCents: share.share_cents,
+      })),
     });
   }
   return expenses;

@@ -4,11 +4,11 @@
 --
 -- - a new cost, added directly or by checking off a list item, has only current members as payer
 --   and sharers;
--- - an edit may change the description, the day and the current members' shares, but not the
---   share of a member who left;
--- - an expense with a non-zero share of a member who left can't be deleted, so its list item
---   can't be unchecked either (reopen_list_item deletes through delete_expense), until a
---   settle-up locks it.
+-- - an expense with a non-zero share of a member who left is locked like a settled one until a
+--   settle-up claims it: it can't be edited, not even its description, or deleted, so its list
+--   item can't be unchecked either (reopen_list_item deletes through delete_expense). The app
+--   can only build an edit from the current members, so allowing some edits would offer ones
+--   that always fail (#22 review); one rule for both is also easier to explain.
 --
 -- The services already keep a new cost to current members (lib/services/shares.ts); this is the
 -- last word, for a leave that lands between that check and the write. The merged migrations are
@@ -90,9 +90,8 @@ begin
 end;
 $$;
 
--- As in 20261106050000_settle_up_locks.sql, after checking that no one whose balance the edit
--- changes has left the group: each user whose share differs between the old and the new shares
--- (one missing from either side counts as 0), and the payer when the amount changes.
+-- As in 20261106050000_settle_up_locks.sql, after checking that neither the payer nor anyone with
+-- a non-zero share, before or after the edit, has left the group.
 create or replace function public.update_expense(
   p_expense_id uuid,
   p_description text,
@@ -125,20 +124,15 @@ begin
   perform public.assert_no_former_members(
     expense.group_id,
     array(
-      select coalesce(old_share.user_id, new_share.user_id)
-      from (
-        select s.user_id, s.share_cents
-        from public.expense_shares as s
-        where s.expense_id = p_expense_id
-      ) as old_share
-      full join (
-        select share.user_id, share.share_cents
-        from jsonb_to_recordset(p_shares) as share(user_id uuid, share_cents integer)
-      ) as new_share on new_share.user_id = old_share.user_id
-      where coalesce(old_share.share_cents, 0) <> coalesce(new_share.share_cents, 0)
-      union
       select expense.payer_id
-      where expense.amount_cents <> p_amount_cents
+      union
+      select s.user_id
+      from public.expense_shares as s
+      where s.expense_id = p_expense_id and s.share_cents <> 0
+      union
+      select share.user_id
+      from jsonb_to_recordset(p_shares) as share(user_id uuid, share_cents integer)
+      where share.share_cents <> 0
     )
   );
 
