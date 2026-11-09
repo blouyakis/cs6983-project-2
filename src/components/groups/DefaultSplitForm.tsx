@@ -20,7 +20,14 @@ type DefaultSplitFormProps = {
   open: boolean;
   onClose: () => void;
   onSaved: (weights: number[]) => void;
+  // Called when the server says the weights don't list the current members,
+  // because someone joined or left after the form opened. The parent fetches
+  // the members again and passes them in; the form stays open.
+  onMembersChanged: () => void;
 };
+
+export const MEMBERS_CHANGED =
+  "The group's members changed while you were editing. The form now lists everyone; check the split and save again.";
 
 const MODES = [
   { value: "even", label: "Evenly" },
@@ -37,6 +44,7 @@ export function DefaultSplitForm({
   open,
   onClose,
   onSaved,
+  onMembersChanged,
 }: DefaultSplitFormProps) {
   const [state, setState] = useState<DefaultSplitState>(() =>
     initialDefaultSplit(members),
@@ -62,6 +70,13 @@ export function DefaultSplitForm({
     const result = await patchJson(`/api/groups/${groupId}`, resolved);
     setSubmitting(false);
     if (!result.ok) {
+      // update_group's field error has no field here to sit next to, so it
+      // gets a message that says what happened and what to do.
+      if (result.error.fields?.memberWeights) {
+        setServerError(MEMBERS_CHANGED);
+        onMembersChanged();
+        return;
+      }
       setServerError(result.error.message);
       return;
     }

@@ -65,6 +65,7 @@ export function DefaultSplitProvider({
         members={members}
         open={open}
         onClose={() => setOpen(false)}
+        onMembersChanged={() => router.refresh()}
         onSaved={(weights) => {
           show(`Saved the default split: ${describeSplit(weights)}.`, "done");
           router.refresh();
