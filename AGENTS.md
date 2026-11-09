@@ -167,7 +167,7 @@ _Why: These are the mistakes an agent is most likely to make in this stack, plus
 
 - Add a SQL migration for every schema change (`npx supabase migration new <name>`).
 - Let the database set `updated_at`. A trigger sets it on every update, so services never write it.
-- Take every time written to the database from the database's clock: `now()` in SQL, or `db_now()` read just before a write through `supabase-js`. Never `new Date()`, in `src/` or in `supabase/tests/`.
+- Take every time written to the database from the database's clock: `now()` in SQL, or `db_now()` read just before a write through `supabase-js` (`dbNow()` in `lib/db/settlements.ts` and in `supabase/tests/fixtures.ts`). This covers the database tests too. `new Date()` is still fine for a time that is only shown or used to pick a date range, never written.
 - Update [docs/api/openapi.yaml](docs/api/openapi.yaml) in the same PR as any API change.
 - Follow [DESIGN.md](DESIGN.md) for UI work.
 
