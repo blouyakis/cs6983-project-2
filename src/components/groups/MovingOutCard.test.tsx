@@ -207,6 +207,25 @@ describe("MovingOutCard", () => {
     expect(mocks.refresh).toHaveBeenCalled();
   });
 
+  // The page only changes once the navigation lands, so until then the
+  // question stays busy instead of offering Leave group again, which would
+  // get a 403 for a leave that worked (#22 review).
+  it("stays busy after leaving until the page changes, so the user can't leave twice", async () => {
+    mocks.postJson.mockResolvedValue({ ok: true, data: undefined });
+    card();
+
+    fireEvent.click(leaveButton());
+    confirmLeave();
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/groups"));
+
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByRole("button", { name: "Leave group" }),
+    ).toBeDisabled();
+    confirmLeave();
+    expect(mocks.postJson).toHaveBeenCalledTimes(1);
+  });
+
   it("shows the server's reason and stays when leaving is refused", async () => {
     const message =
       "Settle up first: you can leave once your balance in this group is $0.00.";
