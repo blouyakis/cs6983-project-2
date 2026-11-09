@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Payment } from "@/lib/db/settlements";
-import { describePayment } from "./payment-status";
+import { describeDecline, describePayment } from "./payment-status";
 
 const anaId = "6f1c2d4e-1111-4222-8333-944455556666";
 const samId = "7a2d3e5f-1111-4222-8333-944455556666";
@@ -94,4 +94,29 @@ describe("describePayment", () => {
       });
     },
   );
+});
+
+// #108: what the recipient is asked before declining, and told after.
+describe("describeDecline", () => {
+  const paid: Payment = {
+    ...suggested,
+    status: "paid",
+    paidAt: "2026-11-02T10:00:00+00:00",
+  };
+
+  it("says a settle-up payment goes back to suggested", () => {
+    expect(describeDecline(paid, "Ana")).toEqual({
+      question:
+        "Didn't get $31.00 from Ana? It goes back to suggested, so Ana can mark it paid again once it's sent.",
+      done: "Declined. Ana can mark it paid again once it's sent.",
+    });
+  });
+
+  it("says a direct payment is removed", () => {
+    expect(describeDecline({ ...paid, settlementId: null }, "Ana")).toEqual({
+      question:
+        "Didn't get $31.00 from Ana? The payment is removed, and Ana can record it again once it's sent.",
+      done: "Declined. The $31.00 from Ana is removed.",
+    });
+  });
 });

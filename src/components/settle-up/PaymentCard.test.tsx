@@ -93,6 +93,45 @@ describe("PaymentCard", () => {
     expect(onAct).toHaveBeenCalledWith(paid, "confirmed");
   });
 
+  // #108: the recipient can say the money never arrived.
+  it("offers the recipient of a paid payment I didn't get it, and nobody else", () => {
+    const paid: Payment = {
+      ...suggested,
+      status: "paid",
+      paidAt: "2026-11-02T10:00:00+00:00",
+    };
+    const onDecline = vi.fn();
+    const { unmount } = render(
+      <PaymentCard
+        payment={paid}
+        names={names}
+        currentUserId={samId}
+        onAct={vi.fn()}
+        onDecline={onDecline}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /I didn't get it/ }));
+    expect(onDecline).toHaveBeenCalledWith(paid);
+    unmount();
+
+    for (const viewerId of [anaId, joId]) {
+      const view = render(
+        <PaymentCard
+          payment={paid}
+          names={names}
+          currentUserId={viewerId}
+          onAct={vi.fn()}
+          onDecline={onDecline}
+        />,
+      );
+      expect(
+        screen.queryByRole("button", { name: /I didn't get it/ }),
+      ).toBeNull();
+      view.unmount();
+    }
+  });
+
   it("tells the sender a paid payment is waiting on the recipient", () => {
     card(
       { ...suggested, status: "paid", paidAt: "2026-11-02T10:00:00+00:00" },
