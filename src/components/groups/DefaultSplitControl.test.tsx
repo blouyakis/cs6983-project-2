@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import type { Member } from "@/lib/db/group-members";
 import { DefaultSplitControl } from "./DefaultSplitControl";
 import { DefaultSplitProvider } from "./DefaultSplitProvider";
@@ -47,9 +48,12 @@ function members(...weights: number[]): Member[] {
 
 function show(groupMembers: Member[]) {
   render(
-    <DefaultSplitProvider groupId={groupId} members={groupMembers}>
-      <DefaultSplitControl />
-    </DefaultSplitProvider>,
+    <NoticeProvider>
+      <DefaultSplitProvider groupId={groupId} members={groupMembers}>
+        <DefaultSplitControl />
+        <NoticeLine />
+      </DefaultSplitProvider>
+    </NoticeProvider>,
   );
 }
 
@@ -82,7 +86,9 @@ describe("DefaultSplitControl", () => {
     expect(screen.getByRole("dialog", { name: "Default split" })).toBeVisible();
   });
 
-  it("refreshes the page after saving, so it shows the new ratio, and says so", async () => {
+  // In the page's one notice, so the page never has a second status region
+  // (DESIGN.md "Notices").
+  it("refreshes the page after saving, so it shows the new ratio, and says so in the page's notice", async () => {
     mocks.patchJson.mockResolvedValue({ ok: true, data: {} });
     show(members(1, 1));
 
@@ -99,6 +105,7 @@ describe("DefaultSplitControl", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save split" }));
 
     await waitFor(() => expect(mocks.refresh).toHaveBeenCalled());
+    expect(screen.getAllByRole("status")).toHaveLength(1);
     expect(screen.getByRole("status")).toHaveTextContent(
       "Saved the default split: 60/40 default.",
     );

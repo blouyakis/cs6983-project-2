@@ -44,6 +44,7 @@ vi.mock("@/components/ui/NoticeProvider", () => ({
     <div data-testid="notice-provider">{children}</div>
   ),
   NoticeLine: () => <p data-testid="notice-line" />,
+  useNotice: () => ({ notice: null, show: vi.fn(), clear: vi.fn() }),
 }));
 vi.mock("@/lib/services/expense-service", () => ({
   listGroupExpenses: mocks.listGroupExpenses,

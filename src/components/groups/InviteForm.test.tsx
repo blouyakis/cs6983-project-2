@@ -8,6 +8,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { NoticeProvider } from "@/components/ui/NoticeProvider";
 import type { Member } from "@/lib/db/group-members";
 import { DefaultSplitProvider } from "./DefaultSplitProvider";
 import { InviteForm } from "./InviteForm";
@@ -57,9 +58,11 @@ function submit(email: string) {
 // Inside the group page's DefaultSplitProvider, as GroupDetail renders it.
 function inviteInto(members: Member[], email: string) {
   render(
-    <DefaultSplitProvider groupId={groupId} members={members}>
-      <InviteForm groupId={groupId} />
-    </DefaultSplitProvider>,
+    <NoticeProvider>
+      <DefaultSplitProvider groupId={groupId} members={members}>
+        <InviteForm groupId={groupId} />
+      </DefaultSplitProvider>
+    </NoticeProvider>,
   );
   submit(email);
 }
