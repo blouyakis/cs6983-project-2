@@ -1,5 +1,5 @@
 // lib/db functions for groups (#6), against the real database: the joins,
-// rejoining, and the Postgres errors they turn into typed errors.
+// rejoining with the weight rule (#63), and the Postgres errors they turn into typed errors.
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import {
   addMember,
@@ -7,7 +7,6 @@ import {
   listCurrentMemberWeights,
   listMembersAt,
   listMemberships,
-  rejoinMember,
 } from "@/lib/db/group-members";
 import { createGroup, updateGroup } from "@/lib/db/groups";
 import { ConflictError, ValidationError } from "@/lib/http/errors";
@@ -226,12 +225,37 @@ describe("listMemberships", () => {
   });
 });
 
+// Sets every listed member's weight, through the same function as the
+// Default split form.
+async function setWeights(
+  groupId: string,
+  weights: Record<string, number>,
+): Promise<void> {
+  await updateGroup(groupId, {
+    memberWeights: Object.entries(weights).map(([userId, weight]) => ({
+      userId,
+      weight,
+    })),
+  });
+}
+
+async function weightsOf(groupId: string): Promise<number[]> {
+  return (await listCurrentMemberWeights(groupId)).map(
+    (sharer) => sharer.weight,
+  );
+}
+
+// One function for a new member and a former one, so both follow the same
+// weight rule in the same transaction as the join (#63).
 describe("addMember", () => {
-  it("adds a current member at weight 1", async () => {
+  it("adds a new member at weight 1 to an even group, without a reset", async () => {
     const { groupId } = await createGroupWithMembers(1);
     const newcomer = await createUser();
 
-    await addMember(groupId, newcomer);
+    expect(await addMember(groupId, newcomer)).toEqual({
+      weight: 1,
+      splitReset: false,
+    });
 
     expect(await membershipRow(groupId, newcomer)).toMatchObject({
       default_share_weight: 1,
@@ -239,38 +263,57 @@ describe("addMember", () => {
     });
   });
 
-  it("turns a 13th current member into a ConflictError", async () => {
-    const { groupId } = await createGroupWithMembers(12);
-    const newcomer = await createUser();
+  it("gives the newcomer the weight every member shares: 50 and 50 plus Jo is 50, 50 and 50", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(2);
+    await setWeights(groupId, { [memberIds[0]]: 50, [memberIds[1]]: 50 });
+    const jo = await createUser();
 
-    await expect(addMember(groupId, newcomer)).rejects.toEqual(
-      new ConflictError("A group can have at most 12 members."),
-    );
+    expect(await addMember(groupId, jo)).toEqual({
+      weight: 50,
+      splitReset: false,
+    });
+
+    expect(await weightsOf(groupId)).toEqual([50, 50, 50]);
   });
 
-  it("turns a second row for the same member into a ConflictError", async () => {
-    const { groupId, memberIds } = await createGroupWithMembers(1);
+  it("resets an uneven group to weight 1: 60 and 40 plus Jo is 1, 1 and 1", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(2);
+    await setWeights(groupId, { [memberIds[0]]: 60, [memberIds[1]]: 40 });
+    const jo = await createUser();
 
-    await expect(addMember(groupId, memberIds[0])).rejects.toEqual(
-      new ConflictError("They are already in this group."),
-    );
+    expect(await addMember(groupId, jo)).toEqual({
+      weight: 1,
+      splitReset: true,
+    });
+
+    expect(await weightsOf(groupId)).toEqual([1, 1, 1]);
   });
-});
 
-describe("rejoinMember", () => {
-  it("makes a former member current again, from now, at weight 1", async () => {
+  it("leaves a former member's weight out of the rule", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(3);
+    const [ana, ben, cal] = memberIds;
+    await setWeights(groupId, { [ana]: 60, [ben]: 40, [cal]: 40 });
+    await leave(groupId, ana);
+    const jo = await createUser();
+
+    expect(await addMember(groupId, jo)).toEqual({
+      weight: 40,
+      splitReset: false,
+    });
+    expect(await weightsOf(groupId)).toEqual([40, 40, 40]);
+    expect((await membershipRow(groupId, ana)).default_share_weight).toBe(60);
+  });
+
+  it("makes a former member current again, from now", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(2);
     const [, ben] = memberIds;
-    await updateGroup(groupId, {
-      memberWeights: [
-        { userId: memberIds[0], weight: 3 },
-        { userId: ben, weight: 2 },
-      ],
-    });
     await leave(groupId, ben);
     const before = await membershipRow(groupId, ben);
 
-    await rejoinMember(groupId, ben);
+    expect(await addMember(groupId, ben)).toEqual({
+      weight: 1,
+      splitReset: false,
+    });
 
     const after = await membershipRow(groupId, ben);
     expect(after.left_at).toBeNull();
@@ -280,12 +323,57 @@ describe("rejoinMember", () => {
     );
   });
 
+  it("resets a 60/40 group when a former member rejoins it", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(3);
+    const [ana, ben, cal] = memberIds;
+    await leave(groupId, cal);
+    await setWeights(groupId, { [ana]: 60, [ben]: 40 });
+
+    expect(await addMember(groupId, cal)).toEqual({
+      weight: 1,
+      splitReset: true,
+    });
+
+    expect(await weightsOf(groupId)).toEqual([1, 1, 1]);
+  });
+
+  it("gives a former member who rejoins an even group the weight it shares, not their old one", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(3);
+    const [ana, ben, cal] = memberIds;
+    await setWeights(groupId, { [ana]: 20, [ben]: 20, [cal]: 70 });
+    await leave(groupId, cal);
+
+    expect(await addMember(groupId, cal)).toEqual({
+      weight: 20,
+      splitReset: false,
+    });
+    expect(await weightsOf(groupId)).toEqual([20, 20, 20]);
+  });
+
   describe("with this machine's clock wrong", () => {
     afterEach(() => {
       vi.useRealTimers();
     });
 
-    it("takes joined_at from the database's clock (#75)", async () => {
+    it("takes joined_at from the database's clock for a new member", async () => {
+      const { groupId } = await createGroupWithMembers(1);
+      const newcomer = await createUser();
+      const start = await dbNow();
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2000-01-01T00:00:00Z"));
+
+      await addMember(groupId, newcomer);
+
+      vi.useRealTimers();
+      const end = await dbNow();
+      const joinedAt = Date.parse(
+        (await membershipRow(groupId, newcomer)).joined_at,
+      );
+      expect(joinedAt).toBeGreaterThanOrEqual(Date.parse(start));
+      expect(joinedAt).toBeLessThanOrEqual(Date.parse(end));
+    });
+
+    it("takes joined_at from the database's clock for a former member (#75)", async () => {
       const { groupId, memberIds } = await createGroupWithMembers(2);
       const [, ben] = memberIds;
       await leave(groupId, ben);
@@ -293,7 +381,7 @@ describe("rejoinMember", () => {
       vi.useFakeTimers({ toFake: ["Date"] });
       vi.setSystemTime(new Date("2000-01-01T00:00:00Z"));
 
-      await rejoinMember(groupId, ben);
+      await addMember(groupId, ben);
 
       vi.useRealTimers();
       const end = await dbNow();
@@ -305,13 +393,49 @@ describe("rejoinMember", () => {
     });
   });
 
-  it("turns a 13th current member into a ConflictError", async () => {
+  it("turns a 13th current member into a ConflictError and changes no weight", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(12);
+    await setWeights(
+      groupId,
+      Object.fromEntries(memberIds.map((id, index) => [id, index + 1])),
+    );
+    const newcomer = await createUser();
+
+    await expect(addMember(groupId, newcomer)).rejects.toEqual(
+      new ConflictError("A group can have at most 12 members."),
+    );
+    expect(await weightsOf(groupId)).toEqual(
+      memberIds.map((_, index) => index + 1),
+    );
+  });
+
+  it("turns a former member rejoining a full group into a ConflictError and changes no weight", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(12);
     await leave(groupId, memberIds[11]);
     await addMember(groupId, await createUser());
+    const current = (await listCurrentMemberWeights(groupId)).map(
+      (sharer) => sharer.userId,
+    );
+    await setWeights(
+      groupId,
+      Object.fromEntries(current.map((id, index) => [id, index + 1])),
+    );
 
-    await expect(rejoinMember(groupId, memberIds[11])).rejects.toEqual(
+    await expect(addMember(groupId, memberIds[11])).rejects.toEqual(
       new ConflictError("A group can have at most 12 members."),
     );
+    expect(await weightsOf(groupId)).toEqual(
+      current.map((_, index) => index + 1),
+    );
+  });
+
+  it("turns a current member into a ConflictError and changes no weight", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(2);
+    await setWeights(groupId, { [memberIds[0]]: 60, [memberIds[1]]: 40 });
+
+    await expect(addMember(groupId, memberIds[0])).rejects.toEqual(
+      new ConflictError("They are already in this group."),
+    );
+    expect(await weightsOf(groupId)).toEqual([60, 40]);
   });
 });

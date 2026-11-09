@@ -2,10 +2,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConflictError } from "@/lib/http/errors";
 import {
+  addMember,
   findMembership,
   listCurrentMemberWeights,
   listMembersAt,
-  rejoinMember,
 } from "./group-members";
 
 type Result = {
@@ -230,16 +230,27 @@ describe("listMembersAt", () => {
   });
 });
 
-describe("rejoinMember", () => {
-  it("asks the database to rejoin, so joined_at comes from its clock (#75)", async () => {
-    await rejoinMember(groupId, userId);
+describe("addMember", () => {
+  it("asks the database to add the member, so the weight rule and joined_at come from one transaction (#63, #75)", async () => {
+    result = { data: { weight: 1, split_reset: false }, error: null };
+
+    await addMember(groupId, userId);
 
     expect(calls).toEqual([
       {
         method: "rpc",
-        args: ["rejoin_member", { p_group_id: groupId, p_user_id: userId }],
+        args: ["add_member", { p_group_id: groupId, p_user_id: userId }],
       },
     ]);
+  });
+
+  it("returns the newcomer's weight and whether the split was reset, in camelCase", async () => {
+    result = { data: { weight: 1, split_reset: true }, error: null };
+
+    expect(await addMember(groupId, userId)).toEqual({
+      weight: 1,
+      splitReset: true,
+    });
   });
 
   it("turns a 13th current member into a ConflictError", async () => {
@@ -251,8 +262,19 @@ describe("rejoinMember", () => {
       },
     };
 
-    await expect(rejoinMember(groupId, userId)).rejects.toEqual(
+    await expect(addMember(groupId, userId)).rejects.toEqual(
       new ConflictError("A group can have at most 12 members."),
+    );
+  });
+
+  it("turns a current member into a ConflictError", async () => {
+    result = {
+      data: null,
+      error: { code: "23505", message: "duplicate key value" },
+    };
+
+    await expect(addMember(groupId, userId)).rejects.toEqual(
+      new ConflictError("They are already in this group."),
     );
   });
 });
