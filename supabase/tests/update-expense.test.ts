@@ -65,7 +65,8 @@ async function sharesOf(expenseId: string) {
     .from("expense_shares")
     .select("user_id, share_cents")
     .eq("expense_id", expenseId)
-    .order("share_cents");
+    .order("share_cents")
+    .order("user_id");
   return data!;
 }
 
