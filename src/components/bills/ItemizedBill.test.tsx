@@ -249,4 +249,30 @@ describe("ItemizedBill", () => {
       screen.getByText("This period is closed: everything in it was paid."),
     ).toBeInTheDocument();
   });
+
+  // A settle-up pays with the fewest payments, which often go to a third
+  // person: A owes B $10, B owes C $10, and A pays C. Each pair still shows a
+  // difference after the period closes, though everyone's total is zero. The
+  // rows would contradict the line under them (review of #125).
+  it("leaves out the per-member rows in a closed period, where they no longer say who owes whom", () => {
+    setup(
+      bill({
+        settlementId: octoberId,
+        lines: [line({ settled: true })],
+        owed: [
+          { userId: sam, owedCents: 1000 },
+          { userId: jo, owedCents: -1000 },
+        ],
+      }),
+    );
+
+    expect(
+      screen.queryByRole("list", { name: "What you owe each member" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/You owe/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/owes you/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText("This period is closed: everything in it was paid."),
+    ).toBeInTheDocument();
+  });
 });
