@@ -201,6 +201,53 @@ describe("start_settlement with a cut-off", () => {
     expect(expense!.settlement_id).toBeNull();
   });
 
+  // #112, from the review of #126: confirm_payment locks only the payment's
+  // row, not the group's, so a confirm can land after the service took its
+  // cut-off. The payment is then no longer waiting, so the pending check
+  // passes, and it isn't in the balances at the cut-off either, so those
+  // match. Without this refusal the settle-up would suggest it a second time.
+  it("refuses when a direct payment was confirmed after the cut-off, so the service reads the balances again", async () => {
+    const { groupId, memberIds, balances, payment } = await groupWithDebt();
+    const startedAt = await dbNow();
+    const { data: paymentId, error: recordError } = await db.rpc(
+      "record_payment",
+      {
+        p_group_id: groupId,
+        p_from_user_id: payment.from_user_id,
+        p_to_user_id: payment.to_user_id,
+        p_amount_cents: payment.amount_cents,
+      },
+    );
+    expect(recordError).toBeNull();
+    const { error: confirmError } = await db.rpc("confirm_payment", {
+      p_payment_id: paymentId,
+    });
+    expect(confirmError).toBeNull();
+
+    const { error } = await start(groupId, memberIds[0], startedAt, balances, [
+      payment,
+    ]);
+
+    expect(error?.code).toBe("P0001");
+    expect(error?.message).toMatch(/balances changed/i);
+    const { data: none } = await db
+      .from("settlements")
+      .select("id")
+      .eq("group_id", groupId);
+    expect(none).toEqual([]);
+
+    // From a fresh cut-off the payment counts, and nothing is left to pay.
+    const { data: settlementId, error: retryError } = await start(
+      groupId,
+      memberIds[0],
+      await dbNow(),
+      [],
+      [],
+    );
+    expect(retryError).toBeNull();
+    expect(await statusOf(settlementId as string)).toBe("closed");
+  });
+
   it("treats zero balances as absent, so members with nothing to pay need no row", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(3);
     await addExpense(groupId, memberIds[0], [memberIds[0], memberIds[1]], 2000);
