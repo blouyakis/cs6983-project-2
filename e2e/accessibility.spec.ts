@@ -395,6 +395,29 @@ test("animations and transitions are switched off for prefers-reduced-motion", a
   expect(longest).toBeLessThan(0.001);
 });
 
+// The expense filters on the overview (#15). The table under them is on "/",
+// which the signed-in pages check above already loads with a cost in it.
+test("tabbing through the expense filters reaches every control with a visible focus style", async ({
+  page,
+}) => {
+  await page.setViewportSize(viewports[0]);
+  await register(page, "Eve");
+  await createGroup(page, "🏠 Dorm 4B");
+  await fillGroup(page);
+  await page.goto("/");
+
+  const form = page.getByRole("form", { name: "Filter expenses" });
+  await expect(form).toBeVisible();
+  await form.evaluate((element) => element.setAttribute("data-tab-scope", ""));
+  const stops = await tabStopsIn(form);
+  await form.getByLabel("Group", { exact: true }).focus();
+  // Shift+Tab steps out of the form, so the walk starts on its first control.
+  await page.keyboard.press("Shift+Tab");
+  const { reached, withoutFocusStyle } = await tabThrough(page);
+  expect(reached).toBeGreaterThanOrEqual(stops - 1);
+  expect(withoutFocusStyle).toEqual([]);
+});
+
 test("tabbing through the payment form reaches every control with a visible focus style", async ({
   page,
   browser,
