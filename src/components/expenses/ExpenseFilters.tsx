@@ -100,6 +100,10 @@ export function ExpenseFilters({
   const filtered = Object.values(values).some((value) => value !== "");
   return (
     <form
+      // The fields are uncontrolled. A new key for each set of filters makes
+      // the form start again from them when Clear filters changes the
+      // address without loading a new document.
+      key={Object.values(values).join("|")}
       method="get"
       action={action}
       aria-label="Filter expenses"
