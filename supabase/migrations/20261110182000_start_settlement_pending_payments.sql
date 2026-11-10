@@ -14,6 +14,13 @@
 -- seen here, or waits for this to commit and then belongs to the next period, like any direct
 -- payment added while a settle-up is open.
 --
+-- Confirming is different: confirm_payment locks only the payment's row, not the group's, so a
+-- confirm can commit after the service took its cut-off and before this runs (review of #126).
+-- That payment is no longer paid, so the check above passes, and it was confirmed after the
+-- cut-off, so period_balances_at leaves it out and the balances still match: the settle-up would
+-- suggest it a second time. So a direct payment confirmed after p_started_at is refused with the
+-- balances-changed message. The service reads again from a fresh cut-off, which counts it.
+--
 -- The merged migrations are left as they are; this replaces the function body. Everything else
 -- is as in 20261106050000_settle_up_locks.sql.
 create or replace function public.start_settlement(
@@ -46,6 +53,13 @@ begin
   ) then
     raise exception 'A direct payment in this group hasn''t been confirmed yet. A settle-up can start once its recipient has confirmed it.'
       using hint = 'pending_direct_payment';
+  end if;
+  if exists (
+    select 1 from public.payments as p
+    where p.group_id = p_group_id and p.settlement_id is null
+      and p.status = 'confirmed' and p.confirmed_at > p_started_at
+  ) then
+    raise exception 'The balances changed while the settle-up was being started. Try again.';
   end if;
   if p_started_at > now() or p_started_at < now() - interval '1 minute' then
     raise exception 'The settle-up''s cut-off must be within the last minute. Try again.';
