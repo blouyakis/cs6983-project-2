@@ -1,6 +1,6 @@
 import "server-only";
 import type { Sharer } from "@/lib/domain/splits";
-import { ConflictError } from "@/lib/http/errors";
+import { ConflictError, ForbiddenError } from "@/lib/http/errors";
 import { getDb } from "./client";
 import { toMicros } from "./timestamps";
 
@@ -236,4 +236,40 @@ export async function addMember(
   }
   const row = data as JoinRow;
   return { weight: row.weight, splitReset: row.split_reset };
+}
+
+// Each refusal leave_group gives, by its hint, as the error the client gets.
+const LEAVE_REFUSALS: Record<string, () => Error> = {
+  nonzero_balance: () =>
+    new ConflictError(
+      "Settle up first: you can leave once your balance in this group is $0.00.",
+    ),
+  pending_payment: () =>
+    new ConflictError(
+      "A payment to or from you is still waiting to be paid or confirmed, so you can't leave yet.",
+    ),
+  personal_space: () =>
+    new ForbiddenError("You can't leave your personal space."),
+  not_member: () => new ForbiddenError("You are not a member of this group."),
+};
+
+// The member leaves the group in one transaction through leave_group (#22):
+// only at a zero balance with no payment to or from them still waiting, with
+// left_at from the database's clock (#75), and the group archived when they
+// were its last current member (AGENTS.md Section 6.8).
+export async function leaveGroup(
+  groupId: string,
+  userId: string,
+): Promise<void> {
+  const { error } = await getDb().rpc("leave_group", {
+    p_group_id: groupId,
+    p_user_id: userId,
+  });
+  if (error) {
+    const refusal = error.hint ? LEAVE_REFUSALS[error.hint] : undefined;
+    if (refusal) {
+      throw refusal();
+    }
+    throw new Error(`Could not leave the group: ${error.message}`);
+  }
 }

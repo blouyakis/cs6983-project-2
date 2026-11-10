@@ -182,6 +182,7 @@ describe("ListItemRow", () => {
     it.each([
       ["settled", "Settled"],
       ["settle-up", "In the open settle-up"],
+      ["member-left", "Shared with someone who left"],
     ] as const)(
       "says why it is locked when its expense is %s",
       (lock, text) => {

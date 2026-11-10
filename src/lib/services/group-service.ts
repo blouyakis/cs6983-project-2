@@ -2,6 +2,7 @@ import "server-only";
 import {
   addMember,
   findMembership,
+  leaveGroup as leaveMembership,
   listCurrentMembers,
   listMembersAt,
   listMemberships,
@@ -148,4 +149,21 @@ export async function updateGroup(
   // null and the access check doesn't need to run again.
   const members = await listCurrentMembers(groupId);
   return toDetails({ ...group, name: input.name ?? group.name }, null, members);
+}
+
+// The user leaves the group (#22, AGENTS.md user flow 8). Write access means a
+// current member of an active group, so a former member, an archived group
+// and a stranger get 403 here. A personal space can't be left: its owner
+// would lose their own space (#81 review). The database checks the balance,
+// the waiting payments and the personal space again under its locks, sets
+// left_at, and archives the group when they were the last member.
+export async function leaveGroup(
+  userId: string,
+  groupId: string,
+): Promise<void> {
+  const { group } = await requireGroupAccess(userId, groupId, "write");
+  if (group.isPersonal) {
+    throw new ForbiddenError("You can't leave your personal space.");
+  }
+  await leaveMembership(groupId, userId);
 }

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ConflictError } from "@/lib/http/errors";
 import {
   createExpense,
   deleteExpense,
@@ -11,7 +12,7 @@ import {
 
 type Result = {
   data: unknown;
-  error: { message: string; code?: string } | null;
+  error: { message: string; code?: string; hint?: string } | null;
 };
 
 const calls: { name: string; args: unknown }[] = [];
@@ -103,6 +104,19 @@ describe("createExpense", () => {
 
   it("returns the new expense id", async () => {
     expect(await createExpense(newExpense)).toBe(expenseId);
+  });
+
+  it("turns a refusal for someone who left the group into a 409 with its message (#22)", async () => {
+    const message =
+      "This would change the balance of someone who has left this group.";
+    result = {
+      data: null,
+      error: { message, code: "P0001", hint: "member_left" },
+    };
+
+    await expect(createExpense(newExpense)).rejects.toEqual(
+      new ConflictError(message),
+    );
   });
 
   it("throws when the database rejects it", async () => {

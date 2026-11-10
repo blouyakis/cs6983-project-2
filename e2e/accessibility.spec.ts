@@ -306,6 +306,55 @@ for (const viewport of viewports) {
     await page.keyboard.press("Escape");
     await expect(form).toBeHidden();
   });
+
+  test(`the Moving out card and its Leave dialog pass the WCAG 2.1 AA check, trap focus and close with Escape on ${viewport.name}`, async ({
+    page,
+    browser,
+  }) => {
+    await page.setViewportSize(viewport);
+    await register(page, "Fay");
+    await createGroup(page, "🏠 Dorm 4B");
+    await inviteSomeone(page, browser, "Gus");
+    // The notice shows before the page refreshes, and the cost form takes its
+    // sharers from the member list, so wait for Gus to be in it.
+    await expect(
+      page
+        .getByRole("heading", { name: /^Members/ })
+        .locator("..")
+        .getByRole("listitem")
+        .filter({ hasText: "Gus" }),
+    ).toBeVisible();
+    const card = page.getByRole("region", { name: "Moving out?" });
+
+    // With a balance: Leave group is off, the reason is written out, and
+    // Settle my $X first is shown (#22).
+    await page.getByRole("button", { name: /Log a cost/ }).click();
+    const cost = page.getByRole("dialog", { name: "New entry" });
+    await cost.getByLabel("What was it for?").fill("Electricity");
+    await cost.getByLabel("Amount", { exact: true }).fill("30");
+    await cost.getByRole("button", { name: "Add expense" }).click();
+    await expect(cost).toBeHidden();
+    await expect(card).toContainText("You are owed $15.00 in this group.");
+    await expect(card.getByRole("link", { name: /Settle my/ })).toBeVisible();
+    await expectNoViolations(page);
+    await expectFitsTheScreen(page);
+
+    // At zero, Leave group opens the confirm dialog.
+    await page.goto("/groups");
+    await createGroup(page, "🍕 Dinner");
+    await inviteSomeone(page, browser, "Hal");
+    await card.getByRole("button", { name: "Leave group" }).click();
+    const dialog = page.getByRole("dialog", { name: /^Leave 🍕 Dinner\?/ });
+    await expect(dialog).toBeVisible();
+    await expectNoViolations(page);
+    await expectFitsTheScreen(page);
+    for (let press = 0; press < 6; press += 1) {
+      await page.keyboard.press("Tab");
+      await focusIsInside(page, dialog);
+    }
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  });
 }
 
 for (const viewport of viewports) {

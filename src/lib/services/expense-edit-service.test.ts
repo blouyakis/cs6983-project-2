@@ -244,3 +244,53 @@ describe("removeExpense", () => {
     );
   });
 });
+
+// A member who has left keeps the balance they left with, so an expense they
+// have a non-zero share in is locked like a settled one (#22, AGENTS.md
+// Section 6.7).
+describe("an expense someone who has left shares", () => {
+  const leftMessage =
+    "Someone who shares this expense has left the group, so it can't be changed until it's settled.";
+
+  beforeEach(() => {
+    // Sam has left.
+    members.listCurrentMemberWeights.mockResolvedValue([
+      { userId: ana, weight: 1 },
+      { userId: jo, weight: 1 },
+    ]);
+  });
+
+  it("can't be edited, not even its description, and nothing is written", async () => {
+    await expect(
+      editExpense(
+        ana,
+        groupId,
+        expenseId,
+        input({ sharedBy: [ana], description: "Power" }),
+      ),
+    ).rejects.toEqual(new ConflictError(leftMessage));
+    expect(members.listCurrentMemberWeights).toHaveBeenCalledWith(groupId);
+    expect(expenses.updateExpense).not.toHaveBeenCalled();
+  });
+
+  it("can't be deleted, and nothing is written", async () => {
+    await expect(removeExpense(ana, groupId, expenseId)).rejects.toEqual(
+      new ConflictError(leftMessage),
+    );
+    expect(expenses.deleteExpense).not.toHaveBeenCalled();
+  });
+
+  it("can still be changed when their share is zero", async () => {
+    expenses.findExpense.mockResolvedValue({
+      ...saved,
+      shares: [
+        { userId: ana, shareCents: 1234 },
+        { userId: sam, shareCents: 0 },
+      ],
+    });
+
+    await removeExpense(ana, groupId, expenseId);
+
+    expect(expenses.deleteExpense).toHaveBeenCalledWith(expenseId);
+  });
+});

@@ -16,7 +16,7 @@ import {
 
 type Result = {
   data: unknown;
-  error: { message: string; code?: string } | null;
+  error: { message: string; code?: string; hint?: string } | null;
 };
 
 const queries: { method: string; args: unknown[] }[] = [];
@@ -388,6 +388,22 @@ describe("completeOpenListItem", () => {
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
+  it("is a 409 with the database's reason when a sharer has left the group (#22)", async () => {
+    const message =
+      "This would change the balance of someone who has left this group.";
+    result = {
+      data: null,
+      error: { message, code: "P0001", hint: "member_left" },
+    };
+
+    await expect(
+      completeOpenListItem(groupId, itemId, anaId, {
+        amountCents: 1000,
+        shares: { [anaId]: 1000 },
+      }),
+    ).rejects.toEqual(new ConflictError(message));
+  });
+
   it("throws when the call fails", async () => {
     result = { data: null, error: { message: "boom" } };
 
@@ -456,8 +472,9 @@ describe("reopenDoneListItem", () => {
 describe("listCheckOffExpenses", () => {
   const milkExpense = "5e4f3a2b-5555-4666-8777-d88899990000";
   const breadExpense = "6f5a4b3c-5555-4666-8777-d88899990000";
+  const samId = "7a2d3e5f-1111-4222-8333-944455556666";
 
-  it("loads the cost, settlement and creation time of each expense asked about (#12)", async () => {
+  it("loads the cost, settlement, creation time and shares of each expense asked about (#12, #22)", async () => {
     result = {
       data: [
         {
@@ -465,12 +482,17 @@ describe("listCheckOffExpenses", () => {
           amount_cents: 1234,
           settlement_id: null,
           created_at: "2026-11-04T19:00:00+00:00",
+          expense_shares: [
+            { user_id: anaId, share_cents: 617 },
+            { user_id: samId, share_cents: 617 },
+          ],
         },
         {
           id: breadExpense,
           amount_cents: 300,
           settlement_id: "7a6b5c4d-5555-4666-8777-d88899990000",
           created_at: "2026-11-01T09:00:00+00:00",
+          expense_shares: [{ user_id: anaId, share_cents: 300 }],
         },
       ],
       error: null,
@@ -480,13 +502,17 @@ describe("listCheckOffExpenses", () => {
 
     expect(called("from")).toEqual([{ method: "from", args: ["expenses"] }]);
     expect(called("select")[0].args).toEqual([
-      "id, amount_cents, settlement_id, created_at",
+      "id, amount_cents, settlement_id, created_at, expense_shares(user_id, share_cents)",
     ]);
     expect(called("in")[0].args).toEqual(["id", [milkExpense, breadExpense]]);
     expect(expenses.get(milkExpense)).toEqual({
       amountCents: 1234,
       settled: false,
       createdAt: "2026-11-04T19:00:00+00:00",
+      shares: [
+        { userId: anaId, shareCents: 617 },
+        { userId: samId, shareCents: 617 },
+      ],
     });
     expect(expenses.get(breadExpense)?.settled).toBe(true);
   });
