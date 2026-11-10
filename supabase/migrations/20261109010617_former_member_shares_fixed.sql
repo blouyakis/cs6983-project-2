@@ -16,7 +16,7 @@
 
 -- Raises P0001 with the hint member_left when any user listed has left the group. Their
 -- membership rows are locked FOR SHARE first, in user_id order, so a leave_group on its way
--- (which takes the row FOR UPDATE) waits for this transaction, and one that came first is seen
+-- (which takes the row FOR NO KEY UPDATE) waits for this transaction, and one that came first is seen
 -- here. FOR SHARE doesn't block two costs for the same people, as in record_payment. Someone who
 -- was never in the group has no row, and the foreign keys and the shares trigger reject them as
 -- before (23503).
