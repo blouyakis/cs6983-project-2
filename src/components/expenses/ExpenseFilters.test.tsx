@@ -152,4 +152,30 @@ describe("ExpenseFilters", () => {
     expect(group).toHaveValue("");
     expect(group).toHaveAccessibleDescription("Choose one of your groups.");
   });
+
+  // The fields are uncontrolled, and Clear filters changes the address
+  // without loading a new document, so the form has to start again from the
+  // new filters or it would send the old ones with the next Apply.
+  it("shows the new filters when the page is rendered again with different ones", () => {
+    const props = {
+      action: "/#expenses",
+      groups: [{ id: flatId, name: "🏠 Flat" }],
+      payers: [{ userId: sam, name: "Sam" }],
+      errors: {},
+      count: 1,
+    };
+    const { rerender } = render(
+      <ExpenseFilters
+        {...props}
+        values={{ groupId: flatId, paidBy: sam, from: "2026-10-01", to: "" }}
+      />,
+    );
+    expect(screen.getByLabelText("Paid by")).toHaveValue(sam);
+
+    rerender(<ExpenseFilters {...props} values={none} />);
+
+    expect(screen.getByLabelText("Group")).toHaveValue("");
+    expect(screen.getByLabelText("Paid by")).toHaveValue("");
+    expect(screen.getByLabelText("From")).toHaveValue("");
+  });
 });
