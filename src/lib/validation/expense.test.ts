@@ -3,6 +3,7 @@ import { MAX_CENTS, splitMessages } from "@/lib/domain/splits";
 import { ValidationError } from "@/lib/http/errors";
 import {
   createExpenseSchema,
+  expenseHistoryQuerySchema,
   expenseParamsSchema,
   updateExpenseSchema,
 } from "./expense";
@@ -206,5 +207,76 @@ describe("expenseParamsSchema", () => {
       return;
     }
     throw new Error("expected a ValidationError");
+  });
+});
+
+// The query of GET /api/expenses and of the overview's filters (#15).
+describe("expenseHistoryQuerySchema", () => {
+  function historyErrorsFor(query: unknown) {
+    try {
+      parseInput(expenseHistoryQuerySchema, query);
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValidationError);
+      return (error as ValidationError).fields;
+    }
+    throw new Error("expected a ValidationError");
+  }
+
+  it("accepts no filters at all", () => {
+    expect(parseInput(expenseHistoryQuerySchema, {})).toEqual({});
+  });
+
+  it("accepts all four filters together", () => {
+    const query = {
+      groupId: ANA,
+      paidBy: BEN,
+      from: "2026-10-01",
+      to: "2026-10-31",
+    };
+
+    expect(parseInput(expenseHistoryQuerySchema, query)).toEqual(query);
+  });
+
+  it("accepts the same day for From and To", () => {
+    const query = { from: "2026-10-20", to: "2026-10-20" };
+
+    expect(parseInput(expenseHistoryQuerySchema, query)).toEqual(query);
+  });
+
+  // A filter form sends every field, and an untouched one is empty.
+  it("reads an empty or missing filter as not set", () => {
+    expect(
+      parseInput(expenseHistoryQuerySchema, {
+        groupId: "",
+        paidBy: null,
+        from: "",
+        to: "2026-10-31",
+      }),
+    ).toEqual({ to: "2026-10-31" });
+  });
+
+  it.each([
+    ["groupId", { groupId: "flat" }],
+    ["paidBy", { paidBy: "sam" }],
+    ["from", { from: "last week" }],
+    ["from", { from: "2026-02-30" }],
+    ["to", { to: "10/31/2026" }],
+  ])("rejects a %s that isn't valid", (field, query) => {
+    expect(historyErrorsFor(query)).toHaveProperty(field);
+  });
+
+  it("rejects a From that is after To, on the To field", () => {
+    expect(historyErrorsFor({ from: "2026-11-02", to: "2026-11-01" })).toEqual({
+      to: "To can't be before From.",
+    });
+  });
+
+  it("drops unknown keys, such as a user id", () => {
+    expect(
+      parseInput(expenseHistoryQuerySchema, {
+        userId: ANA,
+        from: "2026-10-01",
+      }),
+    ).toEqual({ from: "2026-10-01" });
   });
 });
