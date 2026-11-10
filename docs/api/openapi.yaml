@@ -873,6 +873,11 @@ paths:
         to pay, the settle-up is returned already closed and the period's
         rows are locked. A group can have one open settle-up at a time: 409
         while one is open. A personal space has nothing to settle: 409.
+
+        Issue #112. 409 too while a direct payment in the group is marked
+        paid and not yet confirmed: it counts in no balance, so the settle-up
+        would suggest the same money again. It can start once the recipient
+        has confirmed it.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
