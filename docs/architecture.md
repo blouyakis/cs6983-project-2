@@ -96,7 +96,7 @@ Writes that touch several tables (registering an account with its personal space
 **Two checks per request.**
 
 1. `proxy.ts` runs first. A page request without a valid cookie is sent to `/login`. An API request without one gets `401` and the error body, except `POST /api/auth/register`, `/login` and `/logout`, and `GET /api/health` (#100), which says only whether the app and database are up. It is a first check, not the security boundary.
-2. Every route handler and every page reads the session itself and passes the user id to the service.
+2. Every route handler and every page reads the session itself and passes the user id to the service. The exception is the routes step 1 lets through, the `PUBLIC_API_ROUTES` in `proxy.ts`: none of them acts for a signed-in user, so they don't read the session (#115). Register and login return only the user who just sent their credentials, logout only clears the cookie, and health reads no user data. A new public route goes in that list and must not return any data that needs a session to see.
 
 **`requireGroupAccess(userId, groupId, mode)`** is the one place access is decided. Every service calls it before reading or writing group data.
 
@@ -266,7 +266,7 @@ erDiagram
 
 - `from_user_id` and `to_user_id` are different members of the group. `amount_cents > 0`.
 - `status` is `suggested`, `paid` or `confirmed`. See the payment lifecycle below. A `suggested` payment always has a `settlement_id`.
-- `paid_at` is set when the sender marks it paid; `confirmed_at` when the recipient confirms. A check constraint requires neither for `suggested`, only `paid_at` for `paid`, and both for `confirmed`, with `confirmed_at` no earlier than `paid_at`.
+- `paid_at` is set when the sender marks it paid; `confirmed_at` when the recipient confirms. A check constraint requires neither for `suggested`, only `paid_at` for `paid`, and both for `confirmed`, with `confirmed_at` no earlier than `paid_at`. Both come from the database's clock: when the sender marks a settle-up payment paid, `markPaymentPaid` first reads `db_now()`, then writes that time to `paid_at` in the update that checks the payment is still `suggested`. The read is a separate statement, so `paid_at` can be slightly earlier than the update, for example when the update waits on a row lock. It is still earlier than any confirm, because a payment can only be confirmed once that update has committed, and `confirm_payment` stamps `confirmed_at` with `now()` (#121).
 - `settlement_id` points to the settle-up that suggested it, or is null for a direct payment until the period closes. It must be a settlement of the same group.
 - A direct payment is written by `record_payment(p_group_id, p_from_user_id, p_to_user_id, p_amount_cents)` (#14). It locks both people's membership rows `FOR SHARE`, so `leave_group` waits for it but adding a cost for them doesn't, fails with `P0001` unless both are current members, and inserts the payment as `paid` with `paid_at = now()`. The database's clock stamps `paid_at` as `confirm_payment` stamps `confirmed_at`, so `confirmed_at` is never earlier than `paid_at`, even when the app server's clock runs ahead.
 

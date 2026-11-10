@@ -188,7 +188,7 @@ describe("addExpense", () => {
     const { groupId, memberIds } = await createGroupWithMembers(1);
     const { error } = await db
       .from("groups")
-      .update({ archived_at: new Date().toISOString() })
+      .update({ archived_at: await dbNow() })
       .eq("id", groupId);
     expect(error).toBeNull();
 

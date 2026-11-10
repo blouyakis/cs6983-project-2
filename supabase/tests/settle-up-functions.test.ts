@@ -3,7 +3,7 @@
 // per group; cancelling is only possible while every payment is suggested;
 // confirming the last payment closes the period and locks its rows.
 import { afterAll, describe, expect, it } from "vitest";
-import { anonDb, cleanUp, createGroupWithMembers, db } from "./fixtures";
+import { anonDb, cleanUp, createGroupWithMembers, db, dbNow } from "./fixtures";
 
 afterAll(cleanUp);
 
@@ -103,10 +103,13 @@ async function paymentsOf(settlementId: string) {
   return data!;
 }
 
+// paid_at comes from the database's clock, like confirm_payment's
+// confirmed_at, so a Docker VM clock behind the host's can't break
+// payments_confirmed_after_paid (#121).
 async function markPaid(paymentId: string) {
   const { error } = await db
     .from("payments")
-    .update({ status: "paid", paid_at: new Date().toISOString() })
+    .update({ status: "paid", paid_at: await dbNow() })
     .eq("id", paymentId);
   if (error) {
     throw error;
@@ -188,7 +191,7 @@ describe("start_settlement", () => {
     const { error } = await anonDb().rpc("start_settlement", {
       p_group_id: groupId,
       p_started_by: memberIds[0],
-      p_started_at: new Date().toISOString(),
+      p_started_at: await dbNow(),
       p_balances: [],
       p_payments: [payment],
     });
