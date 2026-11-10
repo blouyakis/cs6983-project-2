@@ -70,12 +70,22 @@ function toExpense(row: ExpenseRow): Expense {
   };
 }
 
+// Which of a group's expenses to keep (#15): what one person paid, and the
+// days spent from `from` up to `to`, both included. Each is optional.
+export type ExpenseFilters = {
+  paidBy?: string;
+  from?: string;
+  to?: string;
+};
+
 // The group's expenses, newest day first and, within a day, newest entry
 // first. `createdBefore` is a former member's left_at: they only see what was
 // added up to the day they left (AGENTS.md Section 6.6). Null shows everything.
+// `filters` narrows the list for the expense history (#15).
 export async function listExpenses(
   groupId: string,
   createdBefore: string | null,
+  filters: ExpenseFilters = {},
 ): Promise<Expense[]> {
   let query = getDb()
     .from("expenses")
@@ -83,6 +93,15 @@ export async function listExpenses(
     .eq("group_id", groupId);
   if (createdBefore !== null) {
     query = query.lte("created_at", createdBefore);
+  }
+  if (filters.paidBy !== undefined) {
+    query = query.eq("payer_id", filters.paidBy);
+  }
+  if (filters.from !== undefined) {
+    query = query.gte("spent_on", filters.from);
+  }
+  if (filters.to !== undefined) {
+    query = query.lte("spent_on", filters.to);
   }
   const { data, error } = await query
     .order("spent_on", { ascending: false })
