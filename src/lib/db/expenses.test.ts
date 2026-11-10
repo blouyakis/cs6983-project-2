@@ -199,6 +199,59 @@ describe("listExpenses", () => {
     });
   });
 
+  // The expense history's filters (#15).
+  it("adds no filter when none is given", async () => {
+    await listExpenses(groupId, null, {});
+
+    expect(
+      queries.filter((query) => ["gte", "lte"].includes(query.method)),
+    ).toEqual([]);
+    expect(queries.filter((query) => query.method === "eq")).toEqual([
+      { method: "eq", args: ["group_id", groupId] },
+    ]);
+  });
+
+  it("keeps only what one person paid", async () => {
+    await listExpenses(groupId, null, { paidBy: samId });
+
+    expect(queries).toContainEqual({ method: "eq", args: ["payer_id", samId] });
+  });
+
+  it("keeps only the days from From and up to To, both included", async () => {
+    await listExpenses(groupId, null, { from: "2026-10-01", to: "2026-10-31" });
+
+    expect(queries).toContainEqual({
+      method: "gte",
+      args: ["spent_on", "2026-10-01"],
+    });
+    expect(queries).toContainEqual({
+      method: "lte",
+      args: ["spent_on", "2026-10-31"],
+    });
+  });
+
+  it("applies the filters together with a former member's cut-off", async () => {
+    await listExpenses(groupId, "2026-10-25T12:00:00+00:00", {
+      paidBy: samId,
+      from: "2026-10-01",
+      to: "2026-10-31",
+    });
+
+    expect(queries).toContainEqual({
+      method: "lte",
+      args: ["created_at", "2026-10-25T12:00:00+00:00"],
+    });
+    expect(queries).toContainEqual({ method: "eq", args: ["payer_id", samId] });
+    expect(queries).toContainEqual({
+      method: "gte",
+      args: ["spent_on", "2026-10-01"],
+    });
+    expect(queries).toContainEqual({
+      method: "lte",
+      args: ["spent_on", "2026-10-31"],
+    });
+  });
+
   it("returns an empty list when there are no expenses", async () => {
     result = { data: [], error: null };
 
