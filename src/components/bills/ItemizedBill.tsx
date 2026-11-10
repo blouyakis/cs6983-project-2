@@ -165,7 +165,10 @@ export function ItemizedBill({
             })}
           </ul>
         )}
-        {bill.owed.length === 0 ? null : (
+        {/* Not in a closed period: its settle-up paid with the fewest
+            payments, which often go to a third person, so a pair can still
+            show a difference although everyone's total is zero. */}
+        {closed || bill.owed.length === 0 ? null : (
           <ul
             aria-label="What you owe each member"
             className="flex flex-col gap-1 border-t-2 border-dashed border-divider pt-3"
