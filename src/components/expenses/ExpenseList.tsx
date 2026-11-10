@@ -19,9 +19,9 @@ type ExpenseListProps = {
 };
 
 // The group's costs, newest first, with a pencil on the ones the user can
-// edit and a lock on the rest (DESIGN.md "ExpenseTable"). The full table with
-// filters is #15; this is the list the edit and delete flows (#20) live on.
-// TODO(#15): replace with ExpenseTable and ExpenseFilters.
+// edit and a lock on the rest. This is the list the edit and delete flows
+// (#20) live on, with every cost in the group. The table with filters across
+// all the user's groups is ExpenseTable on the overview (#15).
 export function ExpenseList({
   expenses,
   members,
