@@ -167,6 +167,7 @@ _Why: These are the mistakes an agent is most likely to make in this stack, plus
 
 - Add a SQL migration for every schema change (`npx supabase migration new <name>`).
 - Let the database set `updated_at`. A trigger sets it on every update, so services never write it.
+- Take every time written to the database from the database's clock: `now()` in SQL, or `db_now()` read just before a write through `supabase-js` (`dbNow()` in `lib/db/settlements.ts` and in `supabase/tests/fixtures.ts`). This covers the database tests too. `new Date()` is still fine for a time that is only shown or used to pick a date range, never written.
 - Update [docs/api/openapi.yaml](docs/api/openapi.yaml) in the same PR as any API change.
 - Follow [DESIGN.md](DESIGN.md) for UI work.
 
@@ -210,6 +211,7 @@ Non-negotiable values, check them before opening a PR: bcrypt cost **12** · ses
 
 ## Changelog
 
+- 2026-11-08, Ziye: said in Section 8 that every time written to the database comes from the database's clock (#121). `markPaymentPaid` stamped `paid_at` with the app server's clock while `confirm_payment` stamps `confirmed_at` with the database's, so a server clock running ahead made a quick confirm break `payments_confirmed_after_paid` and fail with a 500. It is the same bug #75 fixed for membership times and #14 avoided for direct payments, so it needs a rule, not another one-off fix.
 - 2026-11-08, Ziye: said in Section 8 that the routes in `PUBLIC_API_ROUTES` skip the session check because none of them acts for a signed-in user, and that a new public route goes in that list and must not return data that needs a session (#115). The rule said every route handler checks the session, so an agent or reviewer would take these four routes for a missing check, and a session check on `/api/health` would break it for an uptime monitor.
 - 2026-11-07, Ziye: added `sprint-3/ planning` to the `docs/sprints/` line of the folder tree in Section 2 (#99), because the Sprint 3 planning notes now exist there, written at the start of the sprint rather than three days in like Sprint 2's.
 - 2026-11-06, Barbara: added `sprint-2/ retrospective` to the `docs/sprints/` line of the folder tree in Section 2 (#18), recording the end-of-sprint metrics and lessons learned, and said in Section 4 that `e2e/accessibility.spec.ts` checks every main page and form, and that a new page goes into it. The tree was missing `docs/hw3/`, and without the rule a page added in Sprint 3 would skip the WCAG check that the other pages pass.
