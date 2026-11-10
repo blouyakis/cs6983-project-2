@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Member } from "@/lib/db/group-members";
 import type { ClosedPeriod } from "@/lib/db/settlements";
 import type { Bill, BillLine } from "@/lib/services/bill-service";
