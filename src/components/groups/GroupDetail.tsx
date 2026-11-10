@@ -23,6 +23,8 @@ import { groupParamsSchema } from "@/lib/validation/group";
 import { GroupTile } from "./GroupTile";
 import { InviteForm } from "./InviteForm";
 import { MemberList } from "./MemberList";
+import { MovingOutCard } from "./MovingOutCard";
+import { hasWaitingPayment } from "./moving-out";
 
 type GroupDetailProps = { params: Promise<{ groupId: string }> };
 
@@ -90,6 +92,21 @@ export async function GroupDetail({ params }: GroupDetailProps) {
   const spentThisMonthCents = group.isPersonal
     ? spentInMonthCents(expenses, monthOf(new Date()))
     : null;
+  // A current member of a shared group, who can invite someone and leave
+  // (#22). Not the personal space, which has no invitations and can't be
+  // left, nor a group they left or that is archived.
+  const isActiveSharedMember = !group.isPersonal && !group.readOnly;
+  // Moving out: the user's balance as the server computed it, and whether a
+  // payment of theirs is waiting, in the payment list or the open settle-up.
+  // Null, not zero, when the balances leave the user out, so the card keeps
+  // Leave group off instead of offering a leave the server would refuse.
+  const myBalanceCents =
+    balances?.find((balance) => balance.userId === userId)?.balanceCents ??
+    null;
+  const myPaymentWaiting = hasWaitingPayment(userId, [
+    ...(payments ?? []),
+    ...(openSettleUp?.payments ?? []),
+  ]);
   const names = Object.fromEntries(
     group.members.map((member) => [member.userId, member.name]),
   );
@@ -160,8 +177,15 @@ export async function GroupDetail({ params }: GroupDetailProps) {
             readOnly={group.readOnly}
           />
         ) : null}
-        {!group.isPersonal && !group.readOnly ? (
-          <InviteForm groupId={group.id} />
+        {isActiveSharedMember ? <InviteForm groupId={group.id} /> : null}
+        {isActiveSharedMember ? (
+          <MovingOutCard
+            groupId={group.id}
+            groupName={group.name}
+            balanceCents={myBalanceCents}
+            hasWaitingPayment={myPaymentWaiting}
+            isLastMember={group.members.length === 1}
+          />
         ) : null}
       </div>
     </NoticeProvider>

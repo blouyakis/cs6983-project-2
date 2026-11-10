@@ -12,6 +12,7 @@ import {
   type ListedItem,
   type ListItem,
 } from "@/lib/db/list-items";
+import { listCurrentMemberWeights } from "@/lib/db/group-members";
 import { findOpenSettlement } from "@/lib/db/settlements";
 import { expenseLock } from "@/lib/domain/expense-lock";
 import { ConflictError, NotFoundError } from "@/lib/http/errors";
@@ -59,10 +60,12 @@ export async function listGroupListItems(
       expenseLock: null,
     }));
   }
-  const [expenses, openSettleUp] = await Promise.all([
+  const [expenses, openSettleUp, current] = await Promise.all([
     listCheckOffExpenses(expenseIds),
     findOpenSettlement(groupId),
+    listCurrentMemberWeights(groupId),
   ]);
+  const currentMemberIds = new Set(current.map((member) => member.userId));
   return items.map((item) => {
     const expense =
       item.expenseId === null ? undefined : expenses.get(item.expenseId);
@@ -70,7 +73,11 @@ export async function listGroupListItems(
       ...item,
       costCents: expense?.amountCents ?? null,
       expenseLock: expense
-        ? expenseLock(expense, openSettleUp?.startedAt ?? null)
+        ? expenseLock(
+            expense,
+            openSettleUp?.startedAt ?? null,
+            currentMemberIds,
+          )
         : null,
     };
   });
