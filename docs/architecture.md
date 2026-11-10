@@ -96,7 +96,7 @@ Writes that touch several tables (registering an account with its personal space
 **Two checks per request.**
 
 1. `proxy.ts` runs first. A page request without a valid cookie is sent to `/login`. An API request without one gets `401` and the error body, except `POST /api/auth/register`, `/login` and `/logout`, and `GET /api/health` (#100), which says only whether the app and database are up. It is a first check, not the security boundary.
-2. Every route handler and every page reads the session itself and passes the user id to the service.
+2. Every route handler and every page reads the session itself and passes the user id to the service. The exception is the routes step 1 lets through, the `PUBLIC_API_ROUTES` in `proxy.ts`: none of them acts for a signed-in user, so they don't read the session (#115). Register and login return only the user who just sent their credentials, logout only clears the cookie, and health reads no user data. A new public route goes in that list and must not return any data that needs a session to see.
 
 **`requireGroupAccess(userId, groupId, mode)`** is the one place access is decided. Every service calls it before reading or writing group data.
 
