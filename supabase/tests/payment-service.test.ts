@@ -208,8 +208,11 @@ describe("a direct payment waiting to be confirmed", () => {
     await confirmPaymentReceived(a, groupId, direct.id);
     const settleUp = await startSettleUp(a, groupId);
 
-    // The confirmed $5 cleared the debt, so the period closed at once.
-    expect(settleUp.payments).toEqual([]);
+    // The confirmed $5 cleared the debt, so nothing was suggested and the
+    // period closed at once, claiming the direct payment.
+    expect(settleUp.payments).toMatchObject([
+      { id: direct.id, status: "confirmed", settlementId: settleUp.id },
+    ]);
     expect(await listPastPeriods(a, groupId)).toHaveLength(1);
   });
 });
