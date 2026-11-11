@@ -173,6 +173,29 @@ describe("ItemizedBill", () => {
     expect(screen.getByText("Read only")).toBeInTheDocument();
   });
 
+  // A former member keeps the balance they left with, so a cost they share
+  // can't change until a settle-up claims it (#22).
+  it("locks the user's cost that someone who left shares", () => {
+    setup(
+      bill({
+        lines: [
+          line({
+            description: "Internet",
+            payerId: ana,
+            shares: [
+              { userId: ana, shareCents: 1000 },
+              { userId: gone, shareCents: 2001 },
+            ],
+          }),
+        ],
+      }),
+    );
+
+    expect(
+      screen.getByText("Shared with someone who left"),
+    ).toBeInTheDocument();
+  });
+
   it("says when the user has no costs in the period", () => {
     setup(bill());
 

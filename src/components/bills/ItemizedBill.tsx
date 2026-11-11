@@ -64,6 +64,9 @@ export function ItemizedBill({
   settleUpStartedAt,
 }: ItemizedBillProps) {
   const names = new Map(members.map((member) => [member.userId, member.name]));
+  // Someone who has left isn't in members, and a cost they share is locked
+  // until it is settled, as in ExpenseList (#22).
+  const currentMemberIds = new Set(members.map((member) => member.userId));
   const nameOf = (userId: string) => names.get(userId) ?? "a former member";
   const payerName = (payerId: string) =>
     payerId === currentUserId
@@ -120,7 +123,7 @@ export function ItemizedBill({
           <ul className="flex flex-col divide-y-2 divide-dashed divide-divider">
             {bill.lines.map((line) => {
               const own = line.payerId === currentUserId;
-              const lock = expenseLock(line, startedAt);
+              const lock = expenseLock(line, startedAt, currentMemberIds);
               const editable = own && lock === null && !readOnly;
               const labelId = `bill-line-${line.id}`;
               return (
@@ -155,7 +158,9 @@ export function ItemizedBill({
                           : lock === "settle-up" && own
                             ? "In the open settle-up"
                             : own
-                              ? "Read only"
+                              ? lock === "member-left" && !readOnly
+                                ? "Shared with someone who left"
+                                : "Read only"
                               : `Only ${names.get(line.payerId) ?? "the payer"} can edit this`}
                       </span>
                     )}

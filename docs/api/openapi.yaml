@@ -301,8 +301,14 @@ paths:
       summary: Invite by email
       description: |
         Issue #6. Any current member can invite someone who already has an
-        account. The invitee joins right away at share weight 1; there is
-        no accept step. A former member rejoins from now.
+        account. The invitee joins right away; there is no accept step. A
+        former member rejoins from now.
+
+        Issue #63. If every current member has the same share weight, the
+        invitee gets it too, so an even group stays even. If the weights
+        differ, every current member, the invitee included, goes back to
+        weight 1, and `splitReset` is `true`. Joining and the weights change
+        in one transaction, so a `409` changes no weight.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       requestBody:
@@ -313,11 +319,11 @@ paths:
               $ref: "#/components/schemas/InviteRequest"
       responses:
         "201":
-          description: The new member.
+          description: The new member, and whether the group's split was reset to even.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MemberResponse"
+                $ref: "#/components/schemas/InvitationResponse"
         "400":
           description: 'Invalid input, for example `{ "email": "Enter a valid email address." }`.'
           content:
@@ -350,12 +356,43 @@ paths:
   /api/groups/{groupId}/leave:
     post:
       summary: Leave a group
-      description: Issue #22. Leaving with a non-zero balance is 409.
+      description: |
+        Issue #22, user flow 8. The session user leaves the group, in one
+        transaction: only with a zero balance for the current period
+        (confirmed payments of an open settle-up included) and no payment
+        to or from them still suggested or paid, since nobody could confirm
+        it once they leave. `leftAt` comes from the database's clock (#75).
+        When they were the group's last current member, the group is
+        archived at the same moment. Afterwards they read the group's
+        history up to `leftAt`, read-only, and its other members keep using
+        it. A personal space can't be left. No body is sent.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
-        "409":
+        "204":
+          description: They left. The group is archived if they were its last member.
+        "400":
           $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          description: |
+            A personal space (`You can't leave your personal space.`), a
+            group they already left or that is archived, or one they aren't
+            in.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: |
+            `Settle up first: you can leave once your balance in this group
+            is $0.00.` or `A payment to or from you is still waiting to be
+            paid or confirmed, so you can't leave yet.`
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/groups/{groupId}/list-items:
     get:
       summary: List items
@@ -488,7 +525,8 @@ paths:
         ignored. In the personal space the owner is the only sharer, whatever
         split is sent (#23). An item that is already done is 409, one that
         isn't in the group is 404, and a former member or an archived group
-        gets 403.
+        gets 403. A sharer who has left the group is 400 on `sharedBy`, or
+        409 if they left between that check and the write (#22).
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ItemId"
@@ -527,7 +565,7 @@ paths:
   /api/groups/{groupId}/list-items/{itemId}/reopen:
     post:
       summary: Uncheck an item and delete its expense
-      description: Issue #12. Only the member who checked the item off; anyone else gets 403. An expense that is settled or in the open settle-up is 409 (#86). A done item with no expense just reopens. An item that is already open is 409, and one that isn't in the group is 404.
+      description: Issue #12. Only the member who checked the item off; anyone else gets 403. An expense that is settled or in the open settle-up is 409 (#86), and so is one with a non-zero share of a member who has left the group, whose balance must stay as it was when they left (#22). A done item with no expense just reopens. An item that is already open is 409, and one that isn't in the group is 404.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ItemId"
@@ -577,7 +615,8 @@ paths:
         6.7). The expense and its shares are written in one transaction.
         Only current members of an active group can add; a former member or
         an archived group gets 403. In a personal space the user is the only
-        sharer.
+        sharer. A sharer who left the group between the `sharedBy` check
+        and the write is 409 (#22).
       parameters:
         - $ref: "#/components/parameters/GroupId"
       requestBody:
@@ -607,6 +646,8 @@ paths:
           $ref: "#/components/responses/Error"
         "403":
           $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
   /api/groups/{groupId}/expenses/{expenseId}:
     patch:
       summary: Edit an unsettled expense
@@ -620,8 +661,11 @@ paths:
         be changed: the body has no payer field, and one sent anyway is
         ignored (AGENTS.md Section 6.7). The payer must stay one of the
         sharers, or the request is 400 on `sharedBy`. A former member or an
-        archived group gets 403. Balances are computed per request, so they
-        reflect the edit at once.
+        archived group gets 403. A member who has left the group keeps the
+        balance they left with, so an expense with a non-zero share of
+        theirs is locked like a settled one: any edit, even of the
+        description, is 409 until a settle-up claims it (#22). Balances are
+        computed per request, so they reflect the edit at once.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ExpenseId"
@@ -653,7 +697,9 @@ paths:
       description: |
         Issue #20. Only the payer, and only while the expense is unsettled
         (409 once settled, and 409 while it is in an open settle-up, #86;
-        anyone else gets 403). The shares go with it. A
+        anyone else gets 403). An expense with a non-zero share of a member
+        who has left the group is 409 too, since deleting it would change
+        the balance they left with (#22). The shares go with it. A
         list item the expense came from stays checked off with no expense;
         unchecking the item is #12.
       parameters:
@@ -912,6 +958,11 @@ paths:
         to pay, the settle-up is returned already closed and the period's
         rows are locked. A group can have one open settle-up at a time: 409
         while one is open. A personal space has nothing to settle: 409.
+
+        Issue #112. 409 too while a direct payment in the group is marked
+        paid and not yet confirmed: it counts in no balance, so the settle-up
+        would suggest the same money again. It can start once the recipient
+        has confirmed it.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
@@ -1751,12 +1802,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GroupSummary"
-    MemberResponse:
+    InvitationResponse:
       type: object
-      required: [member]
+      required: [member, splitReset]
       properties:
         member:
           $ref: "#/components/schemas/Member"
+        splitReset:
+          type: boolean
+          description: |
+            True when the group's members had different weights, so every
+            current member, the new one included, went back to weight 1 (#63).
     GroupName:
       type: string
       description: Trimmed. An emoji at the start becomes the group's tile.
