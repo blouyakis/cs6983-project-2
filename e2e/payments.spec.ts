@@ -116,3 +116,47 @@ test("pay one person directly, and the balances move once the recipient confirms
   );
   expect(byAna.status()).toBe(403);
 });
+
+// #112: a direct payment that is paid but not confirmed counts in no balance,
+// so a settle-up started now would suggest the same money again. Starting is
+// refused, in words, until the recipient has confirmed.
+test("a direct payment waiting to be confirmed stops a settle-up from starting", async ({
+  browser,
+}) => {
+  const ana = await newUser(browser, "Ana");
+  const sam = await newUser(browser, "Sam");
+  const groupId = await groupOfTwo(ana, sam);
+
+  // Ana records $8.83 to Sam, and Sam hasn't confirmed it yet.
+  await ana.page.goto(`/groups/${groupId}/settle-up`);
+  await ana.page.getByRole("button", { name: /^Pay/ }).click();
+  const form = ana.page.getByRole("dialog", {
+    name: "Pay one person directly",
+  });
+  await form.getByLabel("Amount").fill("8.83");
+  await form.getByRole("button", { name: "Record payment" }).click();
+  await expect(form).toBeHidden();
+
+  // Starting a settle-up now is refused, and the page says why.
+  await ana.page.getByRole("button", { name: /Start settle-up/ }).click();
+  await expect(ana.page.getByRole("status")).toHaveText(
+    "A direct payment in this group hasn't been confirmed yet. A settle-up can start once its recipient has confirmed it.",
+  );
+  await expect(ana.page.getByText("No settle-up is open.")).toBeVisible();
+  const refused = await ana.page.request.post(
+    `/api/groups/${groupId}/settlements`,
+  );
+  expect(refused.status()).toBe(409);
+
+  // Sam confirms it, and then the settle-up starts.
+  await sam.page.goto(`/groups/${groupId}`);
+  await paymentRows(sam.page)
+    .first()
+    .getByRole("button", { name: /I got it/ })
+    .click();
+  await expect(sam.page.getByRole("status")).toHaveText(
+    "Confirmed $8.83 from Ana. Balances are updated.",
+  );
+  await ana.page.getByRole("button", { name: /Start settle-up/ }).click();
+  await expect(ana.page.getByRole("status")).toHaveText(/^Settle-up started:/);
+});

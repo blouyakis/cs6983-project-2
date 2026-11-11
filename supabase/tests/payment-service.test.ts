@@ -180,6 +180,43 @@ describe("a direct payment during an open settle-up", () => {
   });
 });
 
+// #112: a direct payment that is paid but not confirmed counts in no balance,
+// so a settle-up started now would suggest the same money again and the
+// sender could pay twice. Starting waits until the recipient has confirmed.
+describe("a direct payment waiting to be confirmed", () => {
+  it("stops a settle-up from starting until the recipient confirms it", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(2);
+    const [a, b] = memberIds;
+    await addExpense(a, groupId, {
+      description: "Groceries",
+      amountCents: 1000,
+      spentOn: "2026-11-02",
+      mode: "even",
+      sharedBy: [a, b],
+    });
+    const direct = await recordDirectPayment(b, groupId, {
+      toUserId: a,
+      amountCents: 500,
+    });
+
+    const refused = startSettleUp(a, groupId);
+
+    await expect(refused).rejects.toThrow(ConflictError);
+    await expect(refused).rejects.toThrow(/hasn't been confirmed/);
+    expect(await listPastPeriods(a, groupId)).toEqual([]);
+
+    await confirmPaymentReceived(a, groupId, direct.id);
+    const settleUp = await startSettleUp(a, groupId);
+
+    // The confirmed $5 cleared the debt, so nothing was suggested and the
+    // period closed at once, claiming the direct payment.
+    expect(settleUp.payments).toMatchObject([
+      { id: direct.id, status: "confirmed", settlementId: settleUp.id },
+    ]);
+    expect(await listPastPeriods(a, groupId)).toHaveLength(1);
+  });
+});
+
 describe("listPayments", () => {
   it("lists paid and confirmed payments, and a former member only sees those from before they left", async () => {
     const { groupId, memberIds } = await createGroupWithMembers(3);
