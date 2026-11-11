@@ -42,8 +42,8 @@ Tick each item off as it's completed. Every item applies to P2. Where the refere
 - [x] User stories turned into GitHub issues with templates (story, acceptance criteria, estimate)
 - [x] One milestone per sprint, with labels `feature`, `bug`, `chore`
 - [x] Board columns: Backlog · Sprint Todo · In Progress · In Review · Done
-- [x] Sprint planning: `docs/sprints/sprint-1/planning.md`, `sprint-2/planning.md`, etc. (goal, issues, estimates, PO and SM)
-- [x] PR template with `Closes #N`, test steps, and partner-review checkbox
+- [x] Sprint planning: `docs/sprints/sprint-2/planning.md` and `sprint-3/planning.md` (goal, issues, estimates, PO and SM). Sprint 1 was planned on the board and its milestone, before the planning notes started, so it has a retrospective only
+- [x] PR template with `Closes #N`, test steps, and a migration checklist the partner signs off
 - [x] Workflow: branch per issue → implement in code/agent → self-review → PR → partner review → merge → Done
 
 **See it:** [Issues board](https://github.com/blouyakis/cs6983-project-2/issues) · [Sprint docs](docs/sprints/)
@@ -76,13 +76,13 @@ Tick each item off as it's completed. Every item applies to P2. Where the refere
 - [x] Production deploys from `main` via Vercel; every PR gets a preview URL
 - [x] Env vars configured per environment on Vercel; `.env.example` lists names only, never values
 - [x] Database migrations documented and tested before prod deployment
-- [x] Preview deploys use a test database (never production data)
+- [x] Preview deploys never touch production data: a preview has no database, by decision ([#114](https://github.com/blouyakis/cs6983-project-2/issues/114)), and pages that need one are tested locally
 - [x] One health-check endpoint proves the app *and* database are up
 - [x] `README.md` includes live URL, local setup steps, and how to run database migrations
 
 Deploy early—on Day 1 if possible—so deploying is never the risky last step.
 
-**See it:** [README.md](README.md) · [Deploy docs](docs/deploy.md)
+**See it:** [README.md](README.md#deploying) · [Environments and configuration](docs/architecture.md#7-environments-and-configuration)
 
 ## Pitfalls to avoid
 
@@ -93,7 +93,7 @@ Deploy early—on Day 1 if possible—so deploying is never the risky last step.
 - **Copying DESIGN.md from a gallery.** Your app will look generic. Start with your mockups and colors.
 - **Committing .env files.** Deleting it later isn't enough; rotate the keys in Vercel and `.env.local`.
 - **Forgetting to test money calculations.** Rounding errors, off-by-one cents, and split bugs hide in integration tests. Test against a real database.
-- **Settlemnt logic in the browser.** Balances and payment suggestions must come from the server. Test them there.
+- **Settlement logic in the browser.** Balances and payment suggestions must come from the server. Test them there.
 
 ## What P2 requires for LifeBoard
 
