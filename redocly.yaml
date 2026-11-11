@@ -2,6 +2,8 @@
 # (#16), so CI's lint job catches a broken spec before it reaches /api/docs.
 extends:
   - recommended
+# No usage data sent to Redocly from every local and CI lint run.
+telemetry: off
 rules:
   # LifeBoard is a course project with no public licence to point at.
   info-license: off
