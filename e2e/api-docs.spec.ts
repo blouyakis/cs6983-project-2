@@ -22,11 +22,11 @@ test("trying GET /api/health from the docs gets an answer", async ({
 }) => {
   await page.goto("/api/docs");
   const operation = page.locator("#operations-Health-getHealth");
-  await operation.getByRole("button", { name: /\/api\/health/ }).click();
+  await operation.getByRole("button", { name: /^GET \/api\/health/ }).click();
   await operation.getByRole("button", { name: "Try it out" }).click();
   await operation.getByRole("button", { name: "Execute" }).click();
   await expect(
-    operation.locator(".live-responses-table .response-col_status"),
+    operation.locator(".live-responses-table tbody .response-col_status"),
   ).toContainText(/200|503/);
 });
 

@@ -260,18 +260,28 @@ for (const viewport of viewports) {
   });
 
   // Swagger UI draws the routes in the browser after the page loads, so the
-  // check waits for them and opens one, with its Try it out form (#16).
+  // check waits for them. It opens a route of each method, with its Try it
+  // out form, and runs GET /api/health so a live response is on the page too
+  // (#16).
   test(`the API docs pass the WCAG 2.1 AA check and fit the screen on ${viewport.name}`, async ({
     page,
   }) => {
     await page.setViewportSize(viewport);
     await page.goto("/api/docs");
-    const operation = page.locator("#operations-Auth-login");
-    await operation.getByRole("button", { name: /\/api\/auth\/login/ }).click();
-    await operation.getByRole("button", { name: "Try it out" }).click();
-    await expect(
-      operation.getByRole("button", { name: "Execute" }),
-    ).toBeVisible();
+    for (const id of [
+      "Auth-login",
+      "Groups-getGroup",
+      "Groups-updateGroup",
+      "Expenses-deleteExpense",
+      "Health-getHealth",
+    ]) {
+      const operation = page.locator(`#operations-${id}`);
+      await operation.locator(".opblock-summary-control").click();
+      await operation.getByRole("button", { name: "Try it out" }).click();
+    }
+    const health = page.locator("#operations-Health-getHealth");
+    await health.getByRole("button", { name: "Execute" }).click();
+    await expect(health.locator(".live-responses-table")).toBeVisible();
     await expectNoViolations(page);
     await expectFitsTheScreen(page);
   });
