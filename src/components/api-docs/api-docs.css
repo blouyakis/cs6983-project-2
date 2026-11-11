@@ -90,12 +90,16 @@
   max-height: none;
 }
 
-/* The responses table fits a 375px screen: its columns share the width and
-   long values wrap. */
+/* The responses table fits a 375px screen: long values in the description
+   column wrap, while the Code and Links columns keep their words whole. */
 .swagger-ui .responses-table {
-  table-layout: fixed;
   width: 100%;
 }
-.swagger-ui .responses-table td {
+.swagger-ui .responses-table .response-col_description {
   overflow-wrap: anywhere;
+}
+.swagger-ui .responses-table .response-col_status,
+.swagger-ui .responses-table .response-col_links {
+  padding-right: 1em;
+  white-space: nowrap;
 }
