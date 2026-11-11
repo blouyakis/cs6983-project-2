@@ -1,6 +1,6 @@
 import "server-only";
 import type { Sharer } from "@/lib/domain/splits";
-import { ConflictError } from "@/lib/http/errors";
+import { ConflictError, ForbiddenError } from "@/lib/http/errors";
 import { getDb } from "./client";
 import { toMicros } from "./timestamps";
 
@@ -80,7 +80,7 @@ function toMember(row: MemberRow): Member {
   };
 }
 
-// The trigger from #40 and the primary key on (group_id, user_id) both reject
+// The trigger from #40 and add_member's check for a current member both reject
 // a join; the service shows either as a 409.
 function toJoinError(error: { code: string; message: string }): Error {
   if (error.code === CHECK_VIOLATION && error.message.includes("at most 12")) {
@@ -212,34 +212,64 @@ export async function listMemberships(
   }));
 }
 
-// A new member starts at weight 1, an even split (#6).
-// TODO(#63): give the newcomer the shared weight when every weight is equal,
-// or reset the group to 1 when they differ, in one SQL function with the join.
+// What add_member gives back: the newcomer's weight, and whether the group's
+// uneven split went back to even for them (#63).
+export type JoinResult = { weight: number; splitReset: boolean };
+
+type JoinRow = { weight: number; split_reset: boolean };
+
+// Adds a member, or makes a former one current again from now, in one SQL
+// function with the weight rule (#63): the newcomer gets the weight every
+// current member shares, or, when the weights differ, everyone goes back to 1.
+// joined_at comes from the database's clock (#75). A failed join changes no
+// weight.
 export async function addMember(
   groupId: string,
   userId: string,
-): Promise<void> {
-  const { error } = await getDb()
-    .from("group_members")
-    .insert({ group_id: groupId, user_id: userId, default_share_weight: 1 });
-  if (error) {
-    throw toJoinError(error);
-  }
-}
-
-// A former member who is invited again joins from now, at weight 1. They keep
-// one row, so joined_at becomes the time of this join, from the database's
-// clock (#75).
-// TODO(#63): follow the same weight rule as addMember, in rejoin_member.
-export async function rejoinMember(
-  groupId: string,
-  userId: string,
-): Promise<void> {
-  const { error } = await getDb().rpc("rejoin_member", {
+): Promise<JoinResult> {
+  const { data, error } = await getDb().rpc("add_member", {
     p_group_id: groupId,
     p_user_id: userId,
   });
   if (error) {
     throw toJoinError(error);
+  }
+  const row = data as JoinRow;
+  return { weight: row.weight, splitReset: row.split_reset };
+}
+
+// Each refusal leave_group gives, by its hint, as the error the client gets.
+const LEAVE_REFUSALS: Record<string, () => Error> = {
+  nonzero_balance: () =>
+    new ConflictError(
+      "Settle up first: you can leave once your balance in this group is $0.00.",
+    ),
+  pending_payment: () =>
+    new ConflictError(
+      "A payment to or from you is still waiting to be paid or confirmed, so you can't leave yet.",
+    ),
+  personal_space: () =>
+    new ForbiddenError("You can't leave your personal space."),
+  not_member: () => new ForbiddenError("You are not a member of this group."),
+};
+
+// The member leaves the group in one transaction through leave_group (#22):
+// only at a zero balance with no payment to or from them still waiting, with
+// left_at from the database's clock (#75), and the group archived when they
+// were its last current member (AGENTS.md Section 6.8).
+export async function leaveGroup(
+  groupId: string,
+  userId: string,
+): Promise<void> {
+  const { error } = await getDb().rpc("leave_group", {
+    p_group_id: groupId,
+    p_user_id: userId,
+  });
+  if (error) {
+    const refusal = error.hint ? LEAVE_REFUSALS[error.hint] : undefined;
+    if (refusal) {
+      throw refusal();
+    }
+    throw new Error(`Could not leave the group: ${error.message}`);
   }
 }

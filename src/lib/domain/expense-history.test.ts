@@ -43,6 +43,7 @@ function group(
     isPersonal: false,
     readOnly: false,
     openSettleUpStartedAt: null,
+    currentMemberIds: new Set([ana, sam, jo]),
     expenses,
     ...overrides,
   };
@@ -214,6 +215,47 @@ describe("expenseHistory", () => {
     it("is locked in a group the user left or that is archived", () => {
       const [row] = expenseHistory(ana, [
         group([expense("a", ana, shared)], { readOnly: true }),
+      ]);
+
+      expect(row.editLock).toBe("read-only");
+    });
+
+    // Someone who has left keeps the balance they left with, so a cost they
+    // share can't change until a settle-up claims it (#22).
+    it("is locked while someone who has left shares it", () => {
+      const rows = expenseHistory(ana, [
+        group(
+          [
+            expense("with-jo", ana, [
+              [ana, 500],
+              [jo, 500],
+            ]),
+            expense("jo-at-zero", ana, [
+              [ana, 1000],
+              [jo, 0],
+            ]),
+          ],
+          { currentMemberIds: new Set([ana, sam]) },
+        ),
+      ]);
+
+      expect(rows.map((row) => [row.id, row.editLock])).toEqual([
+        ["jo-at-zero", null],
+        ["with-jo", "member-left"],
+      ]);
+    });
+
+    it("says a group is read-only before it says someone left", () => {
+      const [row] = expenseHistory(ana, [
+        group(
+          [
+            expense("a", ana, [
+              [ana, 500],
+              [jo, 500],
+            ]),
+          ],
+          { readOnly: true, currentMemberIds: new Set([ana, sam]) },
+        ),
       ]);
 
       expect(row.editLock).toBe("read-only");

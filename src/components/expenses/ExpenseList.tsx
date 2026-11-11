@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/Badge";
 import type { Expense } from "@/lib/db/expenses";
 import type { Member } from "@/lib/db/group-members";
+import { expenseLock } from "@/lib/domain/expense-lock";
 import { formatCents } from "@/lib/domain/money";
 import { formatDay } from "@/components/groups/format-day";
 import { EditExpenseButton } from "./EditExpenseButton";
@@ -19,9 +20,11 @@ type ExpenseListProps = {
 };
 
 // The group's costs, newest first, with a pencil on the ones the user can
-// edit and a lock on the rest. This is the list the edit and delete flows
-// (#20) live on, with every cost in the group. The table with filters across
-// all the user's groups is ExpenseTable on the overview (#15).
+// edit and a lock on the rest. A cost someone who has left shares is locked
+// until it is settled, since they keep the balance they left with (#22). This
+// is the list the edit and delete flows (#20) live on, with every cost in the
+// group. The table with filters across all the user's groups is ExpenseTable
+// on the overview (#15).
 export function ExpenseList({
   expenses,
   members,
@@ -31,6 +34,7 @@ export function ExpenseList({
   settleUpStartedAt,
 }: ExpenseListProps) {
   const names = new Map(members.map((member) => [member.userId, member.name]));
+  const currentMemberIds = new Set(members.map((member) => member.userId));
   const payerName = (payerId: string) =>
     payerId === currentUserId
       ? "You"
@@ -47,11 +51,12 @@ export function ExpenseList({
         <ul className="flex flex-col divide-y-2 divide-dashed divide-divider rounded-2xl border-4 border-ink bg-surface px-4">
           {expenses.map((expense) => {
             const own = expense.payerId === currentUserId;
-            const inSettleUp =
-              settleUpStartedAt !== null &&
-              expense.createdAt <= settleUpStartedAt;
-            const editable =
-              own && !expense.settled && !inSettleUp && !readOnly;
+            const lock = expenseLock(
+              expense,
+              settleUpStartedAt,
+              currentMemberIds,
+            );
+            const editable = own && lock === null && !readOnly;
             return (
               <li
                 key={expense.id}
@@ -81,13 +86,15 @@ export function ExpenseList({
                   ) : (
                     <span className="text-sm text-muted">
                       <span aria-hidden="true">🔒 </span>
-                      {expense.settled
+                      {lock === "settled"
                         ? "Settled"
-                        : inSettleUp && own
-                          ? "In the open settle-up"
-                          : own
-                            ? "Read only"
-                            : `Only ${names.get(expense.payerId) ?? "the payer"} can edit this`}
+                        : !own
+                          ? `Only ${names.get(expense.payerId) ?? "the payer"} can edit this`
+                          : lock === "settle-up"
+                            ? "In the open settle-up"
+                            : lock === "member-left" && !readOnly
+                              ? "Shared with someone who left"
+                              : "Read only"}
                     </span>
                   )}
                 </div>

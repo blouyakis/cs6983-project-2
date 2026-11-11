@@ -286,12 +286,16 @@ export async function findPayment(paymentId: string): Promise<Payment | null> {
 
 // The status check is part of the update, so a payment confirmed or paid
 // between the service's check and this write is left alone: null then.
+// paid_at comes from the database's clock, the one confirm_payment stamps
+// confirmed_at with, so confirmed_at is never earlier than paid_at even when
+// the app server's clock runs ahead (#121).
 export async function markPaymentPaid(
   paymentId: string,
 ): Promise<Payment | null> {
+  const paidAt = await dbNow();
   const { data, error } = await getDb()
     .from("payments")
-    .update({ status: "paid", paid_at: new Date().toISOString() })
+    .update({ status: "paid", paid_at: paidAt })
     .eq("id", paymentId)
     .eq("status", "suggested")
     .select(PAYMENT_COLUMNS)

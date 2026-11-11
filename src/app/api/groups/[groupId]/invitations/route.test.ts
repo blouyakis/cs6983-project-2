@@ -52,15 +52,23 @@ afterEach(() => {
 
 describe("POST /api/groups/{groupId}/invitations", () => {
   it("adds the member and returns 201, with the email lowercased", async () => {
-    service.inviteMember.mockResolvedValue(sam);
+    service.inviteMember.mockResolvedValue({ member: sam, splitReset: false });
 
     const response = await invite({ email: " Sam@Example.COM " });
 
     expect(response.status).toBe(201);
-    expect(await response.json()).toEqual({ member: sam });
+    expect(await response.json()).toEqual({ member: sam, splitReset: false });
     expect(service.inviteMember).toHaveBeenCalledWith(userId, groupId, {
       email: "sam@example.com",
     });
+  });
+
+  it("says when joining reset the group's split to even (#63)", async () => {
+    service.inviteMember.mockResolvedValue({ member: sam, splitReset: true });
+
+    const response = await invite({ email: "sam@example.com" });
+
+    expect(await response.json()).toEqual({ member: sam, splitReset: true });
   });
 
   it("returns 400 for something that is not an email, without asking the service", async () => {

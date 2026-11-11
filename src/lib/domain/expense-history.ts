@@ -24,13 +24,18 @@ export type GroupExpenses<Expense extends HistoryExpense> = {
   readOnly: boolean;
   // When a settle-up is open, its started_at (#86). Null otherwise.
   openSettleUpStartedAt: string | null;
+  // The group's current members. A cost that someone who has left shares is
+  // locked until it is settled (#22).
+  currentMemberIds: ReadonlySet<string>;
   expenses: readonly Expense[];
 };
 
 // Why the Edit column shows a lock instead of a pencil. Only the payer can
-// edit, and only while the expense is unsettled, outside an open settle-up
-// and in a group they can still write to (AGENTS.md Section 6.7).
-export type EditLock = "settled" | "not-payer" | "settle-up" | "read-only";
+// edit, and only while the expense is unsettled, outside an open settle-up,
+// in a group they can still write to, and not shared with someone who has
+// left (AGENTS.md Section 6.7).
+export type EditLock =
+  "settled" | "not-payer" | "settle-up" | "read-only" | "member-left";
 
 export type HistoryRow<Expense extends HistoryExpense> = Expense & {
   groupName: string;
@@ -44,9 +49,17 @@ export type HistoryRow<Expense extends HistoryExpense> = Expense & {
 function editLockOf(
   userId: string,
   expense: HistoryExpense,
-  group: { readOnly: boolean; openSettleUpStartedAt: string | null },
+  group: {
+    readOnly: boolean;
+    openSettleUpStartedAt: string | null;
+    currentMemberIds: ReadonlySet<string>;
+  },
 ): EditLock | null {
-  const lock = expenseLock(expense, group.openSettleUpStartedAt);
+  const lock = expenseLock(
+    expense,
+    group.openSettleUpStartedAt,
+    group.currentMemberIds,
+  );
   if (lock === "settled") {
     return "settled";
   }
@@ -56,7 +69,10 @@ function editLockOf(
   if (lock === "settle-up") {
     return "settle-up";
   }
-  return group.readOnly ? "read-only" : null;
+  if (group.readOnly) {
+    return "read-only";
+  }
+  return lock === "member-left" ? "member-left" : null;
 }
 
 // Newest day first and, within a day, newest entry first, as a group's own

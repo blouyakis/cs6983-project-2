@@ -45,6 +45,7 @@ vi.mock("@/components/ui/NoticeProvider", () => ({
     <div data-testid="notice-provider">{children}</div>
   ),
   NoticeLine: () => <p data-testid="notice-line" />,
+  useNotice: () => ({ notice: null, show: vi.fn(), clear: vi.fn() }),
 }));
 vi.mock("@/lib/services/expense-service", () => ({
   listGroupExpenses: mocks.listGroupExpenses,
@@ -78,6 +79,13 @@ vi.mock("@/lib/services/bill-service", () => ({
 vi.mock("@/components/bills/ItemizedBill", () => ({
   ItemizedBill: (props: object) => (
     <div data-testid="itemized-bill" data-props={JSON.stringify(props)} />
+  ),
+}));
+// The card is a Client Component with its own tests (#22). Here it only has
+// to be given the user's balance and whether a payment is waiting.
+vi.mock("./MovingOutCard", () => ({
+  MovingOutCard: (props: object) => (
+    <div data-testid="moving-out" data-props={JSON.stringify(props)} />
   ),
 }));
 vi.mock("next/navigation", () => ({
@@ -231,6 +239,34 @@ describe("GroupDetail", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Ana (you)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Invite" })).toBeInTheDocument();
+  });
+
+  it("shows the group's default split with a way to change it, next to the members (#63)", async () => {
+    mocks.getGroup.mockResolvedValue(details());
+
+    render(await detail());
+
+    expect(screen.getByText(/^Default split: /)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Change the default split" }),
+    ).toBeInTheDocument();
+  });
+
+  it("has no default split control in the personal space or a read-only group (#63)", async () => {
+    mocks.getGroup.mockResolvedValue(
+      details({ name: "Personal space", isPersonal: true }),
+    );
+    const { unmount } = render(await detail());
+    expect(
+      screen.queryByRole("button", { name: "Change the default split" }),
+    ).not.toBeInTheDocument();
+    unmount();
+
+    mocks.getGroup.mockResolvedValue(details({ readOnly: true }));
+    render(await detail());
+    expect(
+      screen.queryByRole("button", { name: "Change the default split" }),
+    ).not.toBeInTheDocument();
   });
 
   it("links to the group's settle-up page (#19)", async () => {
@@ -596,6 +632,97 @@ describe("GroupDetail", () => {
 
       expect(mocks.getMyBill).not.toHaveBeenCalled();
       expect(screen.queryByTestId("itemized-bill")).toBeNull();
+    });
+  });
+
+  describe("moving out (#22)", () => {
+    function movingOutProps() {
+      return JSON.parse(
+        screen.getByTestId("moving-out").getAttribute("data-props") ?? "{}",
+      );
+    }
+
+    it("gives the card the user's balance from the server", async () => {
+      mocks.getGroup.mockResolvedValue(details());
+      mocks.getGroupBalances.mockResolvedValue([
+        { userId: anaId, balanceCents: -3100 },
+        { userId: samId, balanceCents: 3100 },
+      ]);
+
+      render(await detail());
+
+      expect(movingOutProps()).toEqual({
+        groupId,
+        groupName: "🏠 Dorm 4B",
+        balanceCents: -3100,
+        hasWaitingPayment: false,
+        isLastMember: false,
+      });
+    });
+
+    // An unknown balance is not a zero one: the card keeps Leave group off
+    // instead of offering a leave the server would refuse (#22 review).
+    it("gives no balance to a user the balances leave out", async () => {
+      mocks.getGroup.mockResolvedValue(details());
+
+      render(await detail());
+
+      expect(movingOutProps().balanceCents).toBeNull();
+    });
+
+    it("says a payment is waiting when one to the user is paid but not confirmed", async () => {
+      mocks.getGroup.mockResolvedValue(details());
+      mocks.listPayments.mockResolvedValue([
+        { id: "p", fromUserId: samId, toUserId: anaId, status: "paid" },
+      ]);
+
+      render(await detail());
+
+      expect(movingOutProps().hasWaitingPayment).toBe(true);
+    });
+
+    it("says a payment is waiting when the open settle-up suggests one for the user", async () => {
+      mocks.getGroup.mockResolvedValue(details());
+      mocks.getCurrentSettleUp.mockResolvedValue({
+        id: "s",
+        status: "open",
+        startedAt: "2026-11-01T10:00:00+00:00",
+        payments: [
+          { id: "p", fromUserId: anaId, toUserId: samId, status: "suggested" },
+        ],
+      });
+
+      render(await detail());
+
+      expect(movingOutProps().hasWaitingPayment).toBe(true);
+    });
+
+    it("tells the card when the user is the group's last member", async () => {
+      mocks.getGroup.mockResolvedValue(
+        details({
+          members: [{ userId: anaId, name: "Ana", defaultShareWeight: 1 }],
+        }),
+      );
+
+      render(await detail());
+
+      expect(movingOutProps().isLastMember).toBe(true);
+    });
+
+    it("has no card in the personal space, which can't be left", async () => {
+      mocks.getGroup.mockResolvedValue(details({ isPersonal: true }));
+
+      render(await detail());
+
+      expect(screen.queryByTestId("moving-out")).toBeNull();
+    });
+
+    it("has no card in a group the user left or that is archived", async () => {
+      mocks.getGroup.mockResolvedValue(details({ readOnly: true }));
+
+      render(await detail());
+
+      expect(screen.queryByTestId("moving-out")).toBeNull();
     });
   });
 });

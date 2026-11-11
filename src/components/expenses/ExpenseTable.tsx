@@ -29,6 +29,8 @@ function lockLabel(lock: EditLock, payerName: string): string {
       return "In the open settle-up";
     case "read-only":
       return "Read only";
+    case "member-left":
+      return "Shared with someone who left";
   }
 }
 
@@ -141,7 +143,8 @@ export function ExpenseTable({
       <p className="text-sm text-muted">
         <span aria-hidden="true">✏️ </span>You paid it and it isn&apos;t
         settled, so you can edit it. <span aria-hidden="true">🔒 </span>Someone
-        else paid it, or it is settled, in an open settle-up or read-only.
+        else paid it, or it is settled, in an open settle-up, shared with
+        someone who left, or read-only.
       </p>
     </div>
   );

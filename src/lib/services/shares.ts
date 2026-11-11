@@ -18,9 +18,10 @@ export async function sharesOfNewCost(
   amountCents: number,
   split: SplitInput,
 ): Promise<Share[]> {
-  // The database accepts a former member as a sharer, so that old shares
-  // survive when someone leaves. This check is what keeps a new cost to current
-  // members.
+  // Only current members share a new cost. create_expense and
+  // complete_list_item refuse a member who has left too (member_left, #22),
+  // for a leave that lands between this check and the write; checking here
+  // first gives a 400 on the field instead of a 409.
   const current = new Set(
     (await listCurrentMemberWeights(groupId)).map((member) => member.userId),
   );

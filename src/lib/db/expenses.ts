@@ -163,6 +163,12 @@ export async function findExpense(expenseId: string): Promise<Expense | null> {
   return data ? toExpense(data) : null;
 }
 
+// The hint create_expense, update_expense, delete_expense and the list item
+// functions give when a write would change the balance of a member who left
+// (#22). update_expense and delete_expense raise it as P0001, like their other
+// refusals, so it reaches the client as a 409 there too.
+export const MEMBER_LEFT_HINT = "member_left";
+
 // Writes an expense and its shares in one transaction through create_expense
 // (#43), so an expense never exists without shares that add up to its amount.
 // Returns the new expense's id.
@@ -179,6 +185,11 @@ export async function createExpense(expense: NewExpense): Promise<string> {
     })),
   });
   if (error) {
+    // The payer or a sharer left the group after the service checked (#22):
+    // the database refuses to change a former member's balance.
+    if (error.hint === MEMBER_LEFT_HINT) {
+      throw new ConflictError(error.message);
+    }
     throw new Error(`Could not create the expense: ${error.message}`);
   }
   return data as string;

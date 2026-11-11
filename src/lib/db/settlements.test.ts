@@ -427,39 +427,68 @@ describe("findPayment", () => {
 });
 
 describe("markPaymentPaid", () => {
+  const dbClock = "2026-11-02T10:00:00+00:00";
+
   it("moves a suggested payment to paid and returns it", async () => {
-    const paid = {
-      ...paymentRow,
-      status: "paid",
-      paid_at: "2026-11-02T10:00:00+00:00",
-    };
-    results = [{ data: paid, error: null }];
+    const paid = { ...paymentRow, status: "paid", paid_at: dbClock };
+    results = [
+      { data: dbClock, error: null },
+      { data: paid, error: null },
+    ];
 
     const marked = await markPaymentPaid(paymentId);
 
-    expect(marked).toEqual({
-      ...payment,
-      status: "paid",
-      paidAt: "2026-11-02T10:00:00+00:00",
-    });
+    expect(marked).toEqual({ ...payment, status: "paid", paidAt: dbClock });
     expect(argsOf("from")).toEqual(["payments"]);
-    const [changes] = argsOf("update") as [Record<string, unknown>];
-    expect(changes.status).toBe("paid");
-    expect(typeof changes.paid_at).toBe("string");
     expect(allArgsOf("eq")).toEqual([
       ["id", paymentId],
       ["status", "suggested"],
     ]);
   });
 
+  // confirm_payment stamps confirmed_at with the database's now(), so paid_at
+  // must come from the same clock, or a server clock running ahead breaks
+  // payments_confirmed_after_paid (#121).
+  it("takes paid_at from the database clock, not the server's", async () => {
+    results = [
+      { data: dbClock, error: null },
+      {
+        data: { ...paymentRow, status: "paid", paid_at: dbClock },
+        error: null,
+      },
+    ];
+
+    await markPaymentPaid(paymentId);
+
+    expect(calls.map((call) => call.method).slice(0, 2)).toEqual([
+      "rpc",
+      "from",
+    ]);
+    expect(argsOf("rpc")).toEqual(["db_now", {}]);
+    expect(argsOf("update")).toEqual([{ status: "paid", paid_at: dbClock }]);
+  });
+
   it("returns null when the payment is no longer suggested", async () => {
-    results = [{ data: null, error: null }];
+    results = [
+      { data: dbClock, error: null },
+      { data: null, error: null },
+    ];
 
     expect(await markPaymentPaid(paymentId)).toBeNull();
   });
 
+  it("throws and updates nothing when the database clock can't be read", async () => {
+    results = [{ data: null, error: { message: "clock down" } }];
+
+    await expect(markPaymentPaid(paymentId)).rejects.toThrow("clock down");
+    expect(allArgsOf("update")).toEqual([]);
+  });
+
   it("throws on a database error", async () => {
-    results = [{ data: null, error: { message: "boom" } }];
+    results = [
+      { data: dbClock, error: null },
+      { data: null, error: { message: "boom" } },
+    ];
 
     await expect(markPaymentPaid(paymentId)).rejects.toThrow("boom");
   });

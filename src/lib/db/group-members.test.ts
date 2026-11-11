@@ -1,16 +1,17 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConflictError } from "@/lib/http/errors";
+import { ConflictError, ForbiddenError } from "@/lib/http/errors";
 import {
+  addMember,
   findMembership,
+  leaveGroup,
   listCurrentMemberWeights,
   listMembersAt,
-  rejoinMember,
 } from "./group-members";
 
 type Result = {
   data: unknown;
-  error: { message: string; code?: string } | null;
+  error: { message: string; code?: string; hint?: string } | null;
 };
 
 const calls: { method: string; args: unknown[] }[] = [];
@@ -230,16 +231,27 @@ describe("listMembersAt", () => {
   });
 });
 
-describe("rejoinMember", () => {
-  it("asks the database to rejoin, so joined_at comes from its clock (#75)", async () => {
-    await rejoinMember(groupId, userId);
+describe("addMember", () => {
+  it("asks the database to add the member, so the weight rule and joined_at come from one transaction (#63, #75)", async () => {
+    result = { data: { weight: 1, split_reset: false }, error: null };
+
+    await addMember(groupId, userId);
 
     expect(calls).toEqual([
       {
         method: "rpc",
-        args: ["rejoin_member", { p_group_id: groupId, p_user_id: userId }],
+        args: ["add_member", { p_group_id: groupId, p_user_id: userId }],
       },
     ]);
+  });
+
+  it("returns the newcomer's weight and whether the split was reset, in camelCase", async () => {
+    result = { data: { weight: 1, split_reset: true }, error: null };
+
+    expect(await addMember(groupId, userId)).toEqual({
+      weight: 1,
+      splitReset: true,
+    });
   });
 
   it("turns a 13th current member into a ConflictError", async () => {
@@ -251,8 +263,88 @@ describe("rejoinMember", () => {
       },
     };
 
-    await expect(rejoinMember(groupId, userId)).rejects.toEqual(
+    await expect(addMember(groupId, userId)).rejects.toEqual(
       new ConflictError("A group can have at most 12 members."),
+    );
+  });
+
+  it("turns a current member into a ConflictError", async () => {
+    result = {
+      data: null,
+      error: { code: "23505", message: "duplicate key value" },
+    };
+
+    await expect(addMember(groupId, userId)).rejects.toEqual(
+      new ConflictError("They are already in this group."),
+    );
+  });
+});
+
+describe("leaveGroup", () => {
+  it("asks the database to leave, so left_at comes from its clock (#22, #75)", async () => {
+    await leaveGroup(groupId, userId);
+
+    expect(calls).toEqual([
+      {
+        method: "rpc",
+        args: ["leave_group", { p_group_id: groupId, p_user_id: userId }],
+      },
+    ]);
+  });
+
+  it("turns a non-zero balance into a 409 that says to settle up first", async () => {
+    result = {
+      data: null,
+      error: { code: "P0001", hint: "nonzero_balance", message: "x" },
+    };
+
+    await expect(leaveGroup(groupId, userId)).rejects.toEqual(
+      new ConflictError(
+        "Settle up first: you can leave once your balance in this group is $0.00.",
+      ),
+    );
+  });
+
+  it("turns a payment still waiting into a 409", async () => {
+    result = {
+      data: null,
+      error: { code: "P0001", hint: "pending_payment", message: "x" },
+    };
+
+    await expect(leaveGroup(groupId, userId)).rejects.toEqual(
+      new ConflictError(
+        "A payment to or from you is still waiting to be paid or confirmed, so you can't leave yet.",
+      ),
+    );
+  });
+
+  it("turns a personal space into a 403", async () => {
+    result = {
+      data: null,
+      error: { code: "P0001", hint: "personal_space", message: "x" },
+    };
+
+    await expect(leaveGroup(groupId, userId)).rejects.toEqual(
+      new ForbiddenError("You can't leave your personal space."),
+    );
+  });
+
+  it("turns someone who isn't a current member into a 403", async () => {
+    result = {
+      data: null,
+      error: { code: "P0001", hint: "not_member", message: "x" },
+    };
+
+    await expect(leaveGroup(groupId, userId)).rejects.toEqual(
+      new ForbiddenError("You are not a member of this group."),
+    );
+  });
+
+  it("throws when the call fails for any other reason", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(leaveGroup(groupId, userId)).rejects.toThrow(
+      "Could not leave the group: boom",
     );
   });
 });

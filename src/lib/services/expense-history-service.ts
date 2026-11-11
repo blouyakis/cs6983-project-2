@@ -39,6 +39,7 @@ async function groupExpenses(
     isPersonal: group.isPersonal,
     readOnly: group.readOnly,
     openSettleUpStartedAt: openSettleUp?.startedAt ?? null,
+    currentMemberIds: new Set(group.members.map((member) => member.userId)),
     expenses,
   };
 }

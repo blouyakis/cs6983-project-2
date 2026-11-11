@@ -92,10 +92,11 @@ export async function cleanUp(): Promise<void> {
     () => db.from("expenses").delete().in("group_id", groupIds),
     () => db.from("settlements").delete().in("group_id", groupIds),
   ];
-  // Another file's ensure_personal_spaces test can give one of these users a
-  // personal space between the groups step and the users step (#83). Each
-  // step is its own request, so no transaction shuts it out; when the users
-  // step hits the foreign key, these three run once more.
+  // An ensure_personal_spaces call in another file used to give one of these
+  // users a personal space between the groups step and the users step (#83).
+  // Since #79 that file runs only after the parallel ones, so this shouldn't
+  // happen; the retry stays as a safety net. When the users step hits the
+  // foreign key, these three run once more.
   const userSteps = [
     () => db.from("group_members").delete().in("user_id", ids),
     () => db.from("groups").delete().in("created_by", ids),

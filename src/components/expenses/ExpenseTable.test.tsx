@@ -174,6 +174,7 @@ describe("ExpenseTable", () => {
     ["not-payer", "Only Sam can edit this"],
     ["settle-up", "In the open settle-up"],
     ["read-only", "Read only"],
+    ["member-left", "Shared with someone who left"],
   ] as const)(
     "says why a %s expense is locked, in words",
     (editLock, label) => {

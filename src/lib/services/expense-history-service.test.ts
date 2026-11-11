@@ -36,7 +36,10 @@ function summary(
     archivedAt: null,
     createdAt: "2026-10-01T09:00:00+00:00",
     readOnly: false,
-    members: [],
+    members: [
+      { userId: ana, name: "Ana", defaultShareWeight: 1 },
+      { userId: sam, name: "Sam", defaultShareWeight: 1 },
+    ],
     leftAt: null,
     ...overrides,
   };

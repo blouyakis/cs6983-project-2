@@ -3,7 +3,7 @@
 // per group; cancelling is only possible while every payment is suggested;
 // confirming the last payment closes the period and locks its rows.
 import { afterAll, describe, expect, it } from "vitest";
-import { anonDb, cleanUp, createGroupWithMembers, db } from "./fixtures";
+import { anonDb, cleanUp, createGroupWithMembers, db, dbNow } from "./fixtures";
 
 afterAll(cleanUp);
 
@@ -103,10 +103,13 @@ async function paymentsOf(settlementId: string) {
   return data!;
 }
 
+// paid_at comes from the database's clock, like confirm_payment's
+// confirmed_at, so a Docker VM clock behind the host's can't break
+// payments_confirmed_after_paid (#121).
 async function markPaid(paymentId: string) {
   const { error } = await db
     .from("payments")
-    .update({ status: "paid", paid_at: new Date().toISOString() })
+    .update({ status: "paid", paid_at: await dbNow() })
     .eq("id", paymentId);
   if (error) {
     throw error;
@@ -182,13 +185,65 @@ describe("start_settlement", () => {
     expect((await settlementRow(second)).status).toBe("open");
   });
 
+  // A direct payment that is paid but not confirmed counts in no balance yet,
+  // so a settle-up started now would suggest the same money again (#112).
+  it("refuses to start while a direct payment is waiting to be confirmed", async () => {
+    const { groupId, memberIds, payment } = await groupWithDebt();
+    const { error: recordError } = await db.rpc("record_payment", {
+      p_group_id: groupId,
+      p_from_user_id: memberIds[1],
+      p_to_user_id: memberIds[0],
+      p_amount_cents: 1500,
+    });
+    expect(recordError).toBeNull();
+
+    const { error } = await start(groupId, memberIds[0], [payment]);
+
+    expect(error?.code).toBe("P0001");
+    expect(error?.hint).toBe("pending_direct_payment");
+    const { data } = await db
+      .from("settlements")
+      .select("id")
+      .eq("group_id", groupId);
+    expect(data).toEqual([]);
+  });
+
+  it("starts once the recipient has confirmed the direct payment, and the period claims it", async () => {
+    const { groupId, memberIds } = await groupWithDebt();
+    const { data: paymentId, error: recordError } = await db.rpc(
+      "record_payment",
+      {
+        p_group_id: groupId,
+        p_from_user_id: memberIds[1],
+        p_to_user_id: memberIds[0],
+        p_amount_cents: 1500,
+      },
+    );
+    expect(recordError).toBeNull();
+    const { error: confirmError } = await db.rpc("confirm_payment", {
+      p_payment_id: paymentId,
+    });
+    expect(confirmError).toBeNull();
+
+    // The confirmed $15 cleared the debt, so there is nothing left to pay.
+    const settlementId = await started(groupId, memberIds[0], []);
+
+    expect((await settlementRow(settlementId)).status).toBe("closed");
+    const { data } = await db
+      .from("payments")
+      .select("status, settlement_id")
+      .eq("id", paymentId)
+      .single();
+    expect(data).toEqual({ status: "confirmed", settlement_id: settlementId });
+  });
+
   it("is not callable by the browser", async () => {
     const { groupId, memberIds, payment } = await groupWithDebt();
 
     const { error } = await anonDb().rpc("start_settlement", {
       p_group_id: groupId,
       p_started_by: memberIds[0],
-      p_started_at: new Date().toISOString(),
+      p_started_at: await dbNow(),
       p_balances: [],
       p_payments: [payment],
     });
