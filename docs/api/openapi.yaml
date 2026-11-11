@@ -90,7 +90,8 @@ paths:
       tags: [Auth]
       operationId: login
       summary: Log in, set the session cookie
-      description: Issue #4.
+      description: |
+        Issue #4.
       security: []
       requestBody:
         required: true
@@ -141,7 +142,8 @@ paths:
       tags: [Auth]
       operationId: getCurrentUser
       summary: Current user
-      description: Issue #4.
+      description: |
+        Issue #4.
       responses:
         "200":
           description: The user the session belongs to.
@@ -712,7 +714,13 @@ paths:
       tags: [Lists]
       operationId: reopenListItem
       summary: Uncheck an item and delete its expense
-      description: Issue #12. Only the member who checked the item off; anyone else gets 403. An expense that is settled or in the open settle-up is 409 (#86), and so is one with a non-zero share of a member who has left the group, whose balance must stay as it was when they left (#22). A done item with no expense just reopens. An item that is already open is 409, and one that isn't in the group is 404.
+      description: |
+        Issue #12. Only the member who checked the item off; anyone else gets
+        403. An expense that is settled or in the open settle-up is 409 (#86),
+        and so is one with a non-zero share of a member who has left the
+        group, whose balance must stay as it was when they left (#22). A done
+        item with no expense just reopens. An item that is already open is
+        409, and one that isn't in the group is 404.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ItemId"
@@ -1574,7 +1582,8 @@ components:
           $ref: "#/components/schemas/Payment"
     CreatePaymentRequest:
       type: object
-      description: Issue #14. There is no sender field; the sender is the session user.
+      description: |
+        Issue #14. There is no sender field; the sender is the session user.
       required: [toUserId, amountCents]
       properties:
         toUserId:
@@ -1736,7 +1745,8 @@ components:
           nullable: true
           description: The estimated cost in cents. Null for no estimate.
     CreateListItemRequest:
-      description: Issue #11.
+      description: |
+        Issue #11.
       allOf:
         - type: object
           required: [title]
@@ -1745,7 +1755,8 @@ components:
               $ref: "#/components/schemas/ListItemTitle"
         - $ref: "#/components/schemas/ListItemFields"
     UpdateListItemRequest:
-      description: Issue #11. At least one field. The title can't be cleared.
+      description: |
+        Issue #11. At least one field. The title can't be cleared.
       minProperties: 1
       allOf:
         - type: object
@@ -1827,7 +1838,9 @@ components:
               type: string
               enum: [settled, settle-up, member-left, null]
               nullable: true
-              description: Why its expense can't be deleted, so it can't be unchecked (#86, #22). Null when it can.
+              description: |
+                Why its expense can't be deleted, so it can't be unchecked
+                (#86, #22). Null when it can.
     ListItemResponse:
       type: object
       required: [item]
@@ -2131,7 +2144,8 @@ components:
         user:
           $ref: "#/components/schemas/User"
     HealthResponse:
-      description: Issue #100. Nothing else is ever added, so nothing leaks.
+      description: |
+        Issue #100. Nothing else is ever added, so nothing leaks.
       type: object
       required: [status]
       additionalProperties: false
