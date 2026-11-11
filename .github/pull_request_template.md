@@ -16,7 +16,7 @@ Closes #
 
 ⚠️ **If this PR adds a SQL migration** (`supabase/migrations/`):
 - [ ] Partner has run the migration against the hosted Supabase project (see [`docs/architecture.md`](../docs/architecture.md) Section 7)
-- [ ] `npx supabase migration list --linked` shows the migration on the hosted database (previews have no database yet, #114)
+- [ ] `npx supabase migration list --linked` shows the migration on the hosted database (previews have no database, so pages that need it are tested locally, #114)
 - [ ] `.github/workflows/ci.yml` includes a `db-test` job that runs the migration
 
 ## Notes for reviewers
