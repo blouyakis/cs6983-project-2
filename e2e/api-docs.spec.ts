@@ -101,6 +101,33 @@ for (const width of [1280, 375]) {
   });
 }
 
+// Swagger UI's own components use UNSAFE_componentWillReceiveProps, which
+// React reports as a console error under Strict Mode. Next's dev overlay
+// then shows "1 Issue" on the page. Only a dev server (npm run test:e2e
+// locally) logs it; CI's production build doesn't.
+test("opening the docs and their routes logs no console errors", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      errors.push(message.text().slice(0, 120));
+    }
+  });
+  await page.goto("/api/docs");
+  for (const id of ["Auth-login", "Groups-getGroup"]) {
+    const operation = page.locator(`#operations-${id}`);
+    await operation.locator(".opblock-summary-control").click();
+    await operation.getByRole("button", { name: "Try it out" }).click();
+  }
+  await expect(
+    page.locator("#operations-Groups-getGroup").getByRole("button", {
+      name: "Execute",
+    }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test("a protected route still answers 401 without a session", async ({
   request,
 }) => {
