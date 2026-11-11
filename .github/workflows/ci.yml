@@ -69,6 +69,33 @@ jobs:
       - run: npx supabase start -x studio,postgres-meta
       - run: npm run test:db
 
+      - run: npx supabase stop
+
+  e2e:
+    needs: install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # Studio and postgres-meta are only for browsing tables by hand.
+      - run: npx supabase start -x studio,postgres-meta
+      # The app reads these three, as .env.local gives them locally. The key
+      # is local Supabase's own, and the secret is made up for this run.
+      - name: Point the app at local Supabase
+        run: |
+          npx supabase status -o env > "$RUNNER_TEMP/supabase.env"
+          {
+            echo "SUPABASE_URL=$(grep '^API_URL=' "$RUNNER_TEMP/supabase.env" | cut -d'"' -f2)"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$(grep '^SERVICE_ROLE_KEY=' "$RUNNER_TEMP/supabase.env" | cut -d'"' -f2)"
+            echo "JWT_SECRET=$(openssl rand -hex 32)"
+          } >> "$GITHUB_ENV"
+      - run: npm run build
+      - run: npm run test:e2e
+
   build:
     needs: install
     runs-on: ubuntu-latest
