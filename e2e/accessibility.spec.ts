@@ -667,3 +667,36 @@ test("tabbing through the API docs' Try it out form reaches every control with a
   expect(result.reached).toBeGreaterThanOrEqual(stops - 1);
   expect(result.withoutFocusStyle).toEqual([]);
 });
+
+// Swagger UI's "Copy path to clipboard" button is 0px wide until the mouse
+// hovers its row, so a keyboard user tabbed onto a control they couldn't see
+// (#16, manual testing). Every control Tab reaches must have a size.
+test("every control Tab reaches on the API docs can be seen", async ({
+  page,
+}) => {
+  await page.goto("/api/docs");
+  await page
+    .locator("#operations-Auth-register .opblock-summary-control")
+    .focus();
+  const hidden = new Set<string>();
+  for (let press = 0; press < 30; press += 1) {
+    await page.keyboard.press("Tab");
+    const stop = await page.evaluate(() => {
+      const element = document.activeElement as HTMLElement | null;
+      if (!element) {
+        return null;
+      }
+      const box = element.getBoundingClientRect();
+      return {
+        name:
+          element.getAttribute("aria-label") ??
+          (element.textContent ?? "").trim().slice(0, 40),
+        seen: box.width > 0 && box.height > 0,
+      };
+    });
+    if (stop && !stop.seen) {
+      hidden.add(stop.name);
+    }
+  }
+  expect([...hidden]).toEqual([]);
+});
