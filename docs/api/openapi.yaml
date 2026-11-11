@@ -1070,7 +1070,7 @@ paths:
         Issue #112. 409 too while a direct payment in the group is marked
         paid and not yet confirmed: it counts in no balance, so the settle-up
         would suggest the same money again. It can start once the recipient
-        has confirmed it.
+        has confirmed it, or declined it, which deletes it (#108).
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
