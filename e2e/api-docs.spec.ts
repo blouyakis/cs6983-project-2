@@ -34,17 +34,15 @@ test("trying GET /api/health from the docs gets an answer", async ({
 // POST /api/auth/login before trying the other routes; this is that path.
 test("logging in from the docs lets Try it out reach a protected route", async ({
   page,
-  playwright,
+  request,
 }) => {
+  // `request` keeps its cookies apart from `page`, so the page starts signed
+  // out.
   const email = `docs-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`;
-  const api = await playwright.request.newContext({
-    baseURL: "http://localhost:3000",
-  });
-  const registered = await api.post("/api/auth/register", {
+  const registered = await request.post("/api/auth/register", {
     data: { name: "Docs Reader", email, password: "correct horse" },
   });
   expect(registered.status()).toBe(201);
-  await api.dispose();
 
   await page.goto("/api/docs");
   const login = page.locator("#operations-Auth-login");

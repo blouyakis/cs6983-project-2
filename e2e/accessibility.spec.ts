@@ -160,6 +160,29 @@ async function expectNoViolations(page: Page) {
   ).toEqual([]);
 }
 
+// AGENTS.md Section 8: headings in order. axe's heading-order rule is a best
+// practice, not a WCAG tag, so expectNoViolations doesn't run it (#16).
+async function expectHeadingsInOrder(page: Page) {
+  const skips = await page.evaluate(() => {
+    const levels = Array.from(
+      document.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"),
+    )
+      .filter((heading) => heading.checkVisibility())
+      .map((heading) => ({
+        level: Number(heading.tagName[1]),
+        text: (heading.textContent ?? "").trim().slice(0, 40),
+      }));
+    return levels
+      .filter((heading, index) =>
+        index === 0
+          ? heading.level !== 1
+          : heading.level > levels[index - 1].level + 1,
+      )
+      .map((heading) => `h${heading.level} ${heading.text}`);
+  });
+  expect(skips).toEqual([]);
+}
+
 async function expectFitsTheScreen(page: Page) {
   const overflow = await page.evaluate(
     () =>
@@ -284,6 +307,7 @@ for (const viewport of viewports) {
     await expect(health.locator(".live-responses-table")).toBeVisible();
     await expectNoViolations(page);
     await expectFitsTheScreen(page);
+    await expectHeadingsInOrder(page);
   });
 
   test(`every signed-in page passes the WCAG 2.1 AA check and fits the screen on ${viewport.name}`, async ({
@@ -611,6 +635,27 @@ test("tabbing through the default split form reaches every control with a visibl
   const form = await openDefaultSplitForm(page);
   await form.evaluate((element) => element.setAttribute("data-tab-scope", ""));
   const stops = await tabStopsIn(form);
+  const result = await tabThrough(page);
+  expect(result.reached).toBeGreaterThanOrEqual(stops - 1);
+  expect(result.withoutFocusStyle).toEqual([]);
+});
+
+test("tabbing through the API docs' Try it out form reaches every control with a visible focus style", async ({
+  page,
+}) => {
+  await page.goto("/api/docs");
+  const operation = page.locator("#operations-Auth-login");
+  const opener = operation.locator(".opblock-summary-control");
+  await opener.click();
+  await operation.getByRole("button", { name: "Try it out" }).click();
+  await expect(
+    operation.getByRole("textbox", { name: "Request body" }),
+  ).toBeVisible();
+  await operation.evaluate((element) =>
+    element.setAttribute("data-tab-scope", ""),
+  );
+  const stops = await tabStopsIn(operation);
+  await opener.focus();
   const result = await tabThrough(page);
   expect(result.reached).toBeGreaterThanOrEqual(stops - 1);
   expect(result.withoutFocusStyle).toEqual([]);
