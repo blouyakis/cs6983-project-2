@@ -5,7 +5,15 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
 import type { Payment } from "@/lib/db/settlements";
 import { PaymentHistory } from "./PaymentHistory";
@@ -15,6 +23,23 @@ vi.mock("@/lib/http/api-client", () => ({ postJson: mocks.postJson }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mocks.refresh }),
 }));
+
+// jsdom has no showModal() or close(); see FormSheet.test.tsx.
+const realShowModal = HTMLDialogElement.prototype.showModal;
+const realClose = HTMLDialogElement.prototype.close;
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute("open");
+    this.dispatchEvent(new Event("close"));
+  };
+});
+afterAll(() => {
+  HTMLDialogElement.prototype.showModal = realShowModal;
+  HTMLDialogElement.prototype.close = realClose;
+});
 
 const ana = "6f1c2d4e-1111-4222-8333-944455556666";
 const sam = "7a2d3e5f-1111-4222-8333-944455556666";
@@ -186,6 +211,121 @@ describe("PaymentHistory", () => {
     history([payment({})], sam);
 
     fireEvent.click(screen.getByRole("button", { name: /I got it/ }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("This payment is already confirmed."),
+      ).toBeInTheDocument(),
+    );
+    expect(mocks.refresh).toHaveBeenCalled();
+  });
+
+  // #108: the recipient of a paid payment can say it never arrived.
+  it("offers I didn't get it only to the recipient of a paid payment", () => {
+    history([payment({})], ana);
+    expect(
+      screen.queryByRole("button", { name: /I didn't get it/ }),
+    ).toBeNull();
+  });
+
+  it("hides I didn't get it from a read-only viewer", () => {
+    history([payment({})], sam, true);
+    expect(
+      screen.queryByRole("button", { name: /I didn't get it/ }),
+    ).toBeNull();
+  });
+
+  it("asks before declining a direct payment, then says it is removed", async () => {
+    mocks.postJson.mockResolvedValue({ ok: true, data: undefined });
+    history([payment({})], sam);
+
+    fireEvent.click(screen.getByRole("button", { name: /I didn't get it/ }));
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "Didn't get $8.83 from Ana? The payment is removed, and Ana can record it again once it's sent.",
+    );
+    expect(mocks.postJson).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Declined. The $8.83 from Ana is removed."),
+      ).toBeInTheDocument(),
+    );
+    expect(mocks.postJson).toHaveBeenCalledWith(
+      `/api/groups/${groupId}/payments/9c8d7e6f-6666-4777-8888-e99900001111/decline`,
+      {},
+    );
+    expect(mocks.refresh).toHaveBeenCalled();
+  });
+
+  // A declined direct payment's row goes away with the refresh, so focus
+  // moves to the section's heading rather than dropping to body.
+  it("moves focus to the Payments heading once a decline is answered", async () => {
+    mocks.postJson.mockResolvedValue({ ok: true, data: undefined });
+    history([payment({})], sam);
+    // In a browser the button has focus when pressed, and ConfirmDialog
+    // hands focus back to it on close.
+    const opener = screen.getByRole("button", { name: /I didn't get it/ });
+    opener.focus();
+
+    fireEvent.click(opener);
+    fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
+
+    const heading = screen.getByRole("heading", { name: "Payments" });
+    await waitFor(() => expect(heading).toHaveFocus());
+  });
+
+  // When the decline fails, the row and its buttons are still there, so
+  // ConfirmDialog hands focus back to I didn't get it, ready to retry.
+  it("keeps focus on I didn't get it when the decline fails", async () => {
+    mocks.postJson.mockResolvedValue({
+      ok: false,
+      error: { code: "NETWORK_ERROR", message: "Something went wrong." },
+    });
+    history([payment({})], sam);
+    const opener = screen.getByRole("button", { name: /I didn't get it/ });
+    opener.focus();
+
+    fireEvent.click(opener);
+    fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
+
+    await waitFor(() =>
+      expect(screen.getByText("Something went wrong.")).toBeInTheDocument(),
+    );
+    await waitFor(() => expect(opener).toHaveFocus());
+  });
+
+  it("says a declined settle-up payment can be marked paid again", async () => {
+    mocks.postJson.mockResolvedValue({
+      ok: true,
+      data: { payment: payment({ status: "suggested", paidAt: null }) },
+    });
+    history([payment({ settlementId: "s" })], sam);
+
+    fireEvent.click(screen.getByRole("button", { name: /I didn't get it/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          "Declined. Ana can mark it paid again once it's sent.",
+        ),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("shows the server's message when declining fails", async () => {
+    mocks.postJson.mockResolvedValue({
+      ok: false,
+      error: {
+        code: "CONFLICT",
+        message: "This payment is already confirmed.",
+      },
+    });
+    history([payment({})], sam);
+
+    fireEvent.click(screen.getByRole("button", { name: /I didn't get it/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
 
     await waitFor(() =>
       expect(

@@ -11,6 +11,7 @@ import {
   cancelOpenSettlement,
   confirmPayment,
   dbNow,
+  deleteDirectPayment,
   findOpenSettlement,
   findPayment,
   findSettlement,
@@ -20,6 +21,7 @@ import {
   listSettlementPayments,
   markPaymentPaid,
   recordPayment,
+  unmarkPaymentPaid,
 } from "./settlements";
 
 type Result = {
@@ -45,10 +47,12 @@ function queryBuilder() {
   for (const method of [
     "select",
     "update",
+    "delete",
     "eq",
     "neq",
     "in",
     "is",
+    "not",
     "lte",
     "order",
   ]) {
@@ -521,6 +525,62 @@ describe("confirmPayment", () => {
     results = [{ data: null, error: { message: "boom" } }];
 
     await expect(confirmPayment(paymentId)).rejects.toThrow("boom");
+  });
+});
+
+// #108: declining a paid payment. Each write only touches a payment that is
+// still paid, so a confirm that landed first leaves nothing to change.
+describe("unmarkPaymentPaid", () => {
+  it("puts a paid settle-up payment back to suggested and returns it", async () => {
+    results = [{ data: paymentRow, error: null }];
+
+    expect(await unmarkPaymentPaid(paymentId)).toEqual(payment);
+    expect(argsOf("from")).toEqual(["payments"]);
+    expect(argsOf("update")).toEqual([{ status: "suggested", paid_at: null }]);
+    expect(allArgsOf("eq")).toEqual([
+      ["id", paymentId],
+      ["status", "paid"],
+    ]);
+    expect(argsOf("not")).toEqual(["settlement_id", "is", null]);
+  });
+
+  it("returns null when the payment is no longer paid", async () => {
+    results = [{ data: null, error: null }];
+
+    expect(await unmarkPaymentPaid(paymentId)).toBeNull();
+  });
+
+  it("throws on a database error", async () => {
+    results = [{ data: null, error: { message: "boom" } }];
+
+    await expect(unmarkPaymentPaid(paymentId)).rejects.toThrow("boom");
+  });
+});
+
+describe("deleteDirectPayment", () => {
+  it("deletes a paid direct payment and says so", async () => {
+    results = [{ data: [{ id: paymentId }], error: null }];
+
+    expect(await deleteDirectPayment(paymentId)).toBe(true);
+    expect(argsOf("from")).toEqual(["payments"]);
+    expect(calls.some((call) => call.method === "delete")).toBe(true);
+    expect(allArgsOf("eq")).toEqual([
+      ["id", paymentId],
+      ["status", "paid"],
+    ]);
+    expect(argsOf("is")).toEqual(["settlement_id", null]);
+  });
+
+  it("returns false when the payment is no longer paid", async () => {
+    results = [{ data: [], error: null }];
+
+    expect(await deleteDirectPayment(paymentId)).toBe(false);
+  });
+
+  it("throws on a database error", async () => {
+    results = [{ data: null, error: { message: "boom" } }];
+
+    await expect(deleteDirectPayment(paymentId)).rejects.toThrow("boom");
   });
 });
 

@@ -240,3 +240,95 @@ test("cancelling a settle-up asks first and leaves the costs unsettled", async (
   await ana.page.getByRole("button", { name: /Start settle-up/ }).click();
   await expect(paymentCards(ana.page)).toHaveCount(1);
 });
+
+// #108: the recipient says a payment marked paid never arrived. It goes back
+// to suggested, so the payer can mark it again, and the settle-up can be
+// cancelled again instead of staying stuck.
+test("the recipient declines a payment marked paid, and the settle-up can be cancelled again", async ({
+  browser,
+}) => {
+  const ana = await newUser(browser, "Ana");
+  const sam = await newUser(browser, "Sam");
+  const groupId = await groupWithDebt(ana, sam);
+  const settleUpUrl = `/groups/${groupId}/settle-up`;
+
+  await ana.page.goto(settleUpUrl);
+  await ana.page.getByRole("button", { name: /Start settle-up/ }).click();
+  await expect(paymentCards(ana.page)).toHaveCount(1);
+
+  await sam.page.goto(settleUpUrl);
+  await expect(paymentCards(sam.page).first()).toContainText(
+    "pay however you like",
+  );
+  await paymentCards(sam.page)
+    .first()
+    .getByRole("button", { name: /I paid this/ })
+    .click();
+  await expect(sam.page.getByRole("status")).toHaveText(
+    "Marked paid. Ana can confirm it now.",
+  );
+  // Sam is not the recipient, so he can't decline it.
+  await expect(
+    paymentCards(sam.page)
+      .first()
+      .getByRole("button", {
+        name: /I didn't get it/,
+      }),
+  ).toHaveCount(0);
+
+  // Ana says the money never arrived, after a ConfirmDialog.
+  await ana.page.reload();
+  await expect(
+    ana.page.getByRole("button", { name: "Cancel settle-up" }),
+  ).toHaveCount(0);
+  await paymentCards(ana.page)
+    .first()
+    .getByRole("button", { name: /I didn't get it/ })
+    .click();
+  const dialog = ana.page.getByRole("dialog");
+  await expect(dialog).toContainText(
+    "Didn't get $22.55 from Sam? It goes back to suggested, so Sam can mark it paid again once it's sent.",
+  );
+  await dialog.getByRole("button", { name: "Decline payment" }).click();
+  await expect(ana.page.getByRole("status")).toHaveText(
+    "Declined. Sam can mark it paid again once it's sent.",
+  );
+  await expect(paymentCards(ana.page).first()).toContainText(
+    "waiting for Sam to pay",
+  );
+  await expect(
+    ana.page.getByRole("heading", { name: "Fewest payments" }),
+  ).toBeFocused();
+
+  // Declining it again is a conflict: it is suggested now.
+  const settleUp = await ana.page.request.get(
+    `/api/groups/${groupId}/settlements/current`,
+  );
+  const [payment] = (await settleUp.json()).settleUp.payments;
+  const again = await ana.page.request.post(
+    `/api/groups/${groupId}/payments/${payment.id}/decline`,
+  );
+  expect(again.status()).toBe(409);
+
+  // Sam can mark it paid again.
+  await sam.page.reload();
+  await expect(paymentCards(sam.page).first()).toContainText(
+    "pay however you like",
+  );
+  await expect(
+    paymentCards(sam.page)
+      .first()
+      .getByRole("button", { name: /I paid this/ }),
+  ).toBeVisible();
+
+  // And the settle-up is no longer stuck: it can be cancelled.
+  await ana.page.getByRole("button", { name: "Cancel settle-up" }).click();
+  await ana.page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Yes, cancel it" })
+    .click();
+  await expect(ana.page.getByRole("status")).toHaveText(
+    "Settle-up cancelled. The costs stay unsettled.",
+  );
+  await expect(standingsRow(ana.page, "Sam")).toContainText("Sam owes $22.55");
+});

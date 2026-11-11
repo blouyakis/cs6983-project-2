@@ -280,6 +280,106 @@ describe("SettleUpPanel", () => {
       ).not.toBeInTheDocument();
     });
 
+    // #108: the recipient declines a paid payment after a ConfirmDialog.
+    it("asks before the recipient declines a paid payment, then declines it", async () => {
+      const paid = payment({ status: "paid", paidAt: "2026-11-02T10:00:00Z" });
+      mocks.postJson.mockResolvedValue({
+        ok: true,
+        data: { payment: { ...paid, status: "suggested", paidAt: null } },
+      });
+      panel(settleUp([paid]), sam);
+
+      fireEvent.click(screen.getByRole("button", { name: /I didn't get it/ }));
+      expect(screen.getByRole("dialog")).toHaveTextContent(
+        "Didn't get $31.00 from Ana? It goes back to suggested, so Ana can mark it paid again once it's sent.",
+      );
+      expect(mocks.postJson).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
+
+      await waitFor(() => expect(mocks.refresh).toHaveBeenCalled());
+      expect(mocks.postJson).toHaveBeenCalledWith(
+        `/api/groups/${groupId}/payments/${paid.id}/decline`,
+        {},
+      );
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Declined. Ana can mark it paid again once it's sent.",
+      );
+    });
+
+    // ConfirmDialog hands focus back to I didn't get it, which the refresh
+    // takes away, so focus moves to the Fewest payments heading.
+    it("moves focus to the heading once a decline is answered", async () => {
+      const paid = payment({ status: "paid", paidAt: "2026-11-02T10:00:00Z" });
+      mocks.postJson.mockResolvedValue({
+        ok: true,
+        data: { payment: { ...paid, status: "suggested", paidAt: null } },
+      });
+      panel(settleUp([paid]), sam);
+      const opener = screen.getByRole("button", { name: /I didn't get it/ });
+      opener.focus();
+
+      fireEvent.click(opener);
+      fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
+
+      const heading = screen.getByRole("heading", { name: "Fewest payments" });
+      await waitFor(() => expect(heading).toHaveFocus());
+    });
+
+    // When the decline fails, the card and its buttons are still there, so
+    // ConfirmDialog hands focus back to I didn't get it, ready to retry.
+    it("keeps focus on I didn't get it when the decline fails", async () => {
+      const paid = payment({ status: "paid", paidAt: "2026-11-02T10:00:00Z" });
+      mocks.postJson.mockResolvedValue({
+        ok: false,
+        error: { code: "NETWORK_ERROR", message: "Something went wrong." },
+      });
+      panel(settleUp([paid]), sam);
+      const opener = screen.getByRole("button", { name: /I didn't get it/ });
+      opener.focus();
+
+      fireEvent.click(opener);
+      fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
+
+      await waitFor(() =>
+        expect(screen.getByRole("status")).toHaveTextContent(
+          "Something went wrong.",
+        ),
+      );
+      await waitFor(() => expect(opener).toHaveFocus());
+    });
+
+    it("sends nothing when the recipient changes their mind", () => {
+      const paid = payment({ status: "paid", paidAt: "2026-11-02T10:00:00Z" });
+      panel(settleUp([paid]), sam);
+
+      fireEvent.click(screen.getByRole("button", { name: /I didn't get it/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+      expect(mocks.postJson).not.toHaveBeenCalled();
+    });
+
+    it("shows the server's message when declining fails", async () => {
+      const paid = payment({ status: "paid", paidAt: "2026-11-02T10:00:00Z" });
+      mocks.postJson.mockResolvedValue({
+        ok: false,
+        error: {
+          code: "CONFLICT",
+          message: "This payment is already confirmed.",
+        },
+      });
+      panel(settleUp([paid]), sam);
+
+      fireEvent.click(screen.getByRole("button", { name: /I didn't get it/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Decline payment" }));
+
+      await waitFor(() =>
+        expect(screen.getByRole("status")).toHaveTextContent(
+          "This payment is already confirmed.",
+        ),
+      );
+      expect(mocks.refresh).toHaveBeenCalled();
+    });
+
     it("gives a read-only viewer the cards without buttons", () => {
       panel(settleUp([payment({})]), ana, { readOnly: true });
 

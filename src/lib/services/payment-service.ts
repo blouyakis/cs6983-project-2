@@ -2,11 +2,13 @@ import "server-only";
 import { listCurrentMembers } from "@/lib/db/group-members";
 import {
   confirmPayment,
+  deleteDirectPayment,
   findPayment,
   listGroupPayments,
   markPaymentPaid,
   recordPayment,
   type Payment,
+  unmarkPaymentPaid,
 } from "@/lib/db/settlements";
 import {
   ConflictError,
@@ -84,6 +86,44 @@ export async function confirmPaymentReceived(
     throw new Error("The confirmed payment could not be loaded.");
   }
   return { payment: confirmed, closed };
+}
+
+// The recipient of a paid payment says the money never arrived (#108). A
+// settle-up payment goes back to suggested and is returned, so the payer can
+// mark it again and the settle-up can be cancelled again. A direct payment
+// never counted in a balance, so it is deleted and this returns null.
+export async function declinePaymentReceived(
+  userId: string,
+  groupId: string,
+  paymentId: string,
+): Promise<Payment | null> {
+  const payment = await requirePayment(userId, groupId, paymentId);
+  if (payment.toUserId !== userId) {
+    throw new ForbiddenError(
+      "Only the person receiving the money can decline it.",
+    );
+  }
+  if (payment.status !== "paid") {
+    throw new ConflictError(
+      payment.status === "confirmed"
+        ? "This payment is already confirmed."
+        : "This payment hasn't been marked paid yet.",
+    );
+  }
+  // A paid payment keeps its settlement_id, so this picks the right write.
+  // Each write refuses a payment that is no longer paid, so a confirm that
+  // landed in between wins and this is a 409.
+  if (payment.settlementId === null) {
+    if (!(await deleteDirectPayment(paymentId))) {
+      throw new ConflictError("This payment is no longer marked paid.");
+    }
+    return null;
+  }
+  const declined = await unmarkPaymentPaid(paymentId);
+  if (!declined) {
+    throw new ConflictError("This payment is no longer marked paid.");
+  }
+  return declined;
 }
 
 // A member records money they sent another current member outside the app

@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useNotice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { Payment } from "@/lib/db/settlements";
+import { describeDecline } from "@/components/payments/payment-status";
 import { postJson } from "@/lib/http/api-client";
 import type { SettleUp } from "@/lib/services/settlement-service";
 import { PaymentCard, type PaymentAction } from "./PaymentCard";
@@ -44,6 +45,22 @@ export function SettleUpPanel({
   const { show, clear } = useNotice();
   const [busy, setBusy] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  // The paid payment the recipient is asked about before declining (#108).
+  const [declining, setDeclining] = useState<Payment | null>(null);
+  const nameOf = (userId: string) => names[userId] ?? "a former member";
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Set when a decline is answered; the render that closes the dialog reads it.
+  const focusHeadingNext = useRef(false);
+  // ConfirmDialog hands focus back to I didn't get it when it closes, and the
+  // refresh then takes that button away. This effect runs after the dialog's,
+  // since a parent's effects run after its children's, so the heading wins.
+  // It only has work to do when the dialog closes.
+  useEffect(() => {
+    if (declining === null && focusHeadingNext.current) {
+      focusHeadingNext.current = false;
+      headingRef.current?.focus();
+    }
+  }, [declining]);
 
   async function start() {
     setBusy(true);
@@ -71,7 +88,6 @@ export function SettleUpPanel({
   async function act(payment: Payment, action: PaymentAction) {
     setBusy(true);
     clear();
-    const other = (userId: string) => names[userId] ?? "a former member";
     const result = await postJson<{ payment: Payment; closed?: boolean }>(
       `/api/groups/${groupId}/payments/${payment.id}/${action === "paid" ? "paid" : "confirm"}`,
       {},
@@ -81,7 +97,7 @@ export function SettleUpPanel({
       show(result.error.message, "problem");
     } else if (action === "paid") {
       show(
-        `Marked paid. ${other(payment.toUserId)} can confirm it now.`,
+        `Marked paid. ${nameOf(payment.toUserId)} can confirm it now.`,
         "done",
       );
     } else if (result.data.closed) {
@@ -91,6 +107,28 @@ export function SettleUpPanel({
         "Confirmed. The period closes when every payment is confirmed.",
         "done",
       );
+    }
+    router.refresh();
+  }
+
+  // The recipient says the money never arrived (#108): the payment goes back
+  // to suggested, so the payer can mark it again.
+  async function decline(payment: Payment) {
+    setBusy(true);
+    clear();
+    const result = await postJson<{ payment: Payment }>(
+      `/api/groups/${groupId}/payments/${payment.id}/decline`,
+      {},
+    );
+    setBusy(false);
+    // On a failure the buttons are still there, so the dialog hands focus
+    // back to I didn't get it instead.
+    focusHeadingNext.current = result.ok;
+    setDeclining(null);
+    if (result.ok) {
+      show(describeDecline(payment, nameOf(payment.fromUserId)).done, "done");
+    } else {
+      show(result.error.message, "problem");
     }
     router.refresh();
   }
@@ -121,7 +159,12 @@ export function SettleUpPanel({
   return (
     <section aria-labelledby="payments-heading" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 id="payments-heading" className="text-xl font-bold">
+        <h2
+          id="payments-heading"
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-xl font-bold"
+        >
           <span aria-hidden="true">🧮 </span>Fewest payments
         </h2>
         {settleUp ? (
@@ -155,6 +198,7 @@ export function SettleUpPanel({
                   names={names}
                   currentUserId={currentUserId}
                   onAct={act}
+                  onDecline={setDeclining}
                   busy={busy}
                   canAct={!readOnly}
                 />
@@ -179,6 +223,23 @@ export function SettleUpPanel({
             confirmLabel="Yes, cancel it"
             onConfirm={cancel}
             onCancel={() => setConfirmingCancel(false)}
+            busy={busy}
+          />
+          <ConfirmDialog
+            open={declining !== null}
+            message={
+              declining
+                ? describeDecline(declining, nameOf(declining.fromUserId))
+                    .question
+                : ""
+            }
+            confirmLabel="Decline payment"
+            onConfirm={() => {
+              if (declining) {
+                void decline(declining);
+              }
+            }}
+            onCancel={() => setDeclining(null)}
             busy={busy}
           />
         </>

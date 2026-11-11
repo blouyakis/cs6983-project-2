@@ -1,14 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatDay } from "@/components/groups/format-day";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useNotice } from "@/components/ui/NoticeProvider";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import type { Payment } from "@/lib/db/settlements";
 import { formatCents } from "@/lib/domain/money";
 import { postJson } from "@/lib/http/api-client";
-import { describePayment } from "./payment-status";
+import { describeDecline, describePayment } from "./payment-status";
 
 type PaymentHistoryProps = {
   groupId: string;
@@ -23,7 +24,8 @@ type PaymentHistoryProps = {
 
 // The group's payment history (#14, user flow 6): every payment someone has
 // sent, direct or from a settle-up, with its status in words. The recipient
-// of a paid one confirms it here with I got it. Balances come from the server
+// of a paid one confirms it here with I got it, or says it never arrived with
+// I didn't get it (#108). Balances come from the server
 // again after the refresh, never from this list (AGENTS.md Section 8).
 export function PaymentHistory({
   groupId,
@@ -35,6 +37,22 @@ export function PaymentHistory({
   const router = useRouter();
   const { show, clear } = useNotice();
   const [busyId, setBusyId] = useState<string | null>(null);
+  // The paid payment the recipient is asked about before declining (#108).
+  const [declining, setDeclining] = useState<Payment | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Set when a decline is answered; the render that closes the dialog reads it.
+  const focusHeadingNext = useRef(false);
+  // ConfirmDialog hands focus back to I didn't get it when it closes, and the
+  // refresh then takes that button away. This effect runs after the dialog's,
+  // since a parent's effects run after its children's, so the heading wins.
+  // It only has work to do when the dialog closes.
+  useEffect(() => {
+    if (declining === null && focusHeadingNext.current) {
+      focusHeadingNext.current = false;
+      headingRef.current?.focus();
+    }
+  }, [declining]);
+  const nameOf = (userId: string) => names[userId] ?? "a former member";
 
   // Disabling the button while the request is on its way drops focus to body
   // in a browser, and the refresh takes the button away, so the row gets
@@ -65,9 +83,33 @@ export function PaymentHistory({
     router.refresh();
   }
 
+  // The row's buttons go away with the refresh, and a declined direct
+  // payment's whole row with them, so focus moves to the heading.
+  async function decline(payment: Payment) {
+    setBusyId(payment.id);
+    clear();
+    const result = await postJson<{ payment: Payment } | undefined>(
+      `/api/groups/${groupId}/payments/${payment.id}/decline`,
+      {},
+    );
+    setBusyId(null);
+    // On a failure the buttons are still there, so the dialog hands focus
+    // back to I didn't get it instead.
+    focusHeadingNext.current = result.ok;
+    setDeclining(null);
+    if (result.ok) {
+      show(describeDecline(payment, nameOf(payment.fromUserId)).done, "done");
+    } else {
+      show(result.error.message, "problem");
+    }
+    router.refresh();
+  }
+
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-bold">Payments</h2>
+      <h2 ref={headingRef} tabIndex={-1} className="text-lg font-bold">
+        Payments
+      </h2>
       {payments.length === 0 ? (
         <p className="text-muted">No payments yet.</p>
       ) : (
@@ -96,10 +138,20 @@ export function PaymentHistory({
                     </p>
                   ) : null}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <p className="text-lg font-bold">
                     {formatCents(payment.amountCents)}
                   </p>
+                  {canConfirm ? (
+                    <button
+                      type="button"
+                      disabled={busyId !== null}
+                      onClick={() => setDeclining(payment)}
+                      className="rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-action disabled:bg-disabled disabled:text-ink"
+                    >
+                      {"I didn't get it"}
+                    </button>
+                  ) : null}
                   {canConfirm ? (
                     <PrimaryButton
                       disabled={busyId !== null}
@@ -120,6 +172,22 @@ export function PaymentHistory({
           })}
         </ul>
       )}
+      <ConfirmDialog
+        open={declining !== null}
+        message={
+          declining
+            ? describeDecline(declining, nameOf(declining.fromUserId)).question
+            : ""
+        }
+        confirmLabel="Decline payment"
+        onConfirm={() => {
+          if (declining) {
+            void decline(declining);
+          }
+        }}
+        onCancel={() => setDeclining(null)}
+        busy={busyId !== null}
+      />
     </section>
   );
 }

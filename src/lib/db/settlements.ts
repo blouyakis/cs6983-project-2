@@ -324,6 +324,43 @@ export async function confirmPayment(paymentId: string): Promise<boolean> {
   return data === true;
 }
 
+// #108: the recipient says the money of a paid settle-up payment never
+// arrived, so it goes back to suggested and the payer can mark it again. Only
+// a payment that is still paid changes, so a confirm that landed first wins
+// and this returns null.
+export async function unmarkPaymentPaid(
+  paymentId: string,
+): Promise<Payment | null> {
+  const { data, error } = await getDb()
+    .from("payments")
+    .update({ status: "suggested", paid_at: null })
+    .eq("id", paymentId)
+    .eq("status", "paid")
+    .not("settlement_id", "is", null)
+    .select(PAYMENT_COLUMNS)
+    .maybeSingle<PaymentRow>();
+  if (error) {
+    throw new Error(`Could not decline the payment: ${error.message}`);
+  }
+  return data ? toPayment(data) : null;
+}
+
+// #108: a declined direct payment never counted in a balance, so it is
+// deleted. False when it is no longer paid, because a confirm landed first.
+export async function deleteDirectPayment(paymentId: string): Promise<boolean> {
+  const { data, error } = await getDb()
+    .from("payments")
+    .delete()
+    .eq("id", paymentId)
+    .eq("status", "paid")
+    .is("settlement_id", null)
+    .select("id");
+  if (error) {
+    throw new Error(`Could not decline the payment: ${error.message}`);
+  }
+  return (data ?? []).length > 0;
+}
+
 // Records a direct payment (#14) through record_payment, which stamps paid_at
 // with the database's clock. The service has already checked both people; the
 // function checks again under a lock, so a leave that landed in between is

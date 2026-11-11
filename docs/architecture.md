@@ -277,7 +277,7 @@ erDiagram
 - `closed_at` is when it ended, by closing or by cancelling. It is set exactly when the status is not `open`, and is never before `started_at`.
 - `started_by` must be a member of the group.
 
-Every foreign key is `on delete restrict` except `expense_shares.expense_id` (`cascade`) and `list_items.expense_id` (`set null`, which clears only `expense_id`). Only three kinds of row are ever hard-deleted: an unsettled expense, with its shares; an open list item, which has no expense and no history to keep; and the `suggested` payments of a cancelled settle-up, which nobody has acted on. Everything else stays, so history stays intact.
+Every foreign key is `on delete restrict` except `expense_shares.expense_id` (`cascade`) and `list_items.expense_id` (`set null`, which clears only `expense_id`). Only four kinds of row are ever hard-deleted: an unsettled expense, with its shares; an open list item, which has no expense and no history to keep; the `suggested` payments of a cancelled settle-up, which nobody has acted on; and a `paid` direct payment that its recipient declines, which never counted in a balance (#108, see the payment lifecycle). Everything else stays, so history stays intact.
 
 ### Demo data
 
@@ -293,23 +293,27 @@ stateDiagram-v2
   [*] --> paid: direct payment recorded by the sender
   suggested --> paid: sender marks paid (paid_at)
   paid --> confirmed: recipient confirms (confirmed_at)
+  paid --> suggested: recipient declines a settle-up payment (paid_at cleared)
+  paid --> [*]: recipient declines a direct payment (deleted)
   confirmed --> [*]
 ```
 
 | Status | Meaning | Who moves it on | Counts in balances |
 |---|---|---|---|
 | `suggested` | The settle-up says this payment should happen. Nobody has sent money yet. | The sender, by marking it paid | No |
-| `paid` | The sender says they sent the money, for example by Venmo. | The recipient, by confirming | No |
+| `paid` | The sender says they sent the money, for example by Venmo. | The recipient, by confirming or declining | No |
 | `confirmed` | The recipient says the money arrived. Final. | Nobody | Yes |
 
 The earlier draft had only `pending` and `confirmed`. That could not tell "the app suggested this" from "I sent it", so the recipient would not know which payments to look for, and the settle-up screen could not show who has paid (user flow 5).
 
+**Declining (#108).** The recipient of a `paid` payment can say the money never arrived. Without that, a settle-up with one payment marked paid and never confirmed could not close and could not be cancelled, so its expenses stayed locked and no new settle-up could start. A declined settle-up payment goes back to `suggested` with `paid_at` null, so the sender can mark it paid again, and the settle-up can be cancelled again once every payment in it is suggested. A declined direct payment is deleted. We chose deleting over a `declined` status: the payment never counted in a balance, so nothing in history depends on it; a settle-up payment that is declined keeps no trace either, so both kinds behave the same; and it needs no change to `payments_status_valid` or `payments_times_match_status`, and nothing that reads pending payments has to skip a new status. The cost is that the sender keeps no record that it was declined: the payment just leaves their list, and they can record it again. Each write only touches a payment that is still `paid` (a conditional `update` or `delete` in `lib/db/settlements.ts`), and `confirm_payment` locks the same row, so when a decline and a confirm of one payment arrive together exactly one of them wins and the other is `409` (or `404`, if the direct payment is already gone).
+
 ### Settle-up periods
 
-- **Starting.** Any current member starts a settle-up. The app takes the balances at `started_at` and creates the fewest `suggested` payments that clear them. It can't start while a direct payment in the group is `paid` and not confirmed (#112): that payment counts in no balance yet, so the suggestions would ask for the same money again. `start_settlement` checks for one under the group lock and fails with `P0001` and the hint `pending_direct_payment`, which the app answers with `409` and the function's message. `record_payment`'s insert takes a key-share lock on the group row through its foreign key, so a payment recorded at the same moment either commits first and is seen, or waits and belongs to the next period. Confirming takes no lock on the group row (`confirm_payment` locks only the payment), so a confirm can land between the service's cut-off and `start_settlement`: the payment is then neither waiting nor in the balances at the cut-off. `start_settlement` refuses a direct payment confirmed after the cut-off with the balances-changed error, and the service reads again from a fresh cut-off, which counts it.
+- **Starting.** Any current member starts a settle-up. The app takes the balances at `started_at` and creates the fewest `suggested` payments that clear them. It can't start while a direct payment in the group is `paid` and not confirmed (#112): that payment counts in no balance yet, so the suggestions would ask for the same money again. The recipient clears it by confirming it, or by declining it, which deletes it (#108). `start_settlement` checks for one under the group lock and fails with `P0001` and the hint `pending_direct_payment`, which the app answers with `409` and the function's message. `record_payment`'s insert takes a key-share lock on the group row through its foreign key, so a payment recorded at the same moment either commits first and is seen, or waits and belongs to the next period. Confirming takes no lock on the group row (`confirm_payment` locks only the payment), so a confirm can land between the service's cut-off and `start_settlement`: the payment is then neither waiting nor in the balances at the cut-off. `start_settlement` refuses a direct payment confirmed after the cut-off with the balances-changed error, and the service reads again from a fresh cut-off, which counts it.
 - **During a settle-up.** Members can keep adding expenses and direct payments. Anything created after `started_at` belongs to the next period and does not change the suggested payments.
 - **Closing.** When every payment in the settle-up is `confirmed`, one transaction sets `status = closed` and `closed_at`, and sets `settlement_id` on the expenses created before `started_at` and the direct payments confirmed before `started_at`. Those rows are now locked, and the period's balances are zero.
-- **Cancelling.** Any current member can cancel an open settle-up while every one of its payments is still `suggested`. Cancelling sets `status = cancelled` and `closed_at`, and deletes those payments. Expenses stay unsettled and can be settled again later. Once anyone marks a payment `paid`, the settle-up can only end by closing.
+- **Cancelling.** Any current member can cancel an open settle-up while every one of its payments is still `suggested`. Cancelling sets `status = cancelled` and `closed_at`, and deletes those payments. Expenses stay unsettled and can be settled again later. Once anyone marks a payment `paid`, the settle-up can only end by closing, unless the recipient declines that payment, which makes it `suggested` again (#108).
 
 ## 6. Where the money rules live
 

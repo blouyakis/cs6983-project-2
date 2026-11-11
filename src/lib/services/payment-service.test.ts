@@ -10,6 +10,7 @@ import {
 } from "@/lib/http/errors";
 import {
   confirmPaymentReceived,
+  declinePaymentReceived,
   listPayments,
   markPaymentSent,
   recordDirectPayment,
@@ -22,6 +23,8 @@ const db = vi.hoisted(() => ({
   findPayment: vi.fn(),
   markPaymentPaid: vi.fn(),
   confirmPayment: vi.fn(),
+  unmarkPaymentPaid: vi.fn(),
+  deleteDirectPayment: vi.fn(),
   recordPayment: vi.fn(),
   listGroupPayments: vi.fn(),
 }));
@@ -203,6 +206,84 @@ describe("confirmPaymentReceived", () => {
     await expect(
       confirmPaymentReceived(ana, groupId, paymentId),
     ).rejects.toThrow(/could not/i);
+  });
+});
+
+describe("declinePaymentReceived", () => {
+  const directPaid: Payment = { ...paid, settlementId: null };
+
+  it("puts a paid settle-up payment back to suggested and returns it", async () => {
+    db.findPayment.mockResolvedValue(paid);
+    db.unmarkPaymentPaid.mockResolvedValue(suggested);
+
+    const result = await declinePaymentReceived(ana, groupId, paymentId);
+
+    expect(access.requireGroupAccess).toHaveBeenCalledWith(
+      ana,
+      groupId,
+      "write",
+    );
+    expect(db.unmarkPaymentPaid).toHaveBeenCalledWith(paymentId);
+    expect(db.deleteDirectPayment).not.toHaveBeenCalled();
+    expect(result).toEqual(suggested);
+  });
+
+  it("deletes a paid direct payment and returns null", async () => {
+    db.findPayment.mockResolvedValue(directPaid);
+    db.deleteDirectPayment.mockResolvedValue(true);
+
+    expect(await declinePaymentReceived(ana, groupId, paymentId)).toBeNull();
+    expect(db.deleteDirectPayment).toHaveBeenCalledWith(paymentId);
+    expect(db.unmarkPaymentPaid).not.toHaveBeenCalled();
+  });
+
+  it("is forbidden for anyone but the recipient, the sender included", async () => {
+    db.findPayment.mockResolvedValue(paid);
+
+    await expect(
+      declinePaymentReceived(sam, groupId, paymentId),
+    ).rejects.toThrow(ForbiddenError);
+    await expect(
+      declinePaymentReceived(jo, groupId, paymentId),
+    ).rejects.toThrow(ForbiddenError);
+    expect(db.unmarkPaymentPaid).not.toHaveBeenCalled();
+  });
+
+  it("is a conflict for a payment that is suggested or confirmed", async () => {
+    for (const payment of [suggested, confirmed]) {
+      db.findPayment.mockResolvedValueOnce(payment);
+      await expect(
+        declinePaymentReceived(ana, groupId, paymentId),
+      ).rejects.toThrow(ConflictError);
+    }
+    expect(db.unmarkPaymentPaid).not.toHaveBeenCalled();
+    expect(db.deleteDirectPayment).not.toHaveBeenCalled();
+  });
+
+  it("is a conflict when a confirm lands between the read and the write", async () => {
+    db.findPayment.mockResolvedValue(paid);
+    db.unmarkPaymentPaid.mockResolvedValue(null);
+    await expect(
+      declinePaymentReceived(ana, groupId, paymentId),
+    ).rejects.toThrow(ConflictError);
+
+    db.findPayment.mockResolvedValue(directPaid);
+    db.deleteDirectPayment.mockResolvedValue(false);
+    await expect(
+      declinePaymentReceived(ana, groupId, paymentId),
+    ).rejects.toThrow(ConflictError);
+  });
+
+  it("is not found for an unknown payment or one in another group", async () => {
+    db.findPayment.mockResolvedValueOnce(null);
+    await expect(
+      declinePaymentReceived(ana, groupId, paymentId),
+    ).rejects.toThrow(NotFoundError);
+
+    db.findPayment.mockResolvedValueOnce({ ...paid, groupId: "other" });
+    await expect(
+      declinePaymentReceived(ana, groupId, paymentId),
+    ).rejects.toThrow(NotFoundError);
   });
 });
 

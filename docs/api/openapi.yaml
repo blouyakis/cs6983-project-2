@@ -894,7 +894,9 @@ paths:
         is always the session user: the body has no sender field, and one
         sent anyway is ignored. The payment starts as `paid`, with `paidAt`
         from the database's clock, and changes no balance until the
-        recipient confirms it with `/payments/{paymentId}/confirm`. One
+        recipient confirms it with `/payments/{paymentId}/confirm`. The
+        recipient can decline it instead with `/payments/{paymentId}/decline`,
+        which deletes it (#108). One
         recorded while a settle-up is open belongs to the next period. A
         former member or an archived group gets 403.
       parameters:
@@ -991,6 +993,44 @@ paths:
           $ref: "#/components/responses/Error"
         "409":
           $ref: "#/components/responses/Error"
+  /api/groups/{groupId}/payments/{paymentId}/decline:
+    post:
+      summary: Recipient declines a payment marked paid
+      description: |
+        Issue #108. The person receiving the money says it never arrived.
+        Only the recipient may; the sender and everyone else get 403. A
+        payment that isn't marked paid is 409, including one that a confirm
+        reached first. A settle-up payment goes back to `suggested` with
+        `paidAt` null, so the sender can mark it paid again, and the
+        settle-up can be cancelled again once every payment in it is
+        suggested. A direct payment never counted in a balance, so it is
+        deleted: 204, and a later request for it is 404.
+      parameters:
+        - $ref: "#/components/parameters/GroupId"
+        - $ref: "#/components/parameters/PaymentId"
+      responses:
+        "200":
+          description: The settle-up payment, back to suggested.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "204":
+          description: The direct payment is gone.
+        "400":
+          description: The group id or the payment id isn't a UUID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "404":
+          $ref: "#/components/responses/Error"
+        "409":
+          $ref: "#/components/responses/Error"
   /api/groups/{groupId}/settlements:
     get:
       summary: Closed past periods
@@ -1030,7 +1070,7 @@ paths:
         Issue #112. 409 too while a direct payment in the group is marked
         paid and not yet confirmed: it counts in no balance, so the settle-up
         would suggest the same money again. It can start once the recipient
-        has confirmed it.
+        has confirmed it, or declined it, which deletes it (#108).
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
