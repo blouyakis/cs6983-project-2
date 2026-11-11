@@ -10,9 +10,12 @@
 -- change goes on. It still conflicts with itself and with FOR UPDATE, so update_group, add_member,
 -- leave_group, the member cap trigger and start_settlement still take turns.
 --
--- start_settlement keeps FOR UPDATE: it takes no membership row lock that a cost or payment holds
--- against it, so it can only wait, never deadlock, and it relies on a payment insert waiting for
--- it (20261110182000_start_settlement_pending_payments.sql).
+-- start_settlement keeps FOR UPDATE, and relies on a payment insert waiting for it
+-- (20261110182000_start_settlement_pending_payments.sql). It can't deadlock with these either: the
+-- only lock it takes on membership rows is the KEY SHARE its payment inserts take through
+-- payments_from_is_member and payments_to_is_member, which doesn't conflict with the FOR SHARE of
+-- a cost or payment, or with the weight and left_at updates of add_member, update_group and
+-- leave_group, since none of those columns is a key.
 --
 -- The merged migrations are left as they are; this replaces the function bodies. Everything else
 -- is as in 20261103220010_update_group.sql and 20261109011443_add_member.sql.
@@ -87,8 +90,10 @@ begin
   -- FOR NO KEY UPDATE, not FOR UPDATE (#124): it still conflicts with update_group, another
   -- add_member and the cap trigger, so the weights read here can't change, and no other join can
   -- land, before this commits. The cap trigger upgrades it to FOR UPDATE when the newcomer's row
-  -- is written; by then the weight reset has taken the membership rows, so nothing that waits
-  -- here also holds one of them.
+  -- is written, so from then on a payment or cost waits for this to commit. That can't deadlock:
+  -- when the split is reset, the reset has already waited for any payment or cost holding the
+  -- current members' rows; when it isn't, this writes only the newcomer's row, which no payment
+  -- or cost holds.
   perform 1 from public.groups where id = p_group_id for no key update;
 
   select left_at into existing_left_at
