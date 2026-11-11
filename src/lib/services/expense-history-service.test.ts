@@ -175,6 +175,39 @@ describe("listExpenseHistory", () => {
     ]);
   });
 
+  // "former" stands for anyone who has left (#130). Who that is differs by
+  // group, so the database isn't asked for a payer, and each group's costs
+  // are narrowed by its own members.
+  it("lists what payers who have left paid when paidBy is former", async () => {
+    const gone = "9c8d7e6f-1111-4222-8333-944455556666";
+    expensesDb.listExpenses.mockImplementation(async (groupId: string) =>
+      groupId === flatId
+        ? [
+            expense("gone", flatId, gone, [
+              [gone, 500],
+              [ana, 500],
+            ]),
+            expense("sams", flatId, sam, [
+              [sam, 500],
+              [ana, 500],
+            ]),
+          ]
+        : [],
+    );
+
+    const history = await listExpenseHistory(ana, {
+      paidBy: "former",
+      from: "2026-10-01",
+    });
+
+    expect(history.map((row) => row.id)).toEqual(["gone"]);
+    expect(expensesDb.listExpenses.mock.calls[1]).toEqual([
+      flatId,
+      null,
+      { paidBy: undefined, from: "2026-10-01", to: undefined },
+    ]);
+  });
+
   it("reads only the chosen group when groupId is given, with the other filters", async () => {
     await listExpenseHistory(ana, {
       groupId: flatId,

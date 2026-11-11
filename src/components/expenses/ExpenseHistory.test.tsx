@@ -142,7 +142,7 @@ describe("ExpenseHistory", () => {
     });
   });
 
-  it("offers every group the user is or was in, and everyone in them with the user first as You", async () => {
+  it("offers every group the user is or was in, and everyone in them with the user first as You, then anyone who left", async () => {
     await setup({});
 
     expect(
@@ -159,7 +159,34 @@ describe("ExpenseHistory", () => {
       ["You", ana],
       ["Jo", jo],
       ["Sam", sam],
+      ["A former member", "former"],
     ]);
+  });
+
+  // Nobody can leave a personal space, so there is no former member to offer.
+  it("doesn't offer a former member to a user with only a personal space", async () => {
+    render(
+      await ExpenseHistory({
+        userId: ana,
+        groups: [groups[0]],
+        query: {},
+      }),
+    );
+
+    expect(
+      within(screen.getByLabelText("Paid by"))
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["Anyone", "You"]);
+  });
+
+  it("filters by a former member, and keeps it chosen in the form", async () => {
+    await setup({ paidBy: "former" });
+
+    expect(mocks.listExpenseHistory).toHaveBeenCalledWith(ana, {
+      paidBy: "former",
+    });
+    expect(screen.getByLabelText("Paid by")).toHaveValue("former");
   });
 
   it("gives the table each group's members, for names and the edit form", async () => {
