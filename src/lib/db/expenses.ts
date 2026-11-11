@@ -70,12 +70,22 @@ function toExpense(row: ExpenseRow): Expense {
   };
 }
 
+// Which of a group's expenses to keep (#15): what one person paid, and the
+// days spent from `from` up to `to`, both included. Each is optional.
+export type ExpenseFilters = {
+  paidBy?: string;
+  from?: string;
+  to?: string;
+};
+
 // The group's expenses, newest day first and, within a day, newest entry
 // first. `createdBefore` is a former member's left_at: they only see what was
 // added up to the day they left (AGENTS.md Section 6.6). Null shows everything.
+// `filters` narrows the list for the expense history (#15).
 export async function listExpenses(
   groupId: string,
   createdBefore: string | null,
+  filters: ExpenseFilters = {},
 ): Promise<Expense[]> {
   let query = getDb()
     .from("expenses")
@@ -84,11 +94,59 @@ export async function listExpenses(
   if (createdBefore !== null) {
     query = query.lte("created_at", createdBefore);
   }
+  if (filters.paidBy !== undefined) {
+    query = query.eq("payer_id", filters.paidBy);
+  }
+  if (filters.from !== undefined) {
+    query = query.gte("spent_on", filters.from);
+  }
+  if (filters.to !== undefined) {
+    query = query.lte("spent_on", filters.to);
+  }
   const { data, error } = await query
     .order("spent_on", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) {
     throw new Error(`Could not load expenses: ${error.message}`);
+  }
+  return (data as unknown as ExpenseRow[]).map(toExpense);
+}
+
+// Which period's expenses to load (architecture.md Section 5, "Settle-up
+// periods"): the current one, which is everything unsettled plus what is in
+// the open settle-up, or the one a closed settle-up settled.
+export type PeriodScope =
+  { openSettlementId: string | null } | { settlementId: string };
+
+// One period's expenses with their shares, ordered as listExpenses orders
+// them, for the itemized bill (#21). `createdBefore` is a former member's
+// left_at, as in listExpenses.
+export async function listExpensesInPeriod(
+  groupId: string,
+  scope: PeriodScope,
+  createdBefore: string | null,
+): Promise<Expense[]> {
+  let query = getDb()
+    .from("expenses")
+    .select(EXPENSE_COLUMNS)
+    .eq("group_id", groupId);
+  if ("settlementId" in scope) {
+    query = query.eq("settlement_id", scope.settlementId);
+  } else if (scope.openSettlementId === null) {
+    query = query.is("settlement_id", null);
+  } else {
+    query = query.or(
+      `settlement_id.is.null,settlement_id.eq.${scope.openSettlementId}`,
+    );
+  }
+  if (createdBefore !== null) {
+    query = query.lte("created_at", createdBefore);
+  }
+  const { data, error } = await query
+    .order("spent_on", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) {
+    throw new Error(`Could not load the period's expenses: ${error.message}`);
   }
   return (data as unknown as ExpenseRow[]).map(toExpense);
 }
@@ -104,6 +162,12 @@ export async function findExpense(expenseId: string): Promise<Expense | null> {
   }
   return data ? toExpense(data) : null;
 }
+
+// The hint create_expense, update_expense, delete_expense and the list item
+// functions give when a write would change the balance of a member who left
+// (#22). update_expense and delete_expense raise it as P0001, like their other
+// refusals, so it reaches the client as a 409 there too.
+export const MEMBER_LEFT_HINT = "member_left";
 
 // Writes an expense and its shares in one transaction through create_expense
 // (#43), so an expense never exists without shares that add up to its amount.
@@ -121,6 +185,11 @@ export async function createExpense(expense: NewExpense): Promise<string> {
     })),
   });
   if (error) {
+    // The payer or a sharer left the group after the service checked (#22):
+    // the database refuses to change a former member's balance.
+    if (error.hint === MEMBER_LEFT_HINT) {
+      throw new ConflictError(error.message);
+    }
     throw new Error(`Could not create the expense: ${error.message}`);
   }
   return data as string;

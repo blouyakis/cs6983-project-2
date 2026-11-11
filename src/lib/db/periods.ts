@@ -142,3 +142,26 @@ export async function listPeriodConfirmedPayments(
     amountCents: row.amount_cents,
   }));
 }
+
+// The confirmed payments a closed settle-up settled (#21): its own suggested
+// payments and the direct payments it closed over. Every one of them is
+// confirmed once it closes, so the filter only keeps cancelled leftovers out.
+export async function listClosedPeriodConfirmedPayments(
+  groupId: string,
+  settlementId: string,
+): Promise<ConfirmedPayment[]> {
+  const { data, error } = await getDb()
+    .from("payments")
+    .select("from_user_id, to_user_id, amount_cents")
+    .eq("group_id", groupId)
+    .eq("status", "confirmed")
+    .eq("settlement_id", settlementId);
+  if (error) {
+    throw new Error(`Could not load the period's payments: ${error.message}`);
+  }
+  return (data as unknown as PaymentRow[]).map((row) => ({
+    fromUserId: row.from_user_id,
+    toUserId: row.to_user_id,
+    amountCents: row.amount_cents,
+  }));
+}

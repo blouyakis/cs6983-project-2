@@ -72,3 +72,42 @@ export const expenseParamsSchema = z.object({
   groupId: z.uuid({ error: "Group id must be a UUID." }),
   expenseId: z.uuid({ error: "Expense id must be a UUID." }),
 });
+
+// The query of GET /api/expenses and of the overview's filters (#15): which
+// group, who paid, and the days from and to, in any combination. A filter
+// form sends every field, so an empty one counts as not set. There is no user
+// id: the history is always the session user's (AGENTS.md Section 8).
+const enterFilterDay = "Enter a day such as 2026-11-02.";
+
+function optionalFilter<Schema extends z.ZodType>(schema: Schema) {
+  return z.preprocess(
+    (value) => (value === "" || value === null ? undefined : value),
+    schema.optional(),
+  );
+}
+
+// Postgres compares uuids in any case, but the service matches ids as
+// strings, so they come out lowercase, as in lib/validation/splits.ts.
+const lower = (id: string) => id.toLowerCase();
+
+const filterDay = z
+  .string({ error: enterFilterDay })
+  .refine(isCalendarDay, { error: enterFilterDay });
+
+export const expenseHistoryQuerySchema = z
+  .object({
+    groupId: optionalFilter(
+      z.uuid({ error: "Choose one of your groups." }).transform(lower),
+    ),
+    paidBy: optionalFilter(
+      z.uuid({ error: "Choose who paid." }).transform(lower),
+    ),
+    from: optionalFilter(filterDay),
+    to: optionalFilter(filterDay),
+  })
+  .refine(({ from, to }) => !from || !to || from <= to, {
+    path: ["to"],
+    error: "To can't be before From.",
+  });
+
+export type ExpenseHistoryFilters = z.output<typeof expenseHistoryQuerySchema>;

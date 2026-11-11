@@ -68,6 +68,8 @@ describe("ExpenseList", () => {
     ]);
 
     expect(screen.getByRole("heading", { name: "Costs" })).toBeInTheDocument();
+    // A region, so a test or a screen reader can tell it from the bill (#21).
+    expect(screen.getByRole("region", { name: "Costs" })).toBeInTheDocument();
     const rows = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent("Groceries");
@@ -129,6 +131,36 @@ describe("ExpenseList", () => {
     expect(
       within(rows[0]).getByText("In the open settle-up"),
     ).toBeInTheDocument();
+    expect(
+      within(rows[1]).getByRole("button", { name: /Edit Pizza/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("locks the user's own expense while someone who has left has a share in it, and says so (#22)", () => {
+    setup([
+      expense({
+        id: "a",
+        shares: [
+          { userId: ana, shareCents: 2255 },
+          { userId: gone, shareCents: 2255 },
+        ],
+      }),
+      expense({
+        id: "b",
+        description: "Pizza",
+        shares: [
+          { userId: ana, shareCents: 4510 },
+          { userId: gone, shareCents: 0 },
+        ],
+      }),
+    ]);
+
+    const rows = within(screen.getByRole("list")).getAllByRole("listitem");
+    expect(within(rows[0]).queryByRole("button")).toBeNull();
+    expect(
+      within(rows[0]).getByText("Shared with someone who left"),
+    ).toBeInTheDocument();
+    // A zero share doesn't count: deleting or editing it changes no balance.
     expect(
       within(rows[1]).getByRole("button", { name: /Edit Pizza/ }),
     ).toBeInTheDocument();

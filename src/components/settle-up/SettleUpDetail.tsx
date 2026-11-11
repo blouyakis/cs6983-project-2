@@ -88,7 +88,7 @@ export async function SettleUpDetail({ params }: SettleUpDetailProps) {
             balances={balances}
             currentUserId={userId}
             unsettledExpenses={unsettled}
-            billHref={`/groups/${group.id}`}
+            billHref={`/groups/${group.id}#bill`}
           >
             {/* Recording a payment needs write access (#14). While a
                 settle-up is open its suggested payments are the way to pay,

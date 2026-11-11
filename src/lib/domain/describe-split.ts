@@ -1,14 +1,10 @@
-// How GroupCard writes a group's default ratio (DESIGN.md): "even split" when
-// every member has the same weight, otherwise whole percents in the members'
-// order, such as "60/40 default" for weights 3 and 2. The percents are rounded
-// by largest remainder, so they always add up to 100. Weights are at least 1,
-// so nobody is shown as 0%: a part that rounds to 0 becomes 1, taken from the
-// largest part. A group has at most 12 members, so the largest part is always
-// more than 1.
-export function describeSplit(weights: readonly number[]): string {
-  if (weights.every((weight) => weight === weights[0])) {
-    return "even split";
-  }
+// Weights as whole percents in the members' order, such as 60 and 40 for
+// weights 3 and 2. The percents are rounded by largest remainder, so they
+// always add up to 100. Weights are at least 1, so nobody is shown as 0%: a
+// part that rounds to 0 becomes 1, taken from the largest part. A group has at
+// most 12 members, so the largest part is always more than 1. GroupCard and
+// the Default split form both use this, so they show the same numbers (#63).
+export function toPercents(weights: readonly number[]): number[] {
   const total = weights.reduce((sum, weight) => sum + weight, 0);
   const exact = weights.map((weight) => (weight * 100) / total);
   const percents = exact.map(Math.floor);
@@ -26,5 +22,15 @@ export function describeSplit(weights: readonly number[]): string {
       percents[percents.indexOf(Math.max(...percents))] -= 1;
     }
   });
-  return `${percents.join("/")} default`;
+  return percents;
+}
+
+// How GroupCard writes a group's default ratio (DESIGN.md): "even split" when
+// every member has the same weight, otherwise whole percents in the members'
+// order, such as "60/40 default" for weights 3 and 2 (toPercents).
+export function describeSplit(weights: readonly number[]): string {
+  if (weights.every((weight) => weight === weights[0])) {
+    return "even split";
+  }
+  return `${toPercents(weights).join("/")} default`;
 }

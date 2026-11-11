@@ -115,6 +115,14 @@ describe("SettleUpDetail", () => {
     ).toBeInTheDocument();
   });
 
+  it("links the unsettled count to the user's bill on the group page (#21)", async () => {
+    render(await detail());
+
+    expect(
+      screen.getByRole("link", { name: "2 unsettled expenses" }),
+    ).toHaveAttribute("href", `/groups/${groupId}#bill`);
+  });
+
   it("dates the period from the last closed one", async () => {
     mocks.listPastPeriods.mockResolvedValue([
       {

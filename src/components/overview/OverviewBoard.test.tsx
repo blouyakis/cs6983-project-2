@@ -21,6 +21,21 @@ vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,
   useRouter: () => ({ refresh: vi.fn() }),
 }));
+// ExpenseHistory is an async Server Component with its own tests. Here it
+// only has to be on the page with the user, their groups and the filters.
+vi.mock("@/components/expenses/ExpenseHistory", () => ({
+  ExpenseHistory: (props: {
+    userId: string;
+    groups: GroupSummary[];
+    query: Record<string, string>;
+  }) => (
+    <p>
+      Expense history for {props.userId}: groups{" "}
+      {props.groups.map((each) => each.id).join(",")}; filters{" "}
+      {JSON.stringify(props.query)}
+    </p>
+  ),
+}));
 
 const ana = "6f1c2d4e-1111-4222-8333-944455556666";
 
@@ -211,6 +226,39 @@ describe("OverviewBoard", () => {
 
     expect(
       screen.getByRole("button", { name: /Add a plan or cost/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the expense history for every group the user is or was in, personal space first", async () => {
+    mocks.getOverview.mockResolvedValue(
+      overview({
+        groups: [standing("a", "🏠 Dorm 4B", 0)],
+        readOnlyGroups: [
+          group({ id: "c", name: "🏖️ Cape weekend", readOnly: true }),
+        ],
+      }),
+    );
+
+    render(await OverviewBoard());
+
+    expect(
+      screen.getByText(`Expense history for ${ana}: groups p,a,c; filters {}`),
+    ).toBeInTheDocument();
+  });
+
+  it("passes the page's search params to the expense history as its filters", async () => {
+    mocks.getOverview.mockResolvedValue(overview());
+
+    render(
+      await OverviewBoard({
+        searchParams: Promise.resolve({ paidBy: ana, from: "2026-10-01" }),
+      }),
+    );
+
+    expect(
+      screen.getByText(
+        `Expense history for ${ana}: groups p; filters {"paidBy":"${ana}","from":"2026-10-01"}`,
+      ),
     ).toBeInTheDocument();
   });
 

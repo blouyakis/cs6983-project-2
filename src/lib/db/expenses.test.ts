@@ -1,17 +1,19 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ConflictError } from "@/lib/http/errors";
 import {
   createExpense,
   deleteExpense,
   findExpense,
   listExpenses,
+  listExpensesInPeriod,
   listExpensesSpentBetween,
   updateExpense,
 } from "./expenses";
 
 type Result = {
   data: unknown;
-  error: { message: string; code?: string } | null;
+  error: { message: string; code?: string; hint?: string } | null;
 };
 
 const calls: { name: string; args: unknown }[] = [];
@@ -26,6 +28,8 @@ function queryBuilder() {
     "gte",
     "lt",
     "lte",
+    "is",
+    "or",
     "order",
     "delete",
   ]) {
@@ -103,6 +107,19 @@ describe("createExpense", () => {
 
   it("returns the new expense id", async () => {
     expect(await createExpense(newExpense)).toBe(expenseId);
+  });
+
+  it("turns a refusal for someone who left the group into a 409 with its message (#22)", async () => {
+    const message =
+      "This would change the balance of someone who has left this group.";
+    result = {
+      data: null,
+      error: { message, code: "P0001", hint: "member_left" },
+    };
+
+    await expect(createExpense(newExpense)).rejects.toEqual(
+      new ConflictError(message),
+    );
   });
 
   it("throws when the database rejects it", async () => {
@@ -193,6 +210,59 @@ describe("listExpenses", () => {
     expect(queries).toContainEqual({
       method: "lte",
       args: ["created_at", "2026-10-25T12:00:00+00:00"],
+    });
+  });
+
+  // The expense history's filters (#15).
+  it("adds no filter when none is given", async () => {
+    await listExpenses(groupId, null, {});
+
+    expect(
+      queries.filter((query) => ["gte", "lte"].includes(query.method)),
+    ).toEqual([]);
+    expect(queries.filter((query) => query.method === "eq")).toEqual([
+      { method: "eq", args: ["group_id", groupId] },
+    ]);
+  });
+
+  it("keeps only what one person paid", async () => {
+    await listExpenses(groupId, null, { paidBy: samId });
+
+    expect(queries).toContainEqual({ method: "eq", args: ["payer_id", samId] });
+  });
+
+  it("keeps only the days from From and up to To, both included", async () => {
+    await listExpenses(groupId, null, { from: "2026-10-01", to: "2026-10-31" });
+
+    expect(queries).toContainEqual({
+      method: "gte",
+      args: ["spent_on", "2026-10-01"],
+    });
+    expect(queries).toContainEqual({
+      method: "lte",
+      args: ["spent_on", "2026-10-31"],
+    });
+  });
+
+  it("applies the filters together with a former member's cut-off", async () => {
+    await listExpenses(groupId, "2026-10-25T12:00:00+00:00", {
+      paidBy: samId,
+      from: "2026-10-01",
+      to: "2026-10-31",
+    });
+
+    expect(queries).toContainEqual({
+      method: "lte",
+      args: ["created_at", "2026-10-25T12:00:00+00:00"],
+    });
+    expect(queries).toContainEqual({ method: "eq", args: ["payer_id", samId] });
+    expect(queries).toContainEqual({
+      method: "gte",
+      args: ["spent_on", "2026-10-01"],
+    });
+    expect(queries).toContainEqual({
+      method: "lte",
+      args: ["spent_on", "2026-10-31"],
     });
   });
 
@@ -400,5 +470,78 @@ describe("listExpensesSpentBetween", () => {
     await expect(
       listExpensesSpentBetween(groupId, "2026-11-01", "2026-12-01", null),
     ).rejects.toThrow("Could not load expenses: boom");
+  });
+});
+
+describe("listExpensesInPeriod", () => {
+  const settlementId = "5e6f7a8b-5555-4666-8777-d88899990000";
+
+  beforeEach(() => {
+    result = { data: [], error: null };
+  });
+
+  function argsOfAll(method: string): unknown[][] {
+    return queries.filter((q) => q.method === method).map((q) => q.args);
+  }
+
+  it("loads the group's unsettled expenses with their shares, newest first", async () => {
+    result = { data: [row], error: null };
+
+    const expenses = await listExpensesInPeriod(
+      groupId,
+      { openSettlementId: null },
+      null,
+    );
+
+    expect(expenses).toEqual([expense]);
+    expect(argsOfAll("from")).toEqual([["expenses"]]);
+    expect(argsOfAll("eq")).toEqual([["group_id", groupId]]);
+    expect(argsOfAll("is")).toEqual([["settlement_id", null]]);
+    expect(argsOfAll("order")).toEqual([
+      ["spent_on", { ascending: false }],
+      ["created_at", { ascending: false }],
+    ]);
+  });
+
+  it("also loads the expenses in the open settle-up, which is still the current period", async () => {
+    await listExpensesInPeriod(
+      groupId,
+      { openSettlementId: settlementId },
+      null,
+    );
+
+    expect(argsOfAll("or")).toEqual([
+      [`settlement_id.is.null,settlement_id.eq.${settlementId}`],
+    ]);
+    expect(argsOfAll("is")).toEqual([]);
+  });
+
+  it("loads only a closed settle-up's expenses for a past period", async () => {
+    await listExpensesInPeriod(groupId, { settlementId }, null);
+
+    expect(argsOfAll("eq")).toEqual([
+      ["group_id", groupId],
+      ["settlement_id", settlementId],
+    ]);
+    expect(argsOfAll("is")).toEqual([]);
+    expect(argsOfAll("or")).toEqual([]);
+  });
+
+  it("stops at the day a former member left", async () => {
+    await listExpensesInPeriod(
+      groupId,
+      { openSettlementId: null },
+      "2026-09-02T15:00:00Z",
+    );
+
+    expect(argsOfAll("lte")).toEqual([["created_at", "2026-09-02T15:00:00Z"]]);
+  });
+
+  it("throws on a database error", async () => {
+    result = { data: null, error: { message: "boom" } };
+
+    await expect(
+      listExpensesInPeriod(groupId, { openSettlementId: null }, null),
+    ).rejects.toThrow("Could not load the period's expenses: boom");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeSplit } from "./describe-split";
+import { describeSplit, toPercents } from "./describe-split";
 
 describe("describeSplit", () => {
   it.each([[[]], [[1]], [[1, 1, 1]], [[2, 2]]])(
@@ -45,5 +45,29 @@ describe("describeSplit", () => {
     expect(parts).not.toContain(0);
     expect(parts.reduce((sum, part) => sum + part, 0)).toBe(100);
     expect(describeSplit(weights)).toBe("89/1/1/1/1/1/1/1/1/1/1/1 default");
+  });
+});
+
+// The Default split form opens on these, so the percents it shows are the
+// ones GroupCard writes (#63).
+describe("toPercents", () => {
+  it("turns weights 3 and 2 into 60 and 40, in the members' order", () => {
+    expect(toPercents([3, 2])).toEqual([60, 40]);
+    expect(toPercents([60, 40])).toEqual([60, 40]);
+  });
+
+  it("rounds by largest remainder, so the percents add up to 100", () => {
+    expect(toPercents([1, 1, 1])).toEqual([34, 33, 33]);
+    expect(toPercents([1, 2])).toEqual([33, 67]);
+  });
+
+  it("never gives a member with a weight 0%", () => {
+    expect(toPercents([100, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])).toEqual([
+      89, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    ]);
+  });
+
+  it("gives nobody nothing", () => {
+    expect(toPercents([])).toEqual([]);
   });
 });

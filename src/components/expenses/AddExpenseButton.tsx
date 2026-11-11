@@ -15,9 +15,9 @@ type AddExpenseButtonProps = {
   defaultGroupId?: string;
 };
 
-// The button that opens the New entry form. Nothing on the page lists expenses
-// yet, so it also says what was added.
-// TODO(#15): drop the notice once the expense list shows it.
+// The button that opens the New entry form. It also says what was added: the
+// new cost shows up in the page's list after the refresh, but a screen reader
+// only hears about it through the notice.
 export function AddExpenseButton({
   groups,
   currentUserId,

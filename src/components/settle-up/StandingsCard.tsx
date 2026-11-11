@@ -10,7 +10,7 @@ type StandingsCardProps = {
   balances: Balance[];
   currentUserId: string;
   unsettledExpenses: number;
-  // Where the footnote's link goes: the group's bill.
+  // Where the footnote's link goes: the user's bill on the group page (#21).
   billHref: string;
   // Shown last, such as PayDirectlyCard (#14).
   children?: ReactNode;

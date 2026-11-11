@@ -67,7 +67,12 @@ test("create a group, invite a member by email, and both see it", async ({
   await invite.getByRole("button", { name: "Invite" }).click();
   await expect(ana.page.getByText("Sam joined the group.")).toBeVisible();
   await expect(
-    ana.page.getByRole("listitem").filter({ hasText: "Sam" }),
+    // The bill has a line for Sam too (#21), so look in the member list.
+    ana.page
+      .getByRole("heading", { name: /^Members/ })
+      .locator("..")
+      .getByRole("listitem")
+      .filter({ hasText: "Sam" }),
   ).toBeVisible();
 
   await invite.getByLabel("Email").fill(sam.email);
@@ -97,4 +102,78 @@ test("the new group form closes with Escape and returns focus", async ({
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeHidden();
   await expect(opener).toBeFocused();
+});
+
+// US-3 (#63): set a group's default split on the group page, then invite a
+// third member, which resets an uneven split to even.
+test("set a 60/40 default split, and inviting a third member resets it to even", async ({
+  browser,
+}) => {
+  const sam = await newUser(browser, "Sam");
+  const jo = await newUser(browser, "Jo");
+  const ana = await newUser(browser, "Ana");
+
+  await ana.page.goto("/groups");
+  await ana.page
+    .getByRole("main")
+    .getByRole("button", { name: /New group/ })
+    .click();
+  const create = ana.page.getByRole("dialog", { name: "New group" });
+  await create.getByLabel("Name").fill("🏠 Flat");
+  await create.getByRole("button", { name: "Create group" }).click();
+  await expect(ana.page).toHaveURL(/\/groups\/[0-9a-f-]{36}$/);
+
+  const invite = ana.page.getByRole("form", { name: "Invite a member" });
+  await invite.getByLabel("Email").fill(sam.email);
+  await invite.getByRole("button", { name: "Invite" }).click();
+  await expect(ana.page.getByText("Sam joined the group.")).toBeVisible();
+  await expect(
+    ana.page.getByText("Default split: even split", { exact: true }),
+  ).toBeVisible();
+
+  const opener = ana.page.getByRole("button", {
+    name: "Change the default split",
+  });
+  await opener.click();
+  const form = ana.page.getByRole("dialog", { name: "Default split" });
+  await expect(form.getByRole("radio", { name: "Evenly" })).toBeChecked();
+  await form.getByText("Custom percentages").click();
+  await form.getByLabel("Ana (%)").fill("60");
+  await form.getByLabel("Sam (%)").fill("30");
+  await form.getByRole("button", { name: "Save split" }).click();
+  await expect(
+    form.getByText("The percentages add up to 90%. Make them add up to 100%."),
+  ).toBeVisible();
+
+  await form.getByLabel("Sam (%)").fill("40");
+  await form.getByRole("button", { name: "Save split" }).click();
+  await expect(form).toBeHidden();
+  await expect(opener).toBeFocused();
+  await expect(
+    ana.page.getByText("Default split: 60/40 default", { exact: true }),
+  ).toBeVisible();
+
+  // The form opens on the ratio it saved.
+  await opener.click();
+  await expect(
+    form.getByRole("radio", { name: "Custom percentages" }),
+  ).toBeChecked();
+  await expect(form.getByLabel("Ana (%)")).toHaveValue("60");
+  await ana.page.keyboard.press("Escape");
+  await expect(form).toBeHidden();
+
+  await invite.getByLabel("Email").fill(jo.email);
+  await invite.getByRole("button", { name: "Invite" }).click();
+  await expect(
+    ana.page.getByText(
+      "Jo joined the group. The default split is now even, because 60/40 was set for 2 people.",
+    ),
+  ).toBeVisible();
+  await expect(
+    ana.page.getByText("Default split: even split", { exact: true }),
+  ).toBeVisible();
+
+  await ana.page.getByRole("button", { name: "Set a new split" }).click();
+  await expect(form).toBeVisible();
+  await expect(form.getByRole("radio", { name: "Evenly" })).toBeChecked();
 });

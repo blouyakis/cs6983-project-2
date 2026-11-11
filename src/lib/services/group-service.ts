@@ -2,10 +2,10 @@ import "server-only";
 import {
   addMember,
   findMembership,
+  leaveGroup as leaveMembership,
   listCurrentMembers,
   listMembersAt,
   listMemberships,
-  rejoinMember,
   type Group,
   type Member,
 } from "@/lib/db/group-members";
@@ -93,13 +93,18 @@ export async function listGroups(userId: string): Promise<GroupSummary[]> {
     .sort((a, b) => rank(a) - rank(b));
 }
 
+// What an invitation gives back: the new member, and whether their joining
+// reset the group's uneven split to even, so the invite form can say so (#63).
+export type Invitation = { member: Member; splitReset: boolean };
+
 // Any current member can invite an existing account by email; the invitee
-// joins right away (#6). A former member rejoins.
+// joins right away (#6). A former member rejoins. The database gives them a
+// weight in the same transaction (#63).
 export async function inviteMember(
   userId: string,
   groupId: string,
   input: InviteInput,
-): Promise<Member> {
+): Promise<Invitation> {
   const { group } = await requireGroupAccess(userId, groupId, "write");
   if (group.isPersonal) {
     throw new ForbiddenError("A personal space can't have other members.");
@@ -112,14 +117,15 @@ export async function inviteMember(
   if (membership && membership.leftAt === null) {
     throw new ConflictError("They are already in this group.");
   }
-  if (membership) {
-    await rejoinMember(groupId, invitee.id);
-  } else {
-    await addMember(groupId, invitee.id);
-  }
-  // TODO(#63): return the weight the database gave them, and whether the
-  // group's split was reset, so the invite form can say so.
-  return { userId: invitee.id, name: invitee.name, defaultShareWeight: 1 };
+  const { weight, splitReset } = await addMember(groupId, invitee.id);
+  return {
+    member: {
+      userId: invitee.id,
+      name: invitee.name,
+      defaultShareWeight: weight,
+    },
+    splitReset,
+  };
 }
 
 // Renames the group, sets its default ratio, or both. The database checks that
@@ -143,4 +149,21 @@ export async function updateGroup(
   // null and the access check doesn't need to run again.
   const members = await listCurrentMembers(groupId);
   return toDetails({ ...group, name: input.name ?? group.name }, null, members);
+}
+
+// The user leaves the group (#22, AGENTS.md user flow 8). Write access means a
+// current member of an active group, so a former member, an archived group
+// and a stranger get 403 here. A personal space can't be left: its owner
+// would lose their own space (#81 review). The database checks the balance,
+// the waiting payments and the personal space again under its locks, sets
+// left_at, and archives the group when they were the last member.
+export async function leaveGroup(
+  userId: string,
+  groupId: string,
+): Promise<void> {
+  const { group } = await requireGroupAccess(userId, groupId, "write");
+  if (group.isPersonal) {
+    throw new ForbiddenError("You can't leave your personal space.");
+  }
+  await leaveMembership(groupId, userId);
 }

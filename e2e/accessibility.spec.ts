@@ -98,6 +98,17 @@ async function invitePayer(
   await page.goto(`/groups/${groupId}`);
 }
 
+// Opens the Default split form on the group's page (#63) on Custom
+// percentages, so every field is there.
+async function openDefaultSplitForm(page: Page) {
+  await page.getByRole("button", { name: "Change the default split" }).click();
+  const form = page.getByRole("dialog", { name: "Default split" });
+  await expect(form).toBeVisible();
+  await form.getByText("Custom percentages").click();
+  await expect(form.getByRole("textbox").first()).toBeVisible();
+  return form;
+}
+
 // Opens the Pay one person directly form on the group's settle-up page.
 async function openPaymentForm(page: Page, groupId: string) {
   await page.goto(`/groups/${groupId}/settle-up`);
@@ -351,6 +362,77 @@ for (const viewport of viewports) {
     await expect(dialog).toBeHidden();
     await expect(opener).toBeFocused();
   });
+
+  test(`the Moving out card and its Leave dialog pass the WCAG 2.1 AA check, trap focus and close with Escape on ${viewport.name}`, async ({
+    page,
+    browser,
+  }) => {
+    await page.setViewportSize(viewport);
+    await register(page, "Fay");
+    await createGroup(page, "🏠 Dorm 4B");
+    await inviteSomeone(page, browser, "Gus");
+    // The notice shows before the page refreshes, and the cost form takes its
+    // sharers from the member list, so wait for Gus to be in it.
+    await expect(
+      page
+        .getByRole("heading", { name: /^Members/ })
+        .locator("..")
+        .getByRole("listitem")
+        .filter({ hasText: "Gus" }),
+    ).toBeVisible();
+    const card = page.getByRole("region", { name: "Moving out?" });
+
+    // With a balance: Leave group is off, the reason is written out, and
+    // Settle my $X first is shown (#22).
+    await page.getByRole("button", { name: /Log a cost/ }).click();
+    const cost = page.getByRole("dialog", { name: "New entry" });
+    await cost.getByLabel("What was it for?").fill("Electricity");
+    await cost.getByLabel("Amount", { exact: true }).fill("30");
+    await cost.getByRole("button", { name: "Add expense" }).click();
+    await expect(cost).toBeHidden();
+    await expect(card).toContainText("You are owed $15.00 in this group.");
+    await expect(card.getByRole("link", { name: /Settle my/ })).toBeVisible();
+    await expectNoViolations(page);
+    await expectFitsTheScreen(page);
+
+    // At zero, Leave group opens the confirm dialog.
+    await page.goto("/groups");
+    await createGroup(page, "🍕 Dinner");
+    await inviteSomeone(page, browser, "Hal");
+    await card.getByRole("button", { name: "Leave group" }).click();
+    const dialog = page.getByRole("dialog", { name: /^Leave 🍕 Dinner\?/ });
+    await expect(dialog).toBeVisible();
+    await expectNoViolations(page);
+    await expectFitsTheScreen(page);
+    for (let press = 0; press < 6; press += 1) {
+      await page.keyboard.press("Tab");
+      await focusIsInside(page, dialog);
+    }
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+  });
+}
+
+for (const viewport of viewports) {
+  test(`the default split dialog passes the WCAG 2.1 AA check, traps focus and closes with Escape on ${viewport.name}`, async ({
+    page,
+    browser,
+  }) => {
+    await page.setViewportSize(viewport);
+    await register(page, "Ivy");
+    await createGroup(page, "🏠 Dorm 4B");
+    await inviteSomeone(page, browser, "Jay");
+
+    const form = await openDefaultSplitForm(page);
+    await expectNoViolations(page);
+    await expectFitsTheScreen(page);
+    for (let press = 0; press < 12; press += 1) {
+      await page.keyboard.press("Tab");
+      await focusIsInside(page, form);
+    }
+    await page.keyboard.press("Escape");
+    await expect(form).toBeHidden();
+  });
 }
 
 test("tabbing through the login and register forms reaches every control with a visible focus style", async ({
@@ -451,6 +533,29 @@ test("animations and transitions are switched off for prefers-reduced-motion", a
   expect(longest).toBeLessThan(0.001);
 });
 
+// The expense filters on the overview (#15). The table under them is on "/",
+// which the signed-in pages check above already loads with a cost in it.
+test("tabbing through the expense filters reaches every control with a visible focus style", async ({
+  page,
+}) => {
+  await page.setViewportSize(viewports[0]);
+  await register(page, "Eve");
+  await createGroup(page, "🏠 Dorm 4B");
+  await fillGroup(page);
+  await page.goto("/");
+
+  const form = page.getByRole("form", { name: "Filter expenses" });
+  await expect(form).toBeVisible();
+  await form.evaluate((element) => element.setAttribute("data-tab-scope", ""));
+  const stops = await tabStopsIn(form);
+  await form.getByLabel("Group", { exact: true }).focus();
+  // Shift+Tab steps out of the form, so the walk starts on its first control.
+  await page.keyboard.press("Shift+Tab");
+  const { reached, withoutFocusStyle } = await tabThrough(page);
+  expect(reached).toBeGreaterThanOrEqual(stops - 1);
+  expect(withoutFocusStyle).toEqual([]);
+});
+
 test("tabbing through the payment form reaches every control with a visible focus style", async ({
   page,
   browser,
@@ -461,6 +566,22 @@ test("tabbing through the payment form reaches every control with a visible focu
   await inviteSomeone(page, browser, "Hal");
 
   const form = await openPaymentForm(page, groupId);
+  await form.evaluate((element) => element.setAttribute("data-tab-scope", ""));
+  const stops = await tabStopsIn(form);
+  const result = await tabThrough(page);
+  expect(result.reached).toBeGreaterThanOrEqual(stops - 1);
+  expect(result.withoutFocusStyle).toEqual([]);
+});
+
+test("tabbing through the default split form reaches every control with a visible focus style", async ({
+  page,
+  browser,
+}) => {
+  await register(page, "Kit");
+  await createGroup(page, "🏠 Dorm 4B");
+  await inviteSomeone(page, browser, "Lou");
+
+  const form = await openDefaultSplitForm(page);
   await form.evaluate((element) => element.setAttribute("data-tab-scope", ""));
   const stops = await tabStopsIn(form);
   const result = await tabThrough(page);
