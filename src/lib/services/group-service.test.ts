@@ -11,6 +11,7 @@ import {
   createGroup,
   getGroup,
   inviteMember,
+  leaveGroup,
   listGroups,
   updateGroup,
 } from "./group-service";
@@ -21,10 +22,10 @@ vi.mock("./access", () => access);
 const members = vi.hoisted(() => ({
   addMember: vi.fn(),
   findMembership: vi.fn(),
+  leaveGroup: vi.fn(),
   listCurrentMembers: vi.fn(),
   listMembersAt: vi.fn(),
   listMemberships: vi.fn(),
-  rejoinMember: vi.fn(),
 }));
 vi.mock("@/lib/db/group-members", () => members);
 
@@ -227,6 +228,7 @@ describe("inviteMember", () => {
     grantAccess();
     users.findUserByEmail.mockResolvedValue(samAccount());
     members.findMembership.mockResolvedValue(null);
+    members.addMember.mockResolvedValue({ weight: 1, splitReset: false });
 
     const added = await inviteMember(userId, groupId, {
       email: "sam@example.com",
@@ -239,10 +241,35 @@ describe("inviteMember", () => {
     );
     expect(users.findUserByEmail).toHaveBeenCalledWith("sam@example.com");
     expect(members.addMember).toHaveBeenCalledWith(groupId, samId);
-    expect(added).toEqual(sam);
+    expect(added).toEqual({ member: sam, splitReset: false });
   });
 
-  it("lets a former member rejoin", async () => {
+  it("gives the member the weight the database gave them (#63)", async () => {
+    grantAccess();
+    users.findUserByEmail.mockResolvedValue(samAccount());
+    members.findMembership.mockResolvedValue(null);
+    members.addMember.mockResolvedValue({ weight: 50, splitReset: false });
+
+    expect(
+      await inviteMember(userId, groupId, { email: "sam@example.com" }),
+    ).toEqual({
+      member: { ...sam, defaultShareWeight: 50 },
+      splitReset: false,
+    });
+  });
+
+  it("says when joining reset an uneven split to even (#63)", async () => {
+    grantAccess();
+    users.findUserByEmail.mockResolvedValue(samAccount());
+    members.findMembership.mockResolvedValue(null);
+    members.addMember.mockResolvedValue({ weight: 1, splitReset: true });
+
+    expect(
+      await inviteMember(userId, groupId, { email: "sam@example.com" }),
+    ).toEqual({ member: sam, splitReset: true });
+  });
+
+  it("lets a former member rejoin through the same function", async () => {
     grantAccess();
     users.findUserByEmail.mockResolvedValue(samAccount());
     members.findMembership.mockResolvedValue({
@@ -250,12 +277,12 @@ describe("inviteMember", () => {
       joinedAt: "2026-10-01T09:00:00+00:00",
       leftAt: "2026-10-20T09:00:00+00:00",
     });
+    members.addMember.mockResolvedValue({ weight: 1, splitReset: true });
 
     expect(
       await inviteMember(userId, groupId, { email: "sam@example.com" }),
-    ).toEqual(sam);
-    expect(members.rejoinMember).toHaveBeenCalledWith(groupId, samId);
-    expect(members.addMember).not.toHaveBeenCalled();
+    ).toEqual({ member: sam, splitReset: true });
+    expect(members.addMember).toHaveBeenCalledWith(groupId, samId);
   });
 
   it("rejects someone who is already a current member with 409", async () => {
@@ -408,5 +435,52 @@ describe("updateGroup", () => {
       }),
     ).rejects.toBeInstanceOf(ForbiddenError);
     expect(groups.updateGroup).not.toHaveBeenCalled();
+  });
+});
+
+describe("leaveGroup", () => {
+  it("leaves through the database after checking write access (#22)", async () => {
+    grantAccess();
+
+    await leaveGroup(userId, groupId);
+
+    expect(access.requireGroupAccess).toHaveBeenCalledWith(
+      userId,
+      groupId,
+      "write",
+    );
+    expect(members.leaveGroup).toHaveBeenCalledWith(groupId, userId);
+  });
+
+  it("passes on the 403 for a former member, an archived group or a stranger, leaving nothing", async () => {
+    access.requireGroupAccess.mockRejectedValue(
+      new ForbiddenError(
+        "You left this group, so you can only read its history.",
+      ),
+    );
+
+    await expect(leaveGroup(userId, groupId)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
+    expect(members.leaveGroup).not.toHaveBeenCalled();
+  });
+
+  it("refuses to leave a personal space with 403, before asking the database", async () => {
+    grantAccess({ isPersonal: true });
+
+    await expect(leaveGroup(userId, groupId)).rejects.toEqual(
+      new ForbiddenError("You can't leave your personal space."),
+    );
+    expect(members.leaveGroup).not.toHaveBeenCalled();
+  });
+
+  it("passes on the 409 for a balance that isn't zero", async () => {
+    grantAccess();
+    const refusal = new ConflictError(
+      "Settle up first: you can leave once your balance in this group is $0.00.",
+    );
+    members.leaveGroup.mockRejectedValue(refusal);
+
+    await expect(leaveGroup(userId, groupId)).rejects.toBe(refusal);
   });
 });

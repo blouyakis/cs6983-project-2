@@ -30,6 +30,7 @@ type ListItemRowProps = {
 const LOCKS: Record<ExpenseLock, string> = {
   settled: "Settled",
   "settle-up": "In the open settle-up",
+  "member-left": "Shared with someone who left",
 };
 
 function details(item: ListItem, addedByName: string, isPersonal: boolean) {

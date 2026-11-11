@@ -6,6 +6,7 @@ import {
   type Expense,
 } from "@/lib/db/expenses";
 import { listCurrentMemberWeights } from "@/lib/db/group-members";
+import { expenseLock } from "@/lib/domain/expense-lock";
 import { checkCustomShares, splitByWeights } from "@/lib/domain/splits";
 import {
   ConflictError,
@@ -20,16 +21,22 @@ import { requireGroupAccess } from "./access";
 // payer, and only while it is unsettled. The payer can't be changed; to fix
 // a wrong payer, delete the expense and add it again.
 
-// The expense, once the user may change it. Write access means a current
-// member of an active group, so a former member or an archived group is 403
-// before anything is looked up.
+// The expense, once the user may change it, and the group's current members.
+// Write access means a current member of an active group, so a former member
+// or an archived group is 403 before anything is looked up. A settled
+// expense, and one that someone who has left has a non-zero share in (#22),
+// is 409. The open settle-up's lock is left to update_expense and
+// delete_expense, which check it under the row lock.
 async function requireEditableExpense(
   userId: string,
   groupId: string,
   expenseId: string,
-): Promise<Expense> {
+): Promise<{ expense: Expense; currentMemberIds: Set<string> }> {
   await requireGroupAccess(userId, groupId, "write");
-  const expense = await findExpense(expenseId);
+  const [expense, current] = await Promise.all([
+    findExpense(expenseId),
+    listCurrentMemberWeights(groupId),
+  ]);
   if (!expense || expense.groupId !== groupId) {
     throw new NotFoundError("This expense doesn't exist.");
   }
@@ -38,12 +45,19 @@ async function requireEditableExpense(
       "Only the person who paid can change this expense.",
     );
   }
-  if (expense.settled) {
+  const currentMemberIds = new Set(current.map((member) => member.userId));
+  const lock = expenseLock(expense, null, currentMemberIds);
+  if (lock === "settled") {
     throw new ConflictError(
       "This expense has been settled, so it can't be changed.",
     );
   }
-  return expense;
+  if (lock === "member-left") {
+    throw new ConflictError(
+      "Someone who shares this expense has left the group, so it can't be changed until it's settled.",
+    );
+  }
+  return { expense, currentMemberIds };
 }
 
 // Replaces the description, amount, day and split. The shares are worked out
@@ -55,12 +69,13 @@ export async function editExpense(
   expenseId: string,
   input: UpdateExpenseInput,
 ): Promise<Expense> {
-  const expense = await requireEditableExpense(userId, groupId, expenseId);
-
-  const current = new Set(
-    (await listCurrentMemberWeights(groupId)).map((member) => member.userId),
+  const { expense, currentMemberIds } = await requireEditableExpense(
+    userId,
+    groupId,
+    expenseId,
   );
-  if (!input.sharedBy.every((sharerId) => current.has(sharerId))) {
+
+  if (!input.sharedBy.every((sharerId) => currentMemberIds.has(sharerId))) {
     throw new ValidationError("Check the highlighted fields.", {
       sharedBy: "Everyone sharing this cost must be in the group.",
     });

@@ -14,7 +14,13 @@ import {
   listGroupListItems,
   removeListItem,
 } from "@/lib/services/list-item-service";
-import { cleanUp, createGroupWithMembers, createUser, db } from "./fixtures";
+import {
+  cleanUp,
+  createGroupWithMembers,
+  createUser,
+  db,
+  dbNow,
+} from "./fixtures";
 
 afterAll(cleanUp);
 
@@ -31,7 +37,7 @@ async function markDone(itemId: string, completedBy: string): Promise<void> {
     .update({
       status: "done",
       completed_by: completedBy,
-      completed_at: new Date().toISOString(),
+      completed_at: await dbNow(),
     })
     .eq("id", itemId);
   if (error) {
@@ -120,7 +126,7 @@ describe("list items through the service", () => {
     const item = await addListItem(ana, groupId, milk);
     const { error } = await db
       .from("groups")
-      .update({ archived_at: new Date().toISOString() })
+      .update({ archived_at: await dbNow() })
       .eq("id", groupId);
     if (error) {
       throw error;

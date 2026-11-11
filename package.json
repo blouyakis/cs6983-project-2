@@ -10,7 +10,7 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --project unit",
-    "test:db": "vitest run --project db",
+    "test:db": "vitest run --project 'db*'",
     "test:coverage": "vitest run --project unit --coverage",
     "test:e2e": "playwright test",
     "prepare": "node .husky/install.mjs"
