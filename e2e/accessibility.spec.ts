@@ -305,6 +305,13 @@ for (const viewport of viewports) {
     const health = page.locator("#operations-Health-getHealth");
     await health.getByRole("button", { name: "Execute" }).click();
     await expect(health.locator(".live-responses-table")).toBeVisible();
+    // Execute is disabled at opacity 0.3 while the request runs and fades
+    // back over 0.3s; checking contrast mid-fade would measure a colour
+    // nobody reads.
+    await expect(health.getByRole("button", { name: "Execute" })).toHaveCSS(
+      "opacity",
+      "1",
+    );
     await expectNoViolations(page);
     await expectFitsTheScreen(page);
     await expectHeadingsInOrder(page);
