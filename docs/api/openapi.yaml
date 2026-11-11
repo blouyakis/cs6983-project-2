@@ -128,7 +128,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserResponse"
         "400":
-          $ref: "#/components/responses/BadRequest"
+          description: An email that isn't valid, or no password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields:
+                        {
+                          email: "Enter a valid email address.",
+                          password: "Enter your password.",
+                        },
+                    },
+                }
         "401":
           description: |
             Wrong email or password. The message is always
@@ -320,7 +337,7 @@ paths:
                     {
                       code: VALIDATION_ERROR,
                       message: "Check the highlighted fields.",
-                      fields: { groupId: "Group id must be a UUID." },
+                      fields: { to: "To can't be before From." },
                     },
                 }
         "401":
@@ -417,7 +434,7 @@ paths:
                     {
                       code: VALIDATION_ERROR,
                       message: "Check the highlighted fields.",
-                      fields: { groupId: "Group id must be a UUID." },
+                      fields: { name: "Enter a group name." },
                     },
                 }
         "401":
