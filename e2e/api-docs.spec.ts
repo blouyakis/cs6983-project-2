@@ -65,6 +65,42 @@ test("logging in from the docs lets Try it out reach a protected route", async (
   ).toHaveText("200");
 });
 
+// The responses tables fit a phone without squeezing the Code and Links
+// columns until "Code" or "401" breaks into one letter per line (#16).
+for (const width of [1280, 375]) {
+  test(`the response codes stay on one line at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/api/docs");
+    const me = page.locator("#operations-Auth-getCurrentUser");
+    await me.locator(".opblock-summary-control").click();
+    await me.getByRole("button", { name: "Try it out" }).click();
+    await me.getByRole("button", { name: "Execute" }).click();
+    await expect(me.locator(".live-responses-table")).toBeVisible();
+    const wrapped = await me.evaluate((operation) =>
+      Array.from(
+        operation.querySelectorAll<HTMLElement>(
+          ".responses-table .response-col_status, .responses-table .response-col_links",
+        ),
+      )
+        .filter((cell) => cell.textContent?.trim())
+        .filter((cell) => {
+          const range = document.createRange();
+          range.selectNodeContents(cell);
+          const tops = new Set(
+            Array.from(range.getClientRects()).map((rect) =>
+              Math.round(rect.top),
+            ),
+          );
+          return tops.size > 1;
+        })
+        .map((cell) => cell.textContent?.trim()),
+    );
+    expect(wrapped).toEqual([]);
+  });
+}
+
 test("a protected route still answers 401 without a session", async ({
   request,
 }) => {
