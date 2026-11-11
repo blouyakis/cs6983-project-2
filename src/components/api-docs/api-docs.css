@@ -103,3 +103,16 @@
   padding-right: 1em;
   white-space: nowrap;
 }
+
+/* Swagger UI widens a route's "Copy path to clipboard" button only while the
+   mouse hovers the row, so Tab reached a 0px-wide button. It widens on
+   keyboard focus too, at once rather than over Swagger UI's 0.5s width
+   transition, so the focus outline is never drawn round nothing. */
+.swagger-ui
+  .opblock
+  .opblock-summary
+  .view-line-link.copy-to-clipboard:focus-within {
+  margin: 0 5px;
+  transition: none;
+  width: 24px;
+}
