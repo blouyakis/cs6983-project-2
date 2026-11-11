@@ -259,6 +259,23 @@ for (const viewport of viewports) {
     }
   });
 
+  // Swagger UI draws the routes in the browser after the page loads, so the
+  // check waits for them and opens one, with its Try it out form (#16).
+  test(`the API docs pass the WCAG 2.1 AA check and fit the screen on ${viewport.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("/api/docs");
+    const operation = page.locator("#operations-Auth-login");
+    await operation.getByRole("button", { name: /\/api\/auth\/login/ }).click();
+    await operation.getByRole("button", { name: "Try it out" }).click();
+    await expect(
+      operation.getByRole("button", { name: "Execute" }),
+    ).toBeVisible();
+    await expectNoViolations(page);
+    await expectFitsTheScreen(page);
+  });
+
   test(`every signed-in page passes the WCAG 2.1 AA check and fits the screen on ${viewport.name}`, async ({
     page,
   }) => {
