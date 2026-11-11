@@ -79,12 +79,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields:
+                        { password: "Password must be at least 8 characters." },
+                    },
+                }
         "409":
           description: "`An account with this email already exists.`"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: CONFLICT,
+                      message: "An account with this email already exists.",
+                    },
+                }
   /api/auth/login:
     post:
       tags: [Auth]
@@ -110,7 +128,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
           description: |
             Wrong email or password. The message is always
@@ -120,6 +138,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: UNAUTHORIZED,
+                      message: "Email or password is incorrect.",
+                    },
+                }
   /api/auth/logout:
     post:
       tags: [Auth]
@@ -159,6 +185,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: UNAUTHORIZED,
+                      message: "Please log in to continue.",
+                    },
+                }
   /api/health:
     get:
       tags: [Health]
@@ -217,7 +251,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/OverviewResponse"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
   /api/expenses:
     get:
       tags: [Overview]
@@ -280,14 +314,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
           description: "`groupId` is a group the user isn't and never was in."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: FORBIDDEN,
+                      message: "You are not a member of this group.",
+                    },
+                }
   /api/sidebar-groups:
     get:
       tags: [Overview]
@@ -315,7 +366,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/SidebarGroupListResponse"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
   /api/groups:
     get:
       tags: [Groups]
@@ -333,7 +384,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/GroupListResponse"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
     post:
       tags: [Groups]
       operationId: createGroup
@@ -360,8 +411,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
   /api/groups/{groupId}:
     get:
       tags: [Groups]
@@ -387,10 +447,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
     patch:
       tags: [Groups]
       operationId: updateGroup
@@ -425,10 +494,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
   /api/groups/{groupId}/invitations:
     post:
       tags: [Groups]
@@ -465,8 +543,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
           description: |
             A former member, an archived group, a personal space ("A
@@ -476,18 +563,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: FORBIDDEN,
+                      message: "You are not a member of this group.",
+                    },
+                }
         "404":
           description: "`No LifeBoard account uses that email.`"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    { code: NOT_FOUND, message: "This expense doesn't exist." },
+                }
         "409":
           description: "`They are already in this group.` or `A group can have at most 12 members.`"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: CONFLICT,
+                      message: "They are already in this group.",
+                    },
+                }
   /api/groups/{groupId}/leave:
     post:
       tags: [Groups]
@@ -509,9 +617,9 @@ paths:
         "204":
           description: They left. The group is archived if they were its last member.
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
           description: |
             A personal space (`You can't leave your personal space.`), a
@@ -521,6 +629,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: FORBIDDEN,
+                      message: "You are not a member of this group.",
+                    },
+                }
         "409":
           description: |
             `Settle up first: you can leave once your balance in this group
@@ -530,6 +646,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: CONFLICT,
+                      message: "They are already in this group.",
+                    },
+                }
   /api/groups/{groupId}/list-items:
     get:
       tags: [Lists]
@@ -554,11 +678,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListItemListResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
     post:
       tags: [Lists]
       operationId: createListItem
@@ -591,10 +715,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
   /api/groups/{groupId}/list-items/{itemId}:
     patch:
       tags: [Lists]
@@ -626,14 +759,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
     delete:
       tags: [Lists]
       operationId: deleteListItem
@@ -653,14 +795,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/list-items/{itemId}/complete:
     post:
       tags: [Lists]
@@ -700,15 +851,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListItemResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/list-items/{itemId}/reopen:
     post:
       tags: [Lists]
@@ -732,15 +883,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListItemResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/expenses:
     get:
       tags: [Expenses]
@@ -761,11 +912,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/ExpenseListResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
     post:
       tags: [Expenses]
       operationId: createExpense
@@ -803,12 +954,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/expenses/{expenseId}:
     patch:
       tags: [Expenses]
@@ -846,15 +1006,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/ExpenseResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
     delete:
       tags: [Expenses]
       operationId: deleteExpense
@@ -874,15 +1034,15 @@ paths:
         "204":
           description: The expense is gone.
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/balances:
     get:
       tags: [Balances]
@@ -908,11 +1068,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/BalanceListResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
   /api/groups/{groupId}/bills/me:
     get:
       tags: [Balances]
@@ -951,10 +1111,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
           description: |
             `settlementId` isn't one of the group's closed periods: it is
@@ -963,6 +1132,11 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    { code: NOT_FOUND, message: "This expense doesn't exist." },
+                }
   /api/groups/{groupId}/payments:
     get:
       tags: [Payments]
@@ -989,10 +1163,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
     post:
       tags: [Payments]
       operationId: recordPayment
@@ -1032,10 +1215,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
   /api/groups/{groupId}/payments/{paymentId}/paid:
     post:
       tags: [Payments]
@@ -1062,14 +1254,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/payments/{paymentId}/confirm:
     post:
       tags: [Payments]
@@ -1098,14 +1299,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/payments/{paymentId}/decline:
     post:
       tags: [Payments]
@@ -1138,14 +1348,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/settlements:
     get:
       tags: [Settle-up]
@@ -1165,11 +1384,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/PeriodListResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
     post:
       tags: [Settle-up]
       operationId: startSettlement
@@ -1202,13 +1421,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/SettleUpResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/settlements/current:
     get:
       tags: [Settle-up]
@@ -1228,13 +1447,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/SettleUpResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
   /api/groups/{groupId}/settlements/current/cancel:
     post:
       tags: [Settle-up]
@@ -1251,15 +1470,15 @@ paths:
         "204":
           description: Cancelled.
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
 components:
   securitySchemes:
     sessionCookie:
@@ -2163,21 +2382,83 @@ components:
           properties:
             code:
               type: string
-              example: FORBIDDEN
+              enum:
+                [
+                  VALIDATION_ERROR,
+                  UNAUTHORIZED,
+                  FORBIDDEN,
+                  NOT_FOUND,
+                  CONFLICT,
+                  INTERNAL_ERROR,
+                ]
             message:
               type: string
-              example: You are not a member of this group.
+              description: A sentence the app can show as it is.
             fields:
               type: object
               description: Only on 400. One message per invalid field.
               additionalProperties:
                 type: string
-              example:
-                password: Password must be at least 8 characters.
   responses:
-    Error:
-      description: Request failed.
+    BadRequest:
+      description: Invalid input. `fields` names each bad field.
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+          example:
+            {
+              error:
+                {
+                  code: VALIDATION_ERROR,
+                  message: "Check the highlighted fields.",
+                  fields: { groupId: "Group id must be a UUID." },
+                },
+            }
+    Unauthorized:
+      description: No session, an invalid token, or an expired token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            {
+              error:
+                { code: UNAUTHORIZED, message: "Please log in to continue." },
+            }
+    Forbidden:
+      description: Logged in but not allowed, such as someone who isn't a member of the group.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            {
+              error:
+                {
+                  code: FORBIDDEN,
+                  message: "You are not a member of this group.",
+                },
+            }
+    NotFound:
+      description: The group, item, expense, payment or period isn't there.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            {
+              error:
+                { code: NOT_FOUND, message: "This expense doesn't exist." },
+            }
+    Conflict:
+      description: The request clashes with the current state; the message says how.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            {
+              error:
+                { code: CONFLICT, message: "They are already in this group." },
+            }
