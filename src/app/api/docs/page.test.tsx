@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { parse } from "yaml";
 import ApiDocsPage from "./page";
 
 // Swagger UI itself runs only in the browser; e2e/api-docs.spec.ts covers it.
@@ -41,4 +42,75 @@ describe("API docs page", () => {
       .map(({ line, number }) => `${number}: ${line.trim()}`);
     expect(cutShort).toEqual([]);
   });
+
+  // A 400 example names the fields that were wrong, so each one must be
+  // something the route takes: a path or query parameter, or a property of
+  // its request body. Login once showed the shared groupId example (#16).
+  it("names only a route's own fields in its 400 example", () => {
+    const spec = parse(
+      readFileSync(join(process.cwd(), "docs/api/openapi.yaml"), "utf8"),
+    ) as Spec;
+    const resolve = <T,>(node: T | Ref): T =>
+      isRef(node)
+        ? (node.$ref
+            .slice(2)
+            .split("/")
+            .reduce<unknown>(
+              (at, key) => (at as Record<string, unknown>)[key],
+              spec,
+            ) as T)
+        : node;
+    const propertiesOf = (schema: Schema | Ref | undefined): string[] => {
+      if (!schema) {
+        return [];
+      }
+      const resolved = resolve(schema);
+      return [
+        ...Object.keys(resolved.properties ?? {}),
+        ...(resolved.allOf ?? []).flatMap(propertiesOf),
+      ];
+    };
+
+    const strays: string[] = [];
+    for (const [path, operations] of Object.entries(spec.paths)) {
+      for (const [method, operation] of Object.entries(operations)) {
+        const badRequest = operation.responses["400"];
+        if (!badRequest) {
+          continue;
+        }
+        const example = resolve(badRequest).content?.["application/json"]
+          ?.example as { error?: { fields?: Record<string, string> } };
+        const accepted = new Set([
+          ...(operation.parameters ?? []).map((p) => resolve(p).name),
+          ...propertiesOf(
+            operation.requestBody?.content["application/json"]?.schema,
+          ),
+        ]);
+        for (const field of Object.keys(example?.error?.fields ?? {})) {
+          if (!accepted.has(field)) {
+            strays.push(`${method.toUpperCase()} ${path}: ${field}`);
+          }
+        }
+      }
+    }
+    expect(strays).toEqual([]);
+  });
 });
+
+type Ref = { $ref: string };
+type Schema = {
+  properties?: Record<string, unknown>;
+  allOf?: (Schema | Ref)[];
+};
+type Media = { schema?: Schema | Ref; example?: unknown };
+type Response = { content?: Record<string, Media> };
+type Operation = {
+  parameters?: ({ name: string } | Ref)[];
+  requestBody?: { content: Record<string, Media> };
+  responses: Record<string, Response | Ref>;
+};
+type Spec = { paths: Record<string, Record<string, Operation>> };
+
+function isRef(node: unknown): node is Ref {
+  return typeof node === "object" && node !== null && "$ref" in node;
+}
