@@ -18,7 +18,7 @@ Before writing Next.js code, read the matching page in `node_modules/next/dist/d
 
 ```bash
 npm run dev            # start the dev server
-npm run lint           # ESLint, then Prettier check
+npm run lint           # ESLint, Prettier check, then Redocly on docs/api/openapi.yaml
 npm run format         # Prettier write
 npm run typecheck      # tsc --noEmit
 npm test               # Vitest unit tests (no Docker needed)
@@ -192,7 +192,7 @@ Non-negotiable values, check them before opening a PR: bcrypt cost **12** · ses
 - Store the JWT in an `httpOnly`, `Secure`, `SameSite=Lax` cookie named `session`. Tokens expire after 24 hours; expired tokens get `401` and the user is sent to login.
 - Never store tokens in `localStorage` and never send the service role key or JWT secret to the browser.
 - Protect pages in `proxy.ts` and check the session again in every route handler. Never trust a user id sent by the client; always use the one from the session.
-- The routes in `PUBLIC_API_ROUTES` in `proxy.ts` (register, login, logout and `GET /api/health`) skip the session check on purpose: none of them acts for a signed-in user. Register and login return only the user who just sent their credentials, logout only clears the cookie, and `GET /api/health` reads no user data. A new public route goes in that list and must not return any data that needs a session to see.
+- The routes in `PUBLIC_API_ROUTES` in `proxy.ts` (register, login, logout, `GET /api/health` and the `/api/docs` page) skip the session check on purpose: none of them acts for a signed-in user. Register and login return only the user who just sent their credentials, logout only clears the cookie, `GET /api/health` reads no user data, and `/api/docs` shows only the OpenAPI spec, which is in the repository anyway. A new public route goes in that list and must not return any data that needs a session to see.
 - Check group access in the service layer on every request (Section 6.6).
 - Enable Row Level Security on every table with no public policies, so only our server (with the service role key) can read or write.
 - Never log passwords, tokens or full request bodies. Return generic messages for login failures (“Email or password is incorrect.”).
@@ -211,6 +211,7 @@ Non-negotiable values, check them before opening a PR: bcrypt cost **12** · ses
 
 ## Changelog
 
+- 2026-11-11, Ziye: added the `/api/docs` page to the public routes in Section 8, and said in Section 1 that `npm run lint` also checks `docs/api/openapi.yaml` with Redocly (#16). The docs have to open without logging in, so an agent or reviewer reading the old list of four would take the page for a missing session check. The spec check went into `npm run lint` instead of a new CI job, so CI's lint job runs it without a change to `ci.yml`, which an agent may not edit.
 - 2026-11-10, Barbara: said in Section 6.10 that a settle-up can't start while a direct payment in the group is still `paid` and not confirmed (#112). Ziye's review of #107 showed that balances count only confirmed payments, so a settle-up started while Ana's $8.83 to Sam was waiting suggested "Ana → Sam $8.83" again, and Ana would pay twice. Refusing in `start_settlement` was chosen over showing the pending payment on the settle-up page, because a note can be missed and a refusal can't.
 - 2026-11-08, Ziye: said in Section 6.10 that the recipient of a paid payment can decline it, which puts a settle-up payment back to suggested and deletes a direct payment (#108). Without it, a settle-up whose recipient never confirmed a paid payment could neither close nor be cancelled, so its expenses stayed locked and no new settle-up could start. Since #112, declining also clears a direct payment that keeps a settle-up from starting. A declined direct payment is deleted rather than given a `declined` status, because it never counted in a balance and a declined settle-up payment keeps no trace either; architecture.md's "Payment lifecycle" has the reasoning.
 - 2026-11-08, Ziye: said in Section 6.7 that a new cost can't include a member who has left and that an expense with a non-zero share of theirs is locked like a settled one, and in Section 6.8 that a member can't leave while a payment to or from them is suggested or paid, or leave a personal space (#22). Leaving at zero is only safe if the balance stays zero afterwards: without the first, a payer could delete or edit a cost the former member shared and leave them owing or owed with no way to settle; without the second, a payment nobody can confirm would never count. The lock covers every edit, not only the ones that change their share, because the edit form only knows the current members, so any save of such an expense would fail (#22 review).
