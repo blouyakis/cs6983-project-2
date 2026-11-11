@@ -1,4 +1,5 @@
 import type { Member } from "@/lib/db/group-members";
+import { FORMER_PAYER } from "@/lib/domain/expense-history";
 import {
   ForbiddenError,
   ValidationError,
@@ -34,8 +35,10 @@ function first(value: string | string[] | undefined): string {
   return (Array.isArray(value) ? value[0] : value) ?? "";
 }
 
-// Everyone who is or was in one of the user's groups, the user first as
-// "You", then by name.
+// Everyone in one of the user's groups, the user first as "You", then by
+// name. Someone who has left isn't in a group's members, so one last entry,
+// "A former member", stands for all of them (#130). A user with only a
+// personal space has nobody who could have left.
 function payersOf(
   userId: string,
   groups: readonly GroupSummary[],
@@ -50,7 +53,10 @@ function payersOf(
   const others = Array.from(names, ([id, name]) => ({ userId: id, name })).sort(
     (a, b) => a.name.localeCompare(b.name),
   );
-  return [{ userId, name: "You" }, ...others];
+  const former = groups.some((group) => !group.isPersonal)
+    ? [{ userId: FORMER_PAYER, name: "A former member" }]
+    : [];
+  return [{ userId, name: "You" }, ...others, ...former];
 }
 
 // "Your expenses" on the overview (#15, user story 1): ExpenseFilters above
