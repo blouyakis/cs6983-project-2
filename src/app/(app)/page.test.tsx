@@ -5,8 +5,12 @@ import OverviewPage from "./page";
 vi.mock("@/components/auth/SignedInAs", () => ({
   SignedInAs: () => <p>Signed in as Sam Lee</p>,
 }));
+const board = vi.hoisted(() => ({ props: vi.fn() }));
 vi.mock("@/components/overview/OverviewBoard", () => ({
-  OverviewBoard: () => <p>The overview board</p>,
+  OverviewBoard: (props: unknown) => {
+    board.props(props);
+    return <p>The overview board</p>;
+  },
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), refresh: vi.fn() }),
@@ -33,5 +37,13 @@ describe("overview page", () => {
     render(<OverviewPage />);
 
     expect(screen.getByText("The overview board")).toBeInTheDocument();
+  });
+
+  it("hands its search params to the board, for the expense history's filters", () => {
+    const searchParams = Promise.resolve({ from: "2026-10-01" });
+
+    render(<OverviewPage searchParams={searchParams} />);
+
+    expect(board.props).toHaveBeenLastCalledWith({ searchParams });
   });
 });

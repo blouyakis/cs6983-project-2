@@ -170,6 +170,74 @@ paths:
                 $ref: "#/components/schemas/OverviewResponse"
         "401":
           $ref: "#/components/responses/Error"
+  /api/expenses:
+    get:
+      summary: My expense history across groups, with filters
+      description: |
+        Issue #15, user story 1. Every expense the session user has a share
+        in, across their groups and personal space, newest day first and,
+        within a day, newest entry first. An expense in one of their groups
+        that they don't share is left out; a cost they paid only for others
+        has their share of 0, so it is listed. A group they left is included
+        up to the day they left (AGENTS.md Section 6.6).
+
+        `groupId`, `paidBy`, `from` and `to` narrow the list, in any
+        combination. An empty value counts as not set. Each row says whether
+        the user can edit it (`editLock`), so the client never offers an edit
+        that would fail. The list isn't paged.
+      parameters:
+        - name: groupId
+          in: query
+          required: false
+          description: Only this group's expenses. `403` if the user was never in it.
+          schema:
+            type: string
+            format: uuid
+        - name: paidBy
+          in: query
+          required: false
+          description: Only what this user paid.
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          required: false
+          description: Only expenses spent on or after this day.
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          description: Only expenses spent on or before this day. Not before `from`.
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: The expenses the user shares that match the filters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseHistoryResponse"
+        "400":
+          description: |
+            A filter isn't valid, for example
+            `{ "to": "To can't be before From." }`, a day that isn't a
+            calendar day, or an id that isn't a UUID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          description: "`groupId` is a group the user isn't and never was in."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/sidebar-groups:
     get:
       summary: The sidebar's groups, with my balance in each shared one
@@ -1222,6 +1290,43 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Expense"
+    ExpenseHistoryRow:
+      description: An expense the user shares, as a row of their history (#15).
+      allOf:
+        - $ref: "#/components/schemas/Expense"
+        - type: object
+          required: [groupName, isPersonal, yourShareCents, editLock]
+          properties:
+            groupName:
+              type: string
+            isPersonal:
+              type: boolean
+              description: True for an expense in the user's personal space.
+            yourShareCents:
+              allOf:
+                - $ref: "#/components/schemas/AmountCents"
+              description: The user's share. 0 when they paid it only for others.
+            editLock:
+              type: string
+              nullable: true
+              enum:
+                [settled, not-payer, settle-up, read-only, member-left, null]
+              description: |
+                Why the user can't edit the expense, or null when they can
+                (AGENTS.md Section 6.7): `settled` once a settle-up has
+                claimed it, `not-payer` when someone else paid it,
+                `settle-up` while it is in the group's open settle-up, and
+                `member-left` while someone who has left the group shares it.
+                In a group the user left or that is archived it is always
+                `read-only`, whatever else is true.
+    ExpenseHistoryResponse:
+      type: object
+      required: [expenses]
+      properties:
+        expenses:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseHistoryRow"
     Balance:
       type: object
       required: [userId, balanceCents]

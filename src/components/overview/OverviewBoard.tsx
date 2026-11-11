@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AddPlanButton } from "@/components/expenses/AddPlanButton";
+import {
+  ExpenseHistory,
+  type SearchParams,
+} from "@/components/expenses/ExpenseHistory";
 import { ArchivedGroupCard } from "@/components/groups/ArchivedGroupCard";
 import { GroupCard } from "@/components/groups/GroupCard";
 import { NoticeLine, NoticeProvider } from "@/components/ui/NoticeProvider";
@@ -17,13 +21,19 @@ const SECTION_HEADING = "text-sm font-bold tracking-wide text-muted uppercase";
 // The overview's content (#10), per the desktop and phone mockups. Every
 // number comes from the server (getOverview); nothing is added up here except
 // SpendingStats' display total. Reads the session, so render it inside
-// <Suspense>.
-export async function OverviewBoard() {
+// <Suspense>. `searchParams` are the page's, for the expense history's
+// filters (#15).
+export async function OverviewBoard({
+  searchParams,
+}: { searchParams?: Promise<SearchParams> } = {}) {
   const userId = await getSessionUserId();
   if (!userId) {
     redirect("/login");
   }
-  const overview = await getOverview(userId);
+  const [overview, query] = await Promise.all([
+    getOverview(userId),
+    searchParams ?? {},
+  ]);
   const { personal, groups, readOnlyGroups } = overview;
   const addableGroups = [...(personal ? [personal.group] : []), ...groups].map(
     ({ id, name, isPersonal, members }) => ({ id, name, isPersonal, members }),
@@ -75,7 +85,17 @@ export async function OverviewBoard() {
             personalThisMonthCents={personal?.spentThisMonthCents ?? 0}
             groupShareCents={overview.groupShareThisPeriodCents}
           />
-          {/* TODO(#15): add the ExpenseTable and its filters here. */}
+          {/* Every expense the user shares, with filters (#15). The groups
+              they left are in it too, up to the day they left. */}
+          <ExpenseHistory
+            userId={userId}
+            groups={[
+              ...(personal ? [personal.group] : []),
+              ...groups,
+              ...readOnlyGroups,
+            ]}
+            query={query}
+          />
         </div>
 
         {/* Phone: the balances, the corners with Just me first, and the
