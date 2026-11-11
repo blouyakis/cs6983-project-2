@@ -1,9 +1,10 @@
 // update_group and add_member against a payment or cost in the same group
-// (#124, from the review of #116). record_payment, and create_expense through
-// assert_no_former_members, hold the membership rows FOR SHARE and then insert
-// a row whose foreign key takes KEY SHARE on the group row. If update_group or
-// add_member holds the group row FOR UPDATE and waits to update those
-// membership rows, each waits for the other and Postgres aborts one (40P01).
+// (#124, from the review of #116). record_payment, and create_expense and
+// complete_list_item through assert_no_former_members, hold the membership
+// rows FOR SHARE and then insert a row whose foreign key takes KEY SHARE on
+// the group row. If update_group or add_member holds the group row FOR UPDATE
+// and waits to update those membership rows, each waits for the other and
+// Postgres aborts one (40P01).
 //
 // PostgREST runs each request as its own transaction, so these drive two
 // direct connections step by step: the cost or payment takes its membership
@@ -142,6 +143,54 @@ function createExpense(groupId: string, payerId: string, sharerIds: string[]) {
     );
 }
 
+// Checks off an open item with a cost the sharers split evenly.
+function completeListItem(
+  itemId: string,
+  groupId: string,
+  payerId: string,
+  sharerIds: string[],
+) {
+  return (client: Client) =>
+    client.query(
+      "select public.complete_list_item($1, $2, $3, $4, $5::jsonb)",
+      [
+        itemId,
+        payerId,
+        groupId,
+        3000,
+        JSON.stringify(
+          Object.fromEntries(
+            sharerIds.map((id) => [id, 3000 / sharerIds.length]),
+          ),
+        ),
+      ],
+    );
+}
+
+async function addListItem(groupId: string, addedBy: string) {
+  const { data, error } = await db
+    .from("list_items")
+    .insert({ group_id: groupId, title: "Milk", added_by: addedBy })
+    .select("id")
+    .single();
+  if (error) {
+    throw error;
+  }
+  return data.id as string;
+}
+
+async function statusOf(itemId: string) {
+  const { data, error } = await db
+    .from("list_items")
+    .select("status")
+    .eq("id", itemId)
+    .single();
+  if (error) {
+    throw error;
+  }
+  return data.status as string;
+}
+
 function updateWeights(groupId: string, weights: [string, number][]) {
   return (client: Client) =>
     client.query("select public.update_group($1, null, $2::jsonb)", [
@@ -235,6 +284,27 @@ describe("update_group while a payment or cost is being written", () => {
     expect(await weightsOf(groupId)).toEqual({ [ana]: 3, [sam]: 2 });
     expect(await countOf("expenses", groupId)).toBe(1);
   });
+
+  it("lets a list item checked off with a cost and a new ratio both commit", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(2);
+    const [ana, sam] = memberIds;
+    const itemId = await addListItem(groupId, ana);
+
+    const outcome = await race(
+      groupId,
+      memberIds,
+      updateWeights(groupId, [
+        [ana, 3],
+        [sam, 2],
+      ]),
+      completeListItem(itemId, groupId, ana, memberIds),
+    );
+
+    expect(outcome).toEqual(bothSucceed);
+    expect(await weightsOf(groupId)).toEqual({ [ana]: 3, [sam]: 2 });
+    expect(await statusOf(itemId)).toBe("done");
+    expect(await countOf("expenses", groupId)).toBe(1);
+  });
 });
 
 describe("add_member while a payment or cost is being written", () => {
@@ -279,6 +349,29 @@ describe("add_member while a payment or cost is being written", () => {
 
     expect(outcome).toEqual(bothSucceed);
     expect(await weightsOf(groupId)).toEqual({ [ana]: 1, [sam]: 1, [jo]: 1 });
+    expect(await countOf("expenses", groupId)).toBe(1);
+  });
+
+  it("lets a list item checked off with a cost and a join that resets the split both commit", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(2);
+    const [ana, sam] = memberIds;
+    await setWeights(groupId, [
+      [ana, 3],
+      [sam, 2],
+    ]);
+    const jo = await createUser();
+    const itemId = await addListItem(groupId, ana);
+
+    const outcome = await race(
+      groupId,
+      memberIds,
+      addMember(groupId, jo),
+      completeListItem(itemId, groupId, ana, memberIds),
+    );
+
+    expect(outcome).toEqual(bothSucceed);
+    expect(await weightsOf(groupId)).toEqual({ [ana]: 1, [sam]: 1, [jo]: 1 });
+    expect(await statusOf(itemId)).toBe("done");
     expect(await countOf("expenses", groupId)).toBe(1);
   });
 
