@@ -1,11 +1,16 @@
 openapi: 3.0.3
 info:
-  title: Everyday planning and shared costs
+  title: LifeBoard API
   version: 0.1.0
   description: |
-    Draft route list moved from AGENTS.md. A personal space is a group with
-    `isPersonal: true` and uses the same group routes. Paths are plural
-    kebab-case. JSON keys are camelCase.
+    The REST API behind LifeBoard, matching the route handlers in
+    `src/app/api`. Every route except register, login, logout and health
+    needs the `session` cookie, which login and register set; Try it out on
+    this page sends it for you once you are logged in in this browser.
+
+    A personal space is a group with `isPersonal: true` and uses the same
+    group routes. Paths are plural kebab-case. JSON keys are camelCase.
+    Money is in integer cents.
 
     Status codes: 400 invalid input, 401 not logged in or token expired,
     403 logged in but not allowed, 404 not found, 409 conflict (duplicate
@@ -13,11 +18,36 @@ info:
     12 members, editing a settled expense, leaving with a balance).
 
     Error body: { "error": { "code": "FORBIDDEN", "message": "You are not a member of this group." } }
+
+    Error codes: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401), `FORBIDDEN`
+    (403), `NOT_FOUND` (404), `CONFLICT` (409), and `INTERNAL_ERROR` (500,
+    "Something went wrong.") for an unexpected failure on any route.
+tags:
+  - name: Auth
+    description: Register, log in and out, and who is logged in.
+  - name: Health
+    description: Whether the app and the database are up.
+  - name: Overview
+    description: The overview, the sidebar, and my expenses across groups.
+  - name: Groups
+    description: Groups and personal spaces, members, invitations and leaving.
+  - name: Lists
+    description: A group's list, and checking items off into expenses.
+  - name: Expenses
+    description: A group's expenses and how they are split.
+  - name: Balances
+    description: Members' balances and my bill.
+  - name: Payments
+    description: Payments between members, recorded outside the app.
+  - name: Settle-up
+    description: Settle-up periods and their suggested payments.
 security:
   - sessionCookie: []
 paths:
   /api/auth/register:
     post:
+      tags: [Auth]
+      operationId: register
       summary: Create an account (also creates the personal space)
       description: |
         Issues #4, #23. Stores the email lowercase and the password as a
@@ -56,6 +86,8 @@ paths:
                 $ref: "#/components/schemas/Error"
   /api/auth/login:
     post:
+      tags: [Auth]
+      operationId: login
       summary: Log in, set the session cookie
       description: Issue #4.
       security: []
@@ -88,6 +120,8 @@ paths:
                 $ref: "#/components/schemas/Error"
   /api/auth/logout:
     post:
+      tags: [Auth]
+      operationId: logout
       summary: Clear the session cookie
       description: |
         Issue #4. Works without a valid session, so an expired cookie is
@@ -98,6 +132,8 @@ paths:
           description: Logged out. Sets `session` to empty with `Max-Age=0`.
   /api/auth/me:
     get:
+      tags: [Auth]
+      operationId: getCurrentUser
       summary: Current user
       description: Issue #4.
       responses:
@@ -117,6 +153,8 @@ paths:
                 $ref: "#/components/schemas/Error"
   /api/health:
     get:
+      tags: [Health]
+      operationId: getHealth
       summary: Whether the app and the database are up
       description: |
         Issue #100. Works without a session, so it says only up or down: no
@@ -154,6 +192,8 @@ paths:
                 status: error
   /api/overview:
     get:
+      tags: [Overview]
+      operationId: getOverview
       summary: Personal total, share per group, net balance
       description: |
         Issue #10. The landing screen's numbers for the session user. Each
@@ -172,6 +212,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/expenses:
     get:
+      tags: [Overview]
+      operationId: listMyExpenses
       summary: My expense history across groups, with filters
       description: |
         Issue #15, user story 1. Every expense the session user has a share
@@ -240,6 +282,8 @@ paths:
                 $ref: "#/components/schemas/Error"
   /api/sidebar-groups:
     get:
+      tags: [Overview]
+      operationId: listSidebarGroups
       summary: The sidebar's groups, with my balance in each shared one
       description: |
         Issue #89. The groups the sidebar lists: the personal space and every
@@ -261,6 +305,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups:
     get:
+      tags: [Groups]
+      operationId: listGroups
       summary: List my groups
       description: |
         Issue #6. Every group the user is or was in: the personal space
@@ -276,6 +322,8 @@ paths:
         "401":
           $ref: "#/components/responses/Error"
     post:
+      tags: [Groups]
+      operationId: createGroup
       summary: Create a group
       description: |
         Issue #6. The session user becomes its first member, at share
@@ -303,6 +351,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}:
     get:
+      tags: [Groups]
+      operationId: getGroup
       summary: Group details
       description: |
         Issues #5, #6, #8. Current and former members can read it; anyone
@@ -329,6 +379,8 @@ paths:
         "403":
           $ref: "#/components/responses/Error"
     patch:
+      tags: [Groups]
+      operationId: updateGroup
       summary: Rename a group or set its default split ratio
       description: |
         Issues #6, #8. Send `name`, `memberWeights`, or both. The weights
@@ -366,6 +418,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/invitations:
     post:
+      tags: [Groups]
+      operationId: inviteMember
       summary: Invite by email
       description: |
         Issue #6. Any current member can invite someone who already has an
@@ -423,6 +477,8 @@ paths:
                 $ref: "#/components/schemas/Error"
   /api/groups/{groupId}/leave:
     post:
+      tags: [Groups]
+      operationId: leaveGroup
       summary: Leave a group
       description: |
         Issue #22, user flow 8. The session user leaves the group, in one
@@ -463,6 +519,8 @@ paths:
                 $ref: "#/components/schemas/Error"
   /api/groups/{groupId}/list-items:
     get:
+      tags: [Lists]
+      operationId: listListItems
       summary: List items
       description: |
         Issues #11, #12. Open items first, then done items, newest first in
@@ -486,6 +544,8 @@ paths:
         "403":
           $ref: "#/components/responses/Error"
     post:
+      tags: [Lists]
+      operationId: createListItem
       summary: Add an item
       description: |
         Issue #11. The item is added by the session user: the body has no
@@ -521,6 +581,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/list-items/{itemId}:
     patch:
+      tags: [Lists]
+      operationId: updateListItem
       summary: Edit an open item
       description: |
         Issue #11. Any current member can edit an open item, whoever added
@@ -557,6 +619,8 @@ paths:
         "409":
           $ref: "#/components/responses/Error"
     delete:
+      tags: [Lists]
+      operationId: deleteListItem
       summary: Delete an open item
       description: |
         Issue #11. Any current member can delete an open item, and the row is
@@ -583,6 +647,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/list-items/{itemId}/complete:
     post:
+      tags: [Lists]
+      operationId: completeListItem
       summary: Check off an item and create the expense
       description: |
         Issue #12. The current user is the payer and the one who completed
@@ -632,6 +698,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/list-items/{itemId}/reopen:
     post:
+      tags: [Lists]
+      operationId: reopenListItem
       summary: Uncheck an item and delete its expense
       description: Issue #12. Only the member who checked the item off; anyone else gets 403. An expense that is settled or in the open settle-up is 409 (#86), and so is one with a non-zero share of a member who has left the group, whose balance must stay as it was when they left (#22). A done item with no expense just reopens. An item that is already open is 409, and one that isn't in the group is 404.
       parameters:
@@ -657,6 +725,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/expenses:
     get:
+      tags: [Expenses]
+      operationId: listGroupExpenses
       summary: List expenses (with filters)
       description: |
         Issues #7, #15. The group's expenses, newest day first and, within a
@@ -676,6 +746,8 @@ paths:
         "403":
           $ref: "#/components/responses/Error"
     post:
+      tags: [Expenses]
+      operationId: createExpense
       summary: Add an expense
       description: |
         Issues #7, #15. The payer is always the session user: the body has
@@ -718,6 +790,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/expenses/{expenseId}:
     patch:
+      tags: [Expenses]
+      operationId: updateExpense
       summary: Edit an unsettled expense
       description: |
         Issue #20. Replaces the description, amount, day and split together,
@@ -761,6 +835,8 @@ paths:
         "409":
           $ref: "#/components/responses/Error"
     delete:
+      tags: [Expenses]
+      operationId: deleteExpense
       summary: Delete an unsettled expense
       description: |
         Issue #20. Only the payer, and only while the expense is unsettled
@@ -786,6 +862,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/balances:
     get:
+      tags: [Balances]
+      operationId: getBalances
       summary: Each member's net balance
       description: |
         Issue #9. Each member's balance in cents for the current period:
@@ -812,6 +890,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/bills/me:
     get:
+      tags: [Balances]
+      operationId: getMyBill
       summary: My itemized bill (current or past period)
       description: |
         Issue #21, user flow 7. The session user's bill for the group: the
@@ -860,6 +940,8 @@ paths:
                 $ref: "#/components/schemas/Error"
   /api/groups/{groupId}/payments:
     get:
+      tags: [Payments]
+      operationId: listPayments
       summary: List the group's payments
       description: |
         Issue #14. Every payment someone has sent, direct or from a
@@ -887,6 +969,8 @@ paths:
         "403":
           $ref: "#/components/responses/Error"
     post:
+      tags: [Payments]
+      operationId: recordPayment
       summary: Record a direct payment
       description: |
         Issue #14, user flow 6. Records money the session user sent another
@@ -929,6 +1013,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/payments/{paymentId}/paid:
     post:
+      tags: [Payments]
+      operationId: markPaymentPaid
       summary: Sender marks a suggested payment paid
       description: |
         Issue #19. The person paying says they sent the money, for example
@@ -961,6 +1047,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/payments/{paymentId}/confirm:
     post:
+      tags: [Payments]
+      operationId: confirmPayment
       summary: Recipient confirms a payment
       description: |
         Issues #14, #19. The person receiving the money says it arrived.
@@ -995,6 +1083,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/payments/{paymentId}/decline:
     post:
+      tags: [Payments]
+      operationId: declinePayment
       summary: Recipient declines a payment marked paid
       description: |
         Issue #108. The person receiving the money says it never arrived.
@@ -1033,6 +1123,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/settlements:
     get:
+      tags: [Settle-up]
+      operationId: listSettlements
       summary: Closed past periods
       description: |
         Issue #19. The group's closed settle-ups, newest first, each with
@@ -1052,6 +1144,8 @@ paths:
         "403":
           $ref: "#/components/responses/Error"
     post:
+      tags: [Settle-up]
+      operationId: startSettlement
       summary: Start a settle-up and get suggested payments
       description: |
         Issue #19. Any current member can start one. The app takes a
@@ -1088,6 +1182,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/settlements/current:
     get:
+      tags: [Settle-up]
+      operationId: getCurrentSettlement
       summary: Current settle-up and its payments
       description: |
         Issue #19. The open settle-up with every payment it suggested and
@@ -1110,6 +1206,8 @@ paths:
           $ref: "#/components/responses/Error"
   /api/groups/{groupId}/settlements/current/cancel:
     post:
+      tags: [Settle-up]
+      operationId: cancelSettlement
       summary: Cancel the open settle-up
       description: |
         Issue #19. Any current member can cancel while every payment is
@@ -1895,6 +1993,7 @@ components:
           minimum: 0
           description: The user's share of every current group's expenses this period.
         personal:
+          type: object
           allOf:
             - $ref: "#/components/schemas/PersonalOverview"
           nullable: true

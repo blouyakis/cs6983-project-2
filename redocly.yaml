@@ -1,0 +1,11 @@
+# npm run lint checks docs/api/openapi.yaml with Redocly's recommended rules
+# (#16), so CI's lint job catches a broken spec before it reaches /api/docs.
+extends:
+  - recommended
+rules:
+  # LifeBoard is a course project with no public licence to point at.
+  info-license: off
+  # The spec describes the app that serves it at /api/docs, so requests go to
+  # the same origin with no servers list. A list of one would only add a
+  # server picker to the page.
+  no-empty-servers: off

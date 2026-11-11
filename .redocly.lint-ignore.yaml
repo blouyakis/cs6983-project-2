@@ -1,0 +1,10 @@
+# This file instructs Redocly's linter to ignore the rules contained for specific parts of your API.
+# See https://redocly.com/docs/cli/ for more information.
+#
+# Logout and health can't fail with a 4XX (#16): logout needs no valid
+# session and takes no body, and health answers only 200 or 503. Any other
+# route without a 4XX response is a mistake the rule should still catch.
+docs/api/openapi.yaml:
+  operation-4xx-response:
+    - "#/paths/~1api~1auth~1logout/post/responses"
+    - "#/paths/~1api~1health/get/responses"
