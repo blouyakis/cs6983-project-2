@@ -5,8 +5,9 @@ info:
   description: |
     The REST API behind LifeBoard, matching the route handlers in
     `src/app/api`. Every route except register, login, logout and health
-    needs the `session` cookie, which login and register set; Try it out on
-    this page sends it for you once you are logged in in this browser.
+    needs the `session` cookie, which login and register set. To try the
+    other routes on this page, log in first, in the app or with Try it out
+    on `POST /api/auth/login`; the browser then sends the cookie for you.
 
     A personal space is a group with `isPersonal: true` and uses the same
     group routes. Paths are plural kebab-case. JSON keys are camelCase.
@@ -51,8 +52,8 @@ paths:
       summary: Create an account (also creates the personal space)
       description: |
         Issues #4, #23. Stores the email lowercase and the password as a
-        bcrypt hash (cost 12), then sets the `session` cookie. The personal
-        space is not created yet (#23).
+        bcrypt hash (cost 12), creates the account and its personal space in
+        one transaction, then sets the `session` cookie.
       security: []
       requestBody:
         required: true
@@ -130,6 +131,11 @@ paths:
       responses:
         "204":
           description: Logged out. Sets `session` to empty with `Max-Age=0`.
+          headers:
+            Set-Cookie:
+              description: "`session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`"
+              schema:
+                type: string
   /api/auth/me:
     get:
       tags: [Auth]
@@ -297,6 +303,11 @@ paths:
       responses:
         "200":
           description: The user's sidebar groups.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
@@ -311,7 +322,7 @@ paths:
       description: |
         Issue #6. Every group the user is or was in: the personal space
         first, then groups they can write to, then read-only ones (left or
-        archived). Each lists its current members.
+        archived). Each lists its members (see `Group.members`).
       responses:
         "200":
           description: The user's groups.
@@ -527,9 +538,10 @@ paths:
         each. `addedBy` is a user id; the page names them from the group's
         members. A former member only sees what was added before they left.
         Each item also has `costCents`, what a done item cost, and
-        `expenseLock`, whether its expense is settled or in the open
-        settle-up (#12, #86), so the client never offers an uncheck that
-        would get a 409.
+        `expenseLock`, whether its expense is settled, in the open settle-up,
+        or shared by someone who has left the group with a non-zero share
+        (#12, #86, #22), so the client never offers an uncheck that would
+        get a 409.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
@@ -539,6 +551,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListItemListResponse"
+        "400":
+          $ref: "#/components/responses/Error"
         "401":
           $ref: "#/components/responses/Error"
         "403":
@@ -682,10 +696,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  item:
-                    $ref: "#/components/schemas/ListItem"
+                $ref: "#/components/schemas/ListItemResponse"
         "400":
           $ref: "#/components/responses/Error"
         "401":
@@ -711,10 +722,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  item:
-                    $ref: "#/components/schemas/ListItem"
+                $ref: "#/components/schemas/ListItemResponse"
+        "400":
+          $ref: "#/components/responses/Error"
         "401":
           $ref: "#/components/responses/Error"
         "403":
@@ -727,11 +737,12 @@ paths:
     get:
       tags: [Expenses]
       operationId: listGroupExpenses
-      summary: List expenses (with filters)
+      summary: List the group's expenses
       description: |
-        Issues #7, #15. The group's expenses, newest day first and, within a
-        day, newest entry first. A former member only sees what was added
-        before they left. The filters are #15.
+        Issue #7. The group's expenses, newest day first and, within a day,
+        newest entry first. A former member only sees what was added before
+        they left. It takes no filters; `GET /api/expenses` filters the
+        user's expenses across groups (#15).
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
@@ -741,6 +752,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExpenseListResponse"
+        "400":
+          $ref: "#/components/responses/Error"
         "401":
           $ref: "#/components/responses/Error"
         "403":
@@ -754,9 +767,9 @@ paths:
         no payer field, and one sent anyway is ignored (AGENTS.md Section
         6.7). The expense and its shares are written in one transaction.
         Only current members of an active group can add; a former member or
-        an archived group gets 403. In a personal space the user is the only
-        sharer. A sharer who left the group between the `sharedBy` check
-        and the write is 409 (#22).
+        an archived group gets 403. In a personal space `sharedBy` must be
+        just the user; any other id is 400. A sharer who left the group
+        between the `sharedBy` check and the write is 409 (#22).
       parameters:
         - $ref: "#/components/parameters/GroupId"
       requestBody:
@@ -852,6 +865,8 @@ paths:
       responses:
         "204":
           description: The expense is gone.
+        "400":
+          $ref: "#/components/responses/Error"
         "401":
           $ref: "#/components/responses/Error"
         "403":
@@ -884,6 +899,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BalanceListResponse"
+        "400":
+          $ref: "#/components/responses/Error"
         "401":
           $ref: "#/components/responses/Error"
         "403":
@@ -1139,6 +1156,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PeriodListResponse"
+        "400":
+          $ref: "#/components/responses/Error"
         "401":
           $ref: "#/components/responses/Error"
         "403":
@@ -1174,6 +1193,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SettleUpResponse"
+        "400":
+          $ref: "#/components/responses/Error"
         "401":
           $ref: "#/components/responses/Error"
         "403":
@@ -1198,6 +1219,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SettleUpResponse"
+        "400":
+          $ref: "#/components/responses/Error"
         "401":
           $ref: "#/components/responses/Error"
         "403":
@@ -1219,6 +1242,8 @@ paths:
       responses:
         "204":
           description: Cancelled.
+        "400":
+          $ref: "#/components/responses/Error"
         "401":
           $ref: "#/components/responses/Error"
         "403":
@@ -1255,6 +1280,7 @@ components:
       required: true
       schema:
         type: string
+        format: uuid
     ExpenseId:
       name: expenseId
       in: path
@@ -1268,6 +1294,7 @@ components:
       required: true
       schema:
         type: string
+        format: uuid
   schemas:
     Split:
       description: |
@@ -1798,9 +1825,9 @@ components:
               description: What a done item cost. Null while open or for no cost.
             expenseLock:
               type: string
-              enum: [settled, settle-up]
+              enum: [settled, settle-up, member-left, null]
               nullable: true
-              description: Why its expense can't be deleted, so it can't be unchecked (#86). Null when it can.
+              description: Why its expense can't be deleted, so it can't be unchecked (#86, #22). Null when it can.
     ListItemResponse:
       type: object
       required: [item]
