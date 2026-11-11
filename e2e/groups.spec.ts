@@ -67,7 +67,12 @@ test("create a group, invite a member by email, and both see it", async ({
   await invite.getByRole("button", { name: "Invite" }).click();
   await expect(ana.page.getByText("Sam joined the group.")).toBeVisible();
   await expect(
-    ana.page.getByRole("listitem").filter({ hasText: "Sam" }),
+    // The bill has a line for Sam too (#21), so look in the member list.
+    ana.page
+      .getByRole("heading", { name: /^Members/ })
+      .locator("..")
+      .getByRole("listitem")
+      .filter({ hasText: "Sam" }),
   ).toBeVisible();
 
   await invite.getByLabel("Email").fill(sam.email);

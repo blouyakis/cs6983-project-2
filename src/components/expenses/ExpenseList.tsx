@@ -41,8 +41,10 @@ export function ExpenseList({
       : (names.get(payerId) ?? "A former member");
 
   return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-bold">Costs</h2>
+    <section aria-labelledby="costs-heading" className="flex flex-col gap-3">
+      <h2 id="costs-heading" className="text-lg font-bold">
+        Costs
+      </h2>
       {expenses.length === 0 ? (
         <p className="text-muted">No costs yet. Log one above.</p>
       ) : (

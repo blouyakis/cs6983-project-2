@@ -745,12 +745,51 @@ paths:
   /api/groups/{groupId}/bills/me:
     get:
       summary: My itemized bill (current or past period)
-      description: Issue #21.
+      description: |
+        Issue #21, user flow 7. The session user's bill for the group: the
+        expenses they have a share in (a cost they paid only for others has
+        their share of 0, so it is on it too), each with their share, and
+        what they owe each other member over the period. The current period
+        is everything unsettled plus what is in an open settle-up; with
+        `settlementId`, it is a closed settle-up's period instead, which
+        never changes after it closes. The `owed` rows count costs both ways
+        and confirmed payments, so they add up to minus the user's balance.
+        A former member's bill stops at the day they left, and they only see
+        periods started before then.
       parameters:
         - $ref: "#/components/parameters/GroupId"
+        - name: settlementId
+          in: query
+          required: false
+          description: A closed period, from `pastPeriods`. Leave it out for the current period.
+          schema:
+            type: string
+            format: uuid
       responses:
+        "200":
+          description: The user's bill for the period.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Bill"
+        "400":
+          description: The group id or `settlementId` isn't a UUID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          $ref: "#/components/responses/Error"
         "403":
           $ref: "#/components/responses/Error"
+        "404":
+          description: |
+            `settlementId` isn't one of the group's closed periods: it is
+            open, cancelled, another group's, or doesn't exist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/groups/{groupId}/payments:
     get:
       summary: List the group's payments
@@ -1356,6 +1395,51 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Period"
+    BillLine:
+      allOf:
+        - $ref: "#/components/schemas/Expense"
+        - type: object
+          required: [shareCents]
+          properties:
+            shareCents:
+              $ref: "#/components/schemas/AmountCents"
+    OwedToMember:
+      type: object
+      required: [userId, owedCents]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        owedCents:
+          type: integer
+          description: Positive when the user owes this member, negative when this member owes the user.
+          example: 3100
+    Bill:
+      type: object
+      required: [settlementId, pastPeriods, lines, owed]
+      properties:
+        settlementId:
+          type: string
+          format: uuid
+          nullable: true
+          description: The closed period this bill is for. Null for the current period.
+        pastPeriods:
+          type: array
+          description: The group's closed periods, newest first, to pick from.
+          items:
+            $ref: "#/components/schemas/Period"
+        lines:
+          type: array
+          description: The expenses the user shares, newest day first.
+          items:
+            $ref: "#/components/schemas/BillLine"
+        owed:
+          type: array
+          description: |
+            One row per other member, in the order they joined, then anyone
+            else in the period's rows (a former member).
+          items:
+            $ref: "#/components/schemas/OwedToMember"
     ListItemTitle:
       type: string
       description: Trimmed. An emoji at the start is shown as the item's emoji.

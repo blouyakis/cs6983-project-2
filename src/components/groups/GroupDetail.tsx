@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { ItemizedBill } from "@/components/bills/ItemizedBill";
 import { AddExpenseButton } from "@/components/expenses/AddExpenseButton";
 import { ExpenseList } from "@/components/expenses/ExpenseList";
 import { GroupList } from "@/components/lists/GroupList";
@@ -10,6 +11,7 @@ import { getSessionUserId } from "@/lib/auth/cookies";
 import { monthOf, spentInMonthCents } from "@/lib/domain/list-stats";
 import { ForbiddenError, NotFoundError } from "@/lib/http/errors";
 import { getGroupBalances } from "@/lib/services/balance-service";
+import { getMyBill, type Bill } from "@/lib/services/bill-service";
 import { listGroupExpenses } from "@/lib/services/expense-service";
 import { getCurrentSettleUp } from "@/lib/services/settlement-service";
 import {
@@ -19,7 +21,7 @@ import {
 } from "@/lib/services/group-service";
 import { listGroupListItems } from "@/lib/services/list-item-service";
 import { listPayments } from "@/lib/services/payment-service";
-import { groupParamsSchema } from "@/lib/validation/group";
+import { billQuerySchema, groupParamsSchema } from "@/lib/validation/group";
 import { DefaultSplitControl } from "./DefaultSplitControl";
 import { DefaultSplitProvider } from "./DefaultSplitProvider";
 import { GroupTile } from "./GroupTile";
@@ -28,12 +30,41 @@ import { MemberList } from "./MemberList";
 import { MovingOutCard } from "./MovingOutCard";
 import { hasWaitingPayment } from "./moving-out";
 
-type GroupDetailProps = { params: Promise<{ groupId: string }> };
+type GroupDetailProps = {
+  params: Promise<{ groupId: string }>;
+  // ?period=<settlementId> picks a closed period for the bill (#21).
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+};
+
+// The bill for the period in the URL. A period that isn't an id, or isn't
+// one of the group's closed ones (an old link), shows the current period
+// instead of an error, since the rest of the page is still right.
+async function loadBill(
+  userId: string,
+  groupId: string,
+  period: string | string[] | undefined,
+): Promise<Bill> {
+  const parsed = billQuerySchema.safeParse({ settlementId: period });
+  const settlementId = parsed.success
+    ? (parsed.data.settlementId ?? null)
+    : null;
+  if (settlementId === null) {
+    return getMyBill(userId, groupId, null);
+  }
+  try {
+    return await getMyBill(userId, groupId, settlementId);
+  } catch (error) {
+    if (error instanceof NotFoundError) {
+      return getMyBill(userId, groupId, null);
+    }
+    throw error;
+  }
+}
 
 // One group's page. Reads the session and the route params, so render it
 // inside <Suspense>. A group the user can't see, or a malformed id, is a plain
 // not found, so the page never says whether a group exists.
-export async function GroupDetail({ params }: GroupDetailProps) {
+export async function GroupDetail({ params, searchParams }: GroupDetailProps) {
   const parsed = groupParamsSchema.safeParse(await params);
   if (!parsed.success) {
     notFound();
@@ -94,6 +125,10 @@ export async function GroupDetail({ params }: GroupDetailProps) {
   const spentThisMonthCents = group.isPersonal
     ? spentInMonthCents(expenses, monthOf(new Date()))
     : null;
+  // The user's itemized bill (#21). The personal space has nothing to split.
+  const bill = group.isPersonal
+    ? null
+    : await loadBill(userId, group.id, (await searchParams)?.period);
   // A current member of a shared group, who can invite someone, set the
   // default split (#63) and leave (#22). Not the personal space, which has no
   // invitations and can't be left, nor a group they left or that is archived.
@@ -172,6 +207,16 @@ export async function GroupDetail({ params }: GroupDetailProps) {
         readOnly={group.readOnly}
         settleUpStartedAt={openSettleUp?.startedAt ?? null}
       />
+      {bill ? (
+        <ItemizedBill
+          groupId={group.id}
+          bill={bill}
+          members={group.members}
+          currentUserId={userId}
+          readOnly={group.readOnly}
+          settleUpStartedAt={openSettleUp?.startedAt ?? null}
+        />
+      ) : null}
       {payments ? (
         <PaymentHistory
           groupId={group.id}

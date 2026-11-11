@@ -68,6 +68,8 @@ describe("ExpenseList", () => {
     ]);
 
     expect(screen.getByRole("heading", { name: "Costs" })).toBeInTheDocument();
+    // A region, so a test or a screen reader can tell it from the bill (#21).
+    expect(screen.getByRole("region", { name: "Costs" })).toBeInTheDocument();
     const rows = within(screen.getByRole("list")).getAllByRole("listitem");
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent("Groceries");

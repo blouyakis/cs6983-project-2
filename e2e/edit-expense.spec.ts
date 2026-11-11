@@ -121,7 +121,11 @@ test("the payer edits a cost, it is marked edited, and the other member can only
 
   // The other member sees the same cost, locked.
   await sam.page.goto(`/groups/${groupId}`);
-  const samRow = sam.page.getByRole("listitem").filter({ hasText: "Big shop" });
+  // The bill lists it too (#21), so look in Costs.
+  const samRow = sam.page
+    .getByRole("region", { name: "Costs" })
+    .getByRole("listitem")
+    .filter({ hasText: "Big shop" });
   await expect(samRow).toContainText("Ana paid");
   await expect(samRow).toContainText("Only Ana can edit this");
   await expect(samRow.getByRole("button", { name: /Edit/ })).toHaveCount(0);
@@ -146,7 +150,10 @@ test("deleting asks first; Cancel keeps the cost and confirming removes it", asy
   await createGroup(page, "✈️ Trip");
   await logCost(page, "Tickets", "120");
 
-  const row = page.getByRole("listitem").filter({ hasText: "Tickets" });
+  const row = page
+    .getByRole("region", { name: "Costs" })
+    .getByRole("listitem")
+    .filter({ hasText: "Tickets" });
   await row.getByRole("button", { name: "Edit Tickets" }).click();
   const dialog = page.getByRole("dialog", { name: "Edit expense" });
   await dialog.getByRole("button", { name: "Delete…" }).click();

@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   listGroupListItems: vi.fn(),
   listGroupExpenses: vi.fn(),
   listPayments: vi.fn(),
+  getMyBill: vi.fn(),
   redirect: vi.fn(),
   notFound: vi.fn(),
 }));
@@ -71,6 +72,15 @@ vi.mock("@/components/payments/PaymentHistory", () => ({
     <div data-testid="payment-history" data-props={JSON.stringify(props)} />
   ),
 }));
+vi.mock("@/lib/services/bill-service", () => ({
+  getMyBill: mocks.getMyBill,
+}));
+// The bill has its own tests (#21). Here it only has to be given the bill.
+vi.mock("@/components/bills/ItemizedBill", () => ({
+  ItemizedBill: (props: object) => (
+    <div data-testid="itemized-bill" data-props={JSON.stringify(props)} />
+  ),
+}));
 // The card is a Client Component with its own tests (#22). Here it only has
 // to be given the user's balance and whether a payment is waiting.
 vi.mock("./MovingOutCard", () => ({
@@ -124,8 +134,20 @@ function groupListProps() {
   );
 }
 
-function detail(id = groupId) {
-  return GroupDetail({ params: Promise.resolve({ groupId: id }) });
+function detail(id = groupId, search: { period?: string | string[] } = {}) {
+  return GroupDetail({
+    params: Promise.resolve({ groupId: id }),
+    searchParams: Promise.resolve(search),
+  });
+}
+
+const octoberId = "4d5e6f7a-6666-4777-8888-e99900001111";
+const emptyBill = { settlementId: null, pastPeriods: [], lines: [], owed: [] };
+
+function billProps() {
+  return JSON.parse(
+    screen.getByTestId("itemized-bill").getAttribute("data-props") ?? "{}",
+  );
 }
 
 beforeEach(() => {
@@ -143,6 +165,7 @@ beforeEach(() => {
   mocks.listGroupListItems.mockResolvedValue([]);
   mocks.listGroupExpenses.mockResolvedValue([]);
   mocks.listPayments.mockResolvedValue([]);
+  mocks.getMyBill.mockResolvedValue(emptyBill);
 });
 
 function expenseListProps() {
@@ -549,6 +572,66 @@ describe("GroupDetail", () => {
 
       expect(mocks.listPayments).not.toHaveBeenCalled();
       expect(screen.queryByTestId("payment-history")).toBeNull();
+    });
+  });
+
+  describe("the itemized bill (#21)", () => {
+    it("shows the user's bill for the current period", async () => {
+      mocks.getGroup.mockResolvedValue(details());
+
+      render(await detail());
+
+      expect(mocks.getMyBill).toHaveBeenCalledWith(anaId, groupId, null);
+      expect(billProps()).toMatchObject({
+        groupId,
+        bill: emptyBill,
+        currentUserId: anaId,
+        readOnly: false,
+        settleUpStartedAt: null,
+      });
+    });
+
+    it("shows a past period picked with ?period=", async () => {
+      mocks.getGroup.mockResolvedValue(details());
+
+      render(await detail(groupId, { period: octoberId }));
+
+      expect(mocks.getMyBill).toHaveBeenCalledWith(anaId, groupId, octoberId);
+    });
+
+    it("shows the current period for a ?period= that isn't an id", async () => {
+      mocks.getGroup.mockResolvedValue(details());
+
+      render(await detail(groupId, { period: ["a", "b"] }));
+      expect(mocks.getMyBill).toHaveBeenLastCalledWith(anaId, groupId, null);
+    });
+
+    it("falls back to the current period when the one asked for isn't there", async () => {
+      mocks.getGroup.mockResolvedValue(details());
+      mocks.getMyBill.mockImplementation(
+        async (_user: string, _group: string, period: string | null) => {
+          if (period !== null) {
+            throw new NotFoundError("This period doesn't exist.");
+          }
+          return emptyBill;
+        },
+      );
+
+      render(await detail(groupId, { period: octoberId }));
+
+      expect(mocks.getMyBill).toHaveBeenLastCalledWith(anaId, groupId, null);
+      expect(billProps().bill).toEqual(emptyBill);
+    });
+
+    it("has no bill in the personal space, which has nothing to split", async () => {
+      mocks.getGroup.mockResolvedValue(
+        details({ name: "Personal space", isPersonal: true }),
+      );
+
+      render(await detail());
+
+      expect(mocks.getMyBill).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("itemized-bill")).toBeNull();
     });
   });
 
