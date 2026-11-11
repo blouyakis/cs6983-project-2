@@ -160,7 +160,7 @@ npm run test:coverage # unit tests with coverage thresholds
 npm run test:e2e      # Playwright, needs npx supabase start and a free port 3000
 ```
 
-Playwright runs the user flows in [`AGENTS.md`](./AGENTS.md) Section 5 and the accessibility checks below. CI does not run it yet, so run `npm run test:e2e` before opening a pull request that changes a page.
+Playwright runs the user flows in [`AGENTS.md`](./AGENTS.md) Section 5 and the accessibility checks below. CI runs it in the `e2e` job, against a production build with local Supabase ([#17](https://github.com/blouyakis/cs6983-project-2/issues/17)). Run `npm run test:e2e` before opening a pull request that changes a page, since it is quicker to fix a failure locally than from the CI log.
 
 `npm run test:coverage` fails below 80% of lines overall or 100% of `src/lib/domain`.
 
