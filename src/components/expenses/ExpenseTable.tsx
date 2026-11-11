@@ -19,12 +19,15 @@ const CELL = "px-3 py-3 align-top";
 const HEAD = "px-3 py-2 text-left text-sm font-bold";
 
 // Why a row has a lock, in words (AGENTS.md Section 8: never an icon alone).
-function lockLabel(lock: EditLock, payerName: string): string {
+// A payer who has left can't edit either, so their name isn't offered.
+function lockLabel(lock: EditLock, payerName: string | null): string {
   switch (lock) {
     case "settled":
       return "Settled";
     case "not-payer":
-      return `Only ${payerName} can edit this`;
+      return payerName === null
+        ? "The payer left, so it can't be edited"
+        : `Only ${payerName} can edit this`;
     case "settle-up":
       return "In the open settle-up";
     case "read-only":
@@ -93,7 +96,6 @@ export function ExpenseTable({
               const payer = members.find(
                 (member) => member.userId === expense.payerId,
               );
-              const payerName = payer?.name ?? "a former member";
               return (
                 <tr key={expense.id}>
                   <td className={`${CELL} whitespace-nowrap`}>
@@ -130,7 +132,7 @@ export function ExpenseTable({
                     ) : (
                       <span className="text-sm text-muted">
                         <span aria-hidden="true">🔒 </span>
-                        {lockLabel(expense.editLock, payerName)}
+                        {lockLabel(expense.editLock, payer?.name ?? null)}
                       </span>
                     )}
                   </td>

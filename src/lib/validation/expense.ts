@@ -86,14 +86,22 @@ function optionalFilter<Schema extends z.ZodType>(schema: Schema) {
   );
 }
 
+// Postgres compares uuids in any case, but the service matches ids as
+// strings, so they come out lowercase, as in lib/validation/splits.ts.
+const lower = (id: string) => id.toLowerCase();
+
 const filterDay = z
   .string({ error: enterFilterDay })
   .refine(isCalendarDay, { error: enterFilterDay });
 
 export const expenseHistoryQuerySchema = z
   .object({
-    groupId: optionalFilter(z.uuid({ error: "Choose one of your groups." })),
-    paidBy: optionalFilter(z.uuid({ error: "Choose who paid." })),
+    groupId: optionalFilter(
+      z.uuid({ error: "Choose one of your groups." }).transform(lower),
+    ),
+    paidBy: optionalFilter(
+      z.uuid({ error: "Choose who paid." }).transform(lower),
+    ),
     from: optionalFilter(filterDay),
     to: optionalFilter(filterDay),
   })

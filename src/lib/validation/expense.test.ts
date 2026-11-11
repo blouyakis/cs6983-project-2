@@ -237,6 +237,17 @@ describe("expenseHistoryQuerySchema", () => {
     expect(parseInput(expenseHistoryQuerySchema, query)).toEqual(query);
   });
 
+  // A hand-written address can have an id in capitals. Postgres accepts it,
+  // so the service must get the same lowercase id it compares with.
+  it("lowercases the group and payer ids", () => {
+    expect(
+      parseInput(expenseHistoryQuerySchema, {
+        groupId: ANA.toUpperCase(),
+        paidBy: BEN.toUpperCase(),
+      }),
+    ).toEqual({ groupId: ANA, paidBy: BEN });
+  });
+
   it("accepts the same day for From and To", () => {
     const query = { from: "2026-10-20", to: "2026-10-20" };
 

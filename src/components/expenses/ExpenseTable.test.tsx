@@ -129,7 +129,7 @@ describe("ExpenseTable", () => {
 
     const cells = cellsOf("Groceries");
     expect(cells[2]).toHaveTextContent("A former member");
-    expect(cells[5]).toHaveTextContent("Only a former member can edit this");
+    expect(cells[5]).toHaveTextContent("The payer left, so it can't be edited");
   });
 
   it("marks an edited expense", () => {

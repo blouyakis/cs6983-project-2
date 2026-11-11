@@ -220,6 +220,25 @@ describe("expenseHistory", () => {
       expect(row.editLock).toBe("read-only");
     });
 
+    // Nobody can edit in a read-only group, so that is the reason given, not
+    // that someone else paid or that the cost is settled.
+    it("says a group is read-only before any other reason", () => {
+      const rows = expenseHistory(ana, [
+        group(
+          [
+            expense("sams", sam, shared),
+            expense("settled", ana, shared, { settled: true }),
+          ],
+          { readOnly: true },
+        ),
+      ]);
+
+      expect(rows.map((row) => row.editLock)).toEqual([
+        "read-only",
+        "read-only",
+      ]);
+    });
+
     // Someone who has left keeps the balance they left with, so a cost they
     // share can't change until a settle-up claims it (#22).
     it("is locked while someone who has left shares it", () => {

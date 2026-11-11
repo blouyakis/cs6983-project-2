@@ -1315,9 +1315,10 @@ components:
                 Why the user can't edit the expense, or null when they can
                 (AGENTS.md Section 6.7): `settled` once a settle-up has
                 claimed it, `not-payer` when someone else paid it,
-                `settle-up` while it is in the group's open settle-up,
-                `read-only` in a group the user left or that is archived, and
+                `settle-up` while it is in the group's open settle-up, and
                 `member-left` while someone who has left the group shares it.
+                In a group the user left or that is archived it is always
+                `read-only`, whatever else is true.
     ExpenseHistoryResponse:
       type: object
       required: [expenses]

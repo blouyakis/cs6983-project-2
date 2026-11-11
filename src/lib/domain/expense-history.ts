@@ -60,6 +60,11 @@ function editLockOf(
     group.openSettleUpStartedAt,
     group.currentMemberIds,
   );
+  // Read-only comes first: in a group the user left or that is archived,
+  // nobody can edit, so "Only Sam can edit this" would be wrong (#15 review).
+  if (group.readOnly) {
+    return "read-only";
+  }
   if (lock === "settled") {
     return "settled";
   }
@@ -68,9 +73,6 @@ function editLockOf(
   }
   if (lock === "settle-up") {
     return "settle-up";
-  }
-  if (group.readOnly) {
-    return "read-only";
   }
   return lock === "member-left" ? "member-left" : null;
 }
