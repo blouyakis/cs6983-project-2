@@ -196,10 +196,15 @@ paths:
         - name: paidBy
           in: query
           required: false
-          description: Only what this user paid.
+          description: >-
+            Only what this user paid. `former` instead of an id lists what
+            anyone who has since left the group paid.
           schema:
-            type: string
-            format: uuid
+            oneOf:
+              - type: string
+                format: uuid
+              - type: string
+                enum: [former]
         - name: from
           in: query
           required: false
