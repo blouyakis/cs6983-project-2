@@ -20,6 +20,8 @@ import {
 import { listGroupListItems } from "@/lib/services/list-item-service";
 import { listPayments } from "@/lib/services/payment-service";
 import { groupParamsSchema } from "@/lib/validation/group";
+import { DefaultSplitControl } from "./DefaultSplitControl";
+import { DefaultSplitProvider } from "./DefaultSplitProvider";
 import { GroupTile } from "./GroupTile";
 import { InviteForm } from "./InviteForm";
 import { MemberList } from "./MemberList";
@@ -92,9 +94,9 @@ export async function GroupDetail({ params }: GroupDetailProps) {
   const spentThisMonthCents = group.isPersonal
     ? spentInMonthCents(expenses, monthOf(new Date()))
     : null;
-  // A current member of a shared group, who can invite someone and leave
-  // (#22). Not the personal space, which has no invitations and can't be
-  // left, nor a group they left or that is archived.
+  // A current member of a shared group, who can invite someone, set the
+  // default split (#63) and leave (#22). Not the personal space, which has no
+  // invitations and can't be left, nor a group they left or that is archived.
   const isActiveSharedMember = !group.isPersonal && !group.readOnly;
   // Moving out: the user's balance as the server computed it, and whether a
   // payment of theirs is waiting, in the payment list or the open settle-up.
@@ -113,81 +115,93 @@ export async function GroupDetail({ params }: GroupDetailProps) {
 
   // One notice for the whole page, in one place right above the list, whether
   // it came from Log a cost, the list's form or a row.
-  return (
-    <NoticeProvider>
-      <div className="flex flex-col gap-8">
-        <header className="flex flex-wrap items-center gap-3">
-          <GroupTile name={group.name} />
-          <h1 className="text-3xl font-bold">{group.name}</h1>
-          {group.readOnly ? <Badge>Read only</Badge> : null}
-          {group.isPersonal ? null : (
-            <Link
-              href={`/groups/${group.id}/settle-up`}
-              aria-label={`Settle up ${group.name}`}
-              className="ml-auto rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-ink)]"
-            >
-              <span aria-hidden="true">💸 </span>Settle up
-            </Link>
-          )}
-        </header>
-        {group.isPersonal ? (
-          <p>Private · nothing here is split or visible to anyone.</p>
-        ) : (
+  const page = (
+    <div className="flex flex-col gap-8">
+      <header className="flex flex-wrap items-center gap-3">
+        <GroupTile name={group.name} />
+        <h1 className="text-3xl font-bold">{group.name}</h1>
+        {group.readOnly ? <Badge>Read only</Badge> : null}
+        {group.isPersonal ? null : (
+          <Link
+            href={`/groups/${group.id}/settle-up`}
+            aria-label={`Settle up ${group.name}`}
+            className="ml-auto rounded-lg border-2 border-ink bg-surface px-4 py-2 font-semibold shadow-[3px_3px_0_0_var(--color-ink)]"
+          >
+            <span aria-hidden="true">💸 </span>Settle up
+          </Link>
+        )}
+      </header>
+      {group.isPersonal ? (
+        <p>Private · nothing here is split or visible to anyone.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
           <MemberList
             members={group.members}
             currentUserId={userId}
             balances={balances}
           />
-        )}
-        {group.readOnly ? (
-          <p>You can read this group&apos;s history, but not add to it.</p>
-        ) : null}
-        {group.readOnly ? null : (
-          <AddExpenseButton
-            groups={addableGroups}
-            currentUserId={userId}
-            defaultGroupId={group.id}
-          />
-        )}
-        <NoticeLine />
-        <GroupList
+          {isActiveSharedMember ? <DefaultSplitControl /> : null}
+        </div>
+      )}
+      {group.readOnly ? (
+        <p>You can read this group&apos;s history, but not add to it.</p>
+      ) : null}
+      {group.readOnly ? null : (
+        <AddExpenseButton
+          groups={addableGroups}
+          currentUserId={userId}
+          defaultGroupId={group.id}
+        />
+      )}
+      <NoticeLine />
+      <GroupList
+        groupId={group.id}
+        isPersonal={group.isPersonal}
+        readOnly={group.readOnly}
+        items={items}
+        names={names}
+        currentUserId={userId}
+        entryGroups={addableGroups}
+        spentThisMonthCents={spentThisMonthCents}
+      />
+      <ExpenseList
+        expenses={expenses}
+        members={group.members}
+        currentUserId={userId}
+        groupName={group.name}
+        readOnly={group.readOnly}
+        settleUpStartedAt={openSettleUp?.startedAt ?? null}
+      />
+      {payments ? (
+        <PaymentHistory
           groupId={group.id}
-          isPersonal={group.isPersonal}
-          readOnly={group.readOnly}
-          items={items}
+          payments={payments}
           names={names}
           currentUserId={userId}
-          entryGroups={addableGroups}
-          spentThisMonthCents={spentThisMonthCents}
-        />
-        <ExpenseList
-          expenses={expenses}
-          members={group.members}
-          currentUserId={userId}
-          groupName={group.name}
           readOnly={group.readOnly}
-          settleUpStartedAt={openSettleUp?.startedAt ?? null}
         />
-        {payments ? (
-          <PaymentHistory
-            groupId={group.id}
-            payments={payments}
-            names={names}
-            currentUserId={userId}
-            readOnly={group.readOnly}
-          />
-        ) : null}
-        {isActiveSharedMember ? <InviteForm groupId={group.id} /> : null}
-        {isActiveSharedMember ? (
-          <MovingOutCard
-            groupId={group.id}
-            groupName={group.name}
-            balanceCents={myBalanceCents}
-            hasWaitingPayment={myPaymentWaiting}
-            isLastMember={group.members.length === 1}
-          />
-        ) : null}
-      </div>
+      ) : null}
+      {isActiveSharedMember ? <InviteForm groupId={group.id} /> : null}
+      {isActiveSharedMember ? (
+        <MovingOutCard
+          groupId={group.id}
+          groupName={group.name}
+          balanceCents={myBalanceCents}
+          hasWaitingPayment={myPaymentWaiting}
+          isLastMember={group.members.length === 1}
+        />
+      ) : null}
+    </div>
+  );
+  return (
+    <NoticeProvider>
+      {isActiveSharedMember ? (
+        <DefaultSplitProvider groupId={group.id} members={group.members}>
+          {page}
+        </DefaultSplitProvider>
+      ) : (
+        page
+      )}
     </NoticeProvider>
   );
 }

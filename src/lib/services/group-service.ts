@@ -6,7 +6,6 @@ import {
   listCurrentMembers,
   listMembersAt,
   listMemberships,
-  rejoinMember,
   type Group,
   type Member,
 } from "@/lib/db/group-members";
@@ -94,13 +93,18 @@ export async function listGroups(userId: string): Promise<GroupSummary[]> {
     .sort((a, b) => rank(a) - rank(b));
 }
 
+// What an invitation gives back: the new member, and whether their joining
+// reset the group's uneven split to even, so the invite form can say so (#63).
+export type Invitation = { member: Member; splitReset: boolean };
+
 // Any current member can invite an existing account by email; the invitee
-// joins right away (#6). A former member rejoins.
+// joins right away (#6). A former member rejoins. The database gives them a
+// weight in the same transaction (#63).
 export async function inviteMember(
   userId: string,
   groupId: string,
   input: InviteInput,
-): Promise<Member> {
+): Promise<Invitation> {
   const { group } = await requireGroupAccess(userId, groupId, "write");
   if (group.isPersonal) {
     throw new ForbiddenError("A personal space can't have other members.");
@@ -113,14 +117,15 @@ export async function inviteMember(
   if (membership && membership.leftAt === null) {
     throw new ConflictError("They are already in this group.");
   }
-  if (membership) {
-    await rejoinMember(groupId, invitee.id);
-  } else {
-    await addMember(groupId, invitee.id);
-  }
-  // TODO(#63): return the weight the database gave them, and whether the
-  // group's split was reset, so the invite form can say so.
-  return { userId: invitee.id, name: invitee.name, defaultShareWeight: 1 };
+  const { weight, splitReset } = await addMember(groupId, invitee.id);
+  return {
+    member: {
+      userId: invitee.id,
+      name: invitee.name,
+      defaultShareWeight: weight,
+    },
+    splitReset,
+  };
 }
 
 // Renames the group, sets its default ratio, or both. The database checks that

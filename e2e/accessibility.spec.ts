@@ -66,6 +66,17 @@ async function inviteSomeone(page: Page, browser: Browser, name: string) {
   await expect(page.getByText(`${name} joined the group.`)).toBeVisible();
 }
 
+// Opens the Default split form on the group's page (#63) on Custom
+// percentages, so every field is there.
+async function openDefaultSplitForm(page: Page) {
+  await page.getByRole("button", { name: "Change the default split" }).click();
+  const form = page.getByRole("dialog", { name: "Default split" });
+  await expect(form).toBeVisible();
+  await form.getByText("Custom percentages").click();
+  await expect(form.getByRole("textbox").first()).toBeVisible();
+  return form;
+}
+
 // Opens the Pay one person directly form on the group's settle-up page.
 async function openPaymentForm(page: Page, groupId: string) {
   await page.goto(`/groups/${groupId}/settle-up`);
@@ -346,6 +357,28 @@ for (const viewport of viewports) {
   });
 }
 
+for (const viewport of viewports) {
+  test(`the default split dialog passes the WCAG 2.1 AA check, traps focus and closes with Escape on ${viewport.name}`, async ({
+    page,
+    browser,
+  }) => {
+    await page.setViewportSize(viewport);
+    await register(page, "Ivy");
+    await createGroup(page, "🏠 Dorm 4B");
+    await inviteSomeone(page, browser, "Jay");
+
+    const form = await openDefaultSplitForm(page);
+    await expectNoViolations(page);
+    await expectFitsTheScreen(page);
+    for (let press = 0; press < 12; press += 1) {
+      await page.keyboard.press("Tab");
+      await focusIsInside(page, form);
+    }
+    await page.keyboard.press("Escape");
+    await expect(form).toBeHidden();
+  });
+}
+
 test("tabbing through the login and register forms reaches every control with a visible focus style", async ({
   page,
 }) => {
@@ -454,6 +487,22 @@ test("tabbing through the payment form reaches every control with a visible focu
   await inviteSomeone(page, browser, "Hal");
 
   const form = await openPaymentForm(page, groupId);
+  await form.evaluate((element) => element.setAttribute("data-tab-scope", ""));
+  const stops = await tabStopsIn(form);
+  const result = await tabThrough(page);
+  expect(result.reached).toBeGreaterThanOrEqual(stops - 1);
+  expect(result.withoutFocusStyle).toEqual([]);
+});
+
+test("tabbing through the default split form reaches every control with a visible focus style", async ({
+  page,
+  browser,
+}) => {
+  await register(page, "Kit");
+  await createGroup(page, "🏠 Dorm 4B");
+  await inviteSomeone(page, browser, "Lou");
+
+  const form = await openDefaultSplitForm(page);
   await form.evaluate((element) => element.setAttribute("data-tab-scope", ""));
   const stops = await tabStopsIn(form);
   const result = await tabThrough(page);

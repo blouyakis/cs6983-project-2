@@ -26,7 +26,6 @@ const members = vi.hoisted(() => ({
   listCurrentMembers: vi.fn(),
   listMembersAt: vi.fn(),
   listMemberships: vi.fn(),
-  rejoinMember: vi.fn(),
 }));
 vi.mock("@/lib/db/group-members", () => members);
 
@@ -229,6 +228,7 @@ describe("inviteMember", () => {
     grantAccess();
     users.findUserByEmail.mockResolvedValue(samAccount());
     members.findMembership.mockResolvedValue(null);
+    members.addMember.mockResolvedValue({ weight: 1, splitReset: false });
 
     const added = await inviteMember(userId, groupId, {
       email: "sam@example.com",
@@ -241,10 +241,35 @@ describe("inviteMember", () => {
     );
     expect(users.findUserByEmail).toHaveBeenCalledWith("sam@example.com");
     expect(members.addMember).toHaveBeenCalledWith(groupId, samId);
-    expect(added).toEqual(sam);
+    expect(added).toEqual({ member: sam, splitReset: false });
   });
 
-  it("lets a former member rejoin", async () => {
+  it("gives the member the weight the database gave them (#63)", async () => {
+    grantAccess();
+    users.findUserByEmail.mockResolvedValue(samAccount());
+    members.findMembership.mockResolvedValue(null);
+    members.addMember.mockResolvedValue({ weight: 50, splitReset: false });
+
+    expect(
+      await inviteMember(userId, groupId, { email: "sam@example.com" }),
+    ).toEqual({
+      member: { ...sam, defaultShareWeight: 50 },
+      splitReset: false,
+    });
+  });
+
+  it("says when joining reset an uneven split to even (#63)", async () => {
+    grantAccess();
+    users.findUserByEmail.mockResolvedValue(samAccount());
+    members.findMembership.mockResolvedValue(null);
+    members.addMember.mockResolvedValue({ weight: 1, splitReset: true });
+
+    expect(
+      await inviteMember(userId, groupId, { email: "sam@example.com" }),
+    ).toEqual({ member: sam, splitReset: true });
+  });
+
+  it("lets a former member rejoin through the same function", async () => {
     grantAccess();
     users.findUserByEmail.mockResolvedValue(samAccount());
     members.findMembership.mockResolvedValue({
@@ -252,12 +277,12 @@ describe("inviteMember", () => {
       joinedAt: "2026-10-01T09:00:00+00:00",
       leftAt: "2026-10-20T09:00:00+00:00",
     });
+    members.addMember.mockResolvedValue({ weight: 1, splitReset: true });
 
     expect(
       await inviteMember(userId, groupId, { email: "sam@example.com" }),
-    ).toEqual(sam);
-    expect(members.rejoinMember).toHaveBeenCalledWith(groupId, samId);
-    expect(members.addMember).not.toHaveBeenCalled();
+    ).toEqual({ member: sam, splitReset: true });
+    expect(members.addMember).toHaveBeenCalledWith(groupId, samId);
   });
 
   it("rejects someone who is already a current member with 409", async () => {
