@@ -14,6 +14,9 @@ export default function ApiDocsPage() {
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6">
       <h1 className="text-2xl font-semibold">LifeBoard API</h1>
+      {/* Swagger UI's group headings are h3, so this keeps the headings in
+          order (AGENTS.md Section 8). */}
+      <h2 className="sr-only">Routes</h2>
       <ApiDocs spec={spec} />
     </main>
   );

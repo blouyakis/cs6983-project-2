@@ -59,10 +59,19 @@
   color: #4d4d4d;
 }
 
-/* Strings in the dark example and response boxes. */
-.swagger-ui .microlight span[style*="color: rgb(211, 99, 99)"],
-.swagger-ui .microlight span[style*="color:#d36363"] {
-  color: #ff9c9c !important;
+/* Text in the dark code boxes takes the box's white (12:1 on #333). Some of
+   Swagger UI's syntax colours fall below 4.5:1, and they are inline styles
+   with no class to aim a darker colour at, so the boxes go without them. */
+.swagger-ui .microlight span,
+.swagger-ui .curl span {
+  color: inherit !important;
+}
+
+/* Swagger UI sets outline: none on its fields, and its own focus border is
+   too pale to see, so its controls get the app's focus outline back. */
+.swagger-ui :is(textarea, input, select, button):focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 2px;
 }
 
 /* Code boxes wrap instead of scrolling sideways, so nobody has to scroll a
