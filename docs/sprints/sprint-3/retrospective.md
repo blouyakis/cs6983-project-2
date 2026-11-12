@@ -51,10 +51,10 @@ On `main` at `1b4cdf1`:
 | Measure | Value |
 |---|---|
 | Merged pull requests in Sprint 3 | 25 |
-| Partner reviews in Sprint 3 | All 25 merged pull requests were approved by the other partner: Barbara reviewed Ziye's 17, Ziye reviewed Barbara's 8 |
+| Partner reviews in Sprint 3 | All 25 merged pull requests were approved by the other partner |
 | Partner reviews over the whole project | Barbara 36, Ziye 34 (pull requests reviewed that the reviewer did not author) |
 | Merged pull requests over the whole project | 73 |
-| Non-merge commits in Sprint 3 | 175 (Ziye 123, Barbara 52) |
+| Non-merge commits in Sprint 3 | 175 |
 | Unit and integration tests (Vitest) | 1,674 tests across 154 test files, 96.6% line coverage, coverage thresholds passing |
 | Database tests (local Supabase Postgres) | 337 tests across 41 test files in `supabase/tests/`, as reported in #132 |
 | Playwright E2E scenarios | 81 tests across 16 spec files, run in CI against a production build (#129) |
