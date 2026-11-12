@@ -56,7 +56,7 @@ On `main` at `1b4cdf1`:
 | Partner reviews in Sprint 3 | All 25 merged pull requests were approved by the other partner: Barbara reviewed Ziye's 17, Ziye reviewed Barbara's 8 |
 | Partner reviews over the whole project | Barbara 36, Ziye 34 (pull requests reviewed that the reviewer did not author) |
 | Merged pull requests over the whole project | 73 |
-| Non-merge commits in Sprint 3 | 162 (Ziye 111, Barbara 51) |
+| Non-merge commits in Sprint 3 | 175 (Ziye 123, Barbara 52) |
 | Unit and integration tests (Vitest) | 1,674 tests across 154 test files, 96.6% line coverage, coverage thresholds passing |
 | Database tests (local Supabase Postgres) | 337 tests across 41 test files in `supabase/tests/`, as reported in #132 |
 | Playwright E2E scenarios | 81 tests across 16 spec files, run in CI against a production build (#129) |
@@ -73,7 +73,7 @@ On `main` at `1b4cdf1`:
 - **Test-first held up under the deadline, and concurrency bugs were reproduced before they were fixed.** Each feature pull request committed its failing tests before the code. The deadlock in #22 was reproduced by hand with two `psql` sessions before the lock changed, and #132's test reproduces the #124 deadlock for real, failing with `40P01` on the old code. The flaky cleanup in #79 failed in 3 of 40 runs on `main` and in 0 of 50 on the branch, so the fix was measured, not guessed.
 - **Manual testing found what the tests missed.** Walking through #16's test checklist by hand before marking it ready found five bugs, among them a squeezed table and a YAML comment that cut off a description. Each one got a failing test before the fix.
 - **AGENTS.md kept pace with what we learned.** When a review found a mistake an agent could repeat, it became a rule with a changelog line saying why: former members and locked expenses, pending payments and declining, the database clock, and public routes.
-- **We followed the Sprint 2 retrospective.** Roles rotated, scope was capped at Should Haves with #54 and #77 left out, the hosted migration checklist was in every pull request with a migration, and #102 tracked the submission from the first day. The planning notes (#104) were written on 2026-11-08, the day the sprint started, with owners, points and a slip order, and Ziye opened eleven pull requests on 2026-11-08 and 2026-11-09, so most of the review time fell in the first half of the sprint instead of the last day.
+- **We followed the Sprint 2 retrospective.** Roles rotated, scope was capped at Should Haves with #54 and #77 left out, the hosted migration checklist was in every pull request with a migration, and #102 tracked the submission from the first day. The planning notes (#104) were opened on 2026-11-07, before the sprint started, and merged on its first day, with owners, points and a slip order, and Ziye opened eleven pull requests on 2026-11-08 and 2026-11-09, so most of the review time fell in the first half of the sprint instead of the last day.
 - **The end-to-end suite is in CI.** All eight user flows have a Playwright spec, the tests run against a production build on every pull request, and e2e is now a required check. The production build also removed the flakes we had seen on #22, which came from the dev server compiling routes on demand.
 - **Working async across time zones worked.** We split the shared issues (#16, #17, #102, #114) in one exchange, and most reviews came back within hours. Where an issue needed both of us to agree, such as deleting a declined direct payment in #108 or the former-member cost lock in #22, the author made a choice, explained the trade-off in the pull request and asked the other to confirm in review, so neither of us had to wait for the other to be online.
 
@@ -81,7 +81,7 @@ On `main` at `1b4cdf1`:
 
 ## 4. What did not go well
 
-- **The plan didn't leave room for follow-up work.** We planned sixteen issues on 2026-11-08, and the same day six more had to be added (#79, #108, #112, #113, #114, #115). Reviews then turned up three more: #121, #124 and #130. Most of them were real bugs that had to be fixed, but they all competed with the planned features for the same six days, and #121 and #130 were closed without an estimate, so the points in Section 1 undercount the work.
+- **The plan didn't leave room for follow-up work.** We committed sixteen issues at planning, and six more had to be added on 2026-11-08, the first day of the sprint (#79, #108, #112, #113, #114, #115). Reviews then turned up three more: #121, #124 and #130. Most of them were real bugs that had to be fixed, but they all competed with the planned features for the same six days, and #121 and #130 were closed without an estimate, so the points in Section 1 undercount the work.
 - **The accessibility rule was missed in review.** AGENTS.md has said since 2026-11-06 that a new page or form goes into `e2e/accessibility.spec.ts` in the same pull request, but the check-off form (#98) and a past period of the bill (#125) were approved and merged without it. The gap was found at the end of the sprint and fixed in #135.
 
 <!-- TODO(#103): add Barbara's points from her separate message. -->

@@ -42,7 +42,7 @@ _Why: Every request takes the same path, so access checks and validation live in
 
 ### Folder structure
 
-This is the structure on `main` at the end of Sprint 3.
+These are the main folders on `main` at the end of Sprint 3.
 
 ```text
 .
