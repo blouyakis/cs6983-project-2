@@ -160,6 +160,29 @@ async function expectNoViolations(page: Page) {
   ).toEqual([]);
 }
 
+// AGENTS.md Section 8: headings in order. axe's heading-order rule is a best
+// practice, not a WCAG tag, so expectNoViolations doesn't run it (#16).
+async function expectHeadingsInOrder(page: Page) {
+  const skips = await page.evaluate(() => {
+    const levels = Array.from(
+      document.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"),
+    )
+      .filter((heading) => heading.checkVisibility())
+      .map((heading) => ({
+        level: Number(heading.tagName[1]),
+        text: (heading.textContent ?? "").trim().slice(0, 40),
+      }));
+    return levels
+      .filter((heading, index) =>
+        index === 0
+          ? heading.level !== 1
+          : heading.level > levels[index - 1].level + 1,
+      )
+      .map((heading) => `h${heading.level} ${heading.text}`);
+  });
+  expect(skips).toEqual([]);
+}
+
 async function expectFitsTheScreen(page: Page) {
   const overflow = await page.evaluate(
     () =>
@@ -257,6 +280,41 @@ for (const viewport of viewports) {
       await expectNoViolations(page);
       await expectFitsTheScreen(page);
     }
+  });
+
+  // Swagger UI draws the routes in the browser after the page loads, so the
+  // check waits for them. It opens a route of each method, with its Try it
+  // out form, and runs GET /api/health so a live response is on the page too
+  // (#16).
+  test(`the API docs pass the WCAG 2.1 AA check and fit the screen on ${viewport.name}`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("/api/docs");
+    for (const id of [
+      "Auth-login",
+      "Groups-getGroup",
+      "Groups-updateGroup",
+      "Expenses-deleteExpense",
+      "Health-getHealth",
+    ]) {
+      const operation = page.locator(`#operations-${id}`);
+      await operation.locator(".opblock-summary-control").click();
+      await operation.getByRole("button", { name: "Try it out" }).click();
+    }
+    const health = page.locator("#operations-Health-getHealth");
+    await health.getByRole("button", { name: "Execute" }).click();
+    await expect(health.locator(".live-responses-table")).toBeVisible();
+    // Execute is disabled at opacity 0.3 while the request runs and fades
+    // back over 0.3s; checking contrast mid-fade would measure a colour
+    // nobody reads.
+    await expect(health.getByRole("button", { name: "Execute" })).toHaveCSS(
+      "opacity",
+      "1",
+    );
+    await expectNoViolations(page);
+    await expectFitsTheScreen(page);
+    await expectHeadingsInOrder(page);
   });
 
   test(`every signed-in page passes the WCAG 2.1 AA check and fits the screen on ${viewport.name}`, async ({
@@ -587,4 +645,58 @@ test("tabbing through the default split form reaches every control with a visibl
   const result = await tabThrough(page);
   expect(result.reached).toBeGreaterThanOrEqual(stops - 1);
   expect(result.withoutFocusStyle).toEqual([]);
+});
+
+test("tabbing through the API docs' Try it out form reaches every control with a visible focus style", async ({
+  page,
+}) => {
+  await page.goto("/api/docs");
+  const operation = page.locator("#operations-Auth-login");
+  const opener = operation.locator(".opblock-summary-control");
+  await opener.click();
+  await operation.getByRole("button", { name: "Try it out" }).click();
+  await expect(
+    operation.getByRole("textbox", { name: "Request body" }),
+  ).toBeVisible();
+  await operation.evaluate((element) =>
+    element.setAttribute("data-tab-scope", ""),
+  );
+  const stops = await tabStopsIn(operation);
+  await opener.focus();
+  const result = await tabThrough(page);
+  expect(result.reached).toBeGreaterThanOrEqual(stops - 1);
+  expect(result.withoutFocusStyle).toEqual([]);
+});
+
+// Swagger UI's "Copy path to clipboard" button is 0px wide until the mouse
+// hovers its row, so a keyboard user tabbed onto a control they couldn't see
+// (#16, manual testing). Every control Tab reaches must have a size.
+test("every control Tab reaches on the API docs can be seen", async ({
+  page,
+}) => {
+  await page.goto("/api/docs");
+  await page
+    .locator("#operations-Auth-register .opblock-summary-control")
+    .focus();
+  const hidden = new Set<string>();
+  for (let press = 0; press < 30; press += 1) {
+    await page.keyboard.press("Tab");
+    const stop = await page.evaluate(() => {
+      const element = document.activeElement as HTMLElement | null;
+      if (!element) {
+        return null;
+      }
+      const box = element.getBoundingClientRect();
+      return {
+        name:
+          element.getAttribute("aria-label") ??
+          (element.textContent ?? "").trim().slice(0, 40),
+        seen: box.width > 0 && box.height > 0,
+      };
+    });
+    if (stop && !stop.seen) {
+      hidden.add(stop.name);
+    }
+  }
+  expect([...hidden]).toEqual([]);
 });

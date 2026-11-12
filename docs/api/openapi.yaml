@@ -1,11 +1,17 @@
 openapi: 3.0.3
 info:
-  title: Everyday planning and shared costs
+  title: LifeBoard API
   version: 0.1.0
   description: |
-    Draft route list moved from AGENTS.md. A personal space is a group with
-    `isPersonal: true` and uses the same group routes. Paths are plural
-    kebab-case. JSON keys are camelCase.
+    The REST API behind LifeBoard, matching the route handlers in
+    `src/app/api`. Every route except register, login, logout and health
+    needs the `session` cookie, which login and register set. To try the
+    other routes on this page, log in first, in the app or with Try it out
+    on `POST /api/auth/login`; the browser then sends the cookie for you.
+
+    A personal space is a group with `isPersonal: true` and uses the same
+    group routes. Paths are plural kebab-case. JSON keys are camelCase.
+    Money is in integer cents.
 
     Status codes: 400 invalid input, 401 not logged in or token expired,
     403 logged in but not allowed, 404 not found, 409 conflict (duplicate
@@ -13,16 +19,41 @@ info:
     12 members, editing a settled expense, leaving with a balance).
 
     Error body: { "error": { "code": "FORBIDDEN", "message": "You are not a member of this group." } }
+
+    Error codes: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401), `FORBIDDEN`
+    (403), `NOT_FOUND` (404), `CONFLICT` (409), and `INTERNAL_ERROR` (500,
+    "Something went wrong.") for an unexpected failure on any route.
+tags:
+  - name: Auth
+    description: Register, log in and out, and who is logged in.
+  - name: Health
+    description: Whether the app and the database are up.
+  - name: Overview
+    description: The overview, the sidebar, and my expenses across groups.
+  - name: Groups
+    description: Groups and personal spaces, members, invitations and leaving.
+  - name: Lists
+    description: A group's list, and checking items off into expenses.
+  - name: Expenses
+    description: A group's expenses and how they are split.
+  - name: Balances
+    description: Members' balances and my bill.
+  - name: Payments
+    description: Payments between members, recorded outside the app.
+  - name: Settle-up
+    description: Settle-up periods and their suggested payments.
 security:
   - sessionCookie: []
 paths:
   /api/auth/register:
     post:
+      tags: [Auth]
+      operationId: register
       summary: Create an account (also creates the personal space)
       description: |
         Issues #4, #23. Stores the email lowercase and the password as a
-        bcrypt hash (cost 12), then sets the `session` cookie. The personal
-        space is not created yet (#23).
+        bcrypt hash (cost 12), creates the account and its personal space in
+        one transaction, then sets the `session` cookie.
       security: []
       requestBody:
         required: true
@@ -48,16 +79,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields:
+                        { password: "Password must be at least 8 characters." },
+                    },
+                }
         "409":
           description: "`An account with this email already exists.`"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: CONFLICT,
+                      message: "An account with this email already exists.",
+                    },
+                }
   /api/auth/login:
     post:
+      tags: [Auth]
+      operationId: login
       summary: Log in, set the session cookie
-      description: Issue #4.
+      description: |
+        Issue #4.
       security: []
       requestBody:
         required: true
@@ -76,7 +128,24 @@ paths:
               schema:
                 $ref: "#/components/schemas/UserResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          description: An email that isn't valid, or no password.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields:
+                        {
+                          email: "Enter a valid email address.",
+                          password: "Enter your password.",
+                        },
+                    },
+                }
         "401":
           description: |
             Wrong email or password. The message is always
@@ -86,8 +155,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: UNAUTHORIZED,
+                      message: "Email or password is incorrect.",
+                    },
+                }
   /api/auth/logout:
     post:
+      tags: [Auth]
+      operationId: logout
       summary: Clear the session cookie
       description: |
         Issue #4. Works without a valid session, so an expired cookie is
@@ -96,10 +175,18 @@ paths:
       responses:
         "204":
           description: Logged out. Sets `session` to empty with `Max-Age=0`.
+          headers:
+            Set-Cookie:
+              description: "`session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`"
+              schema:
+                type: string
   /api/auth/me:
     get:
+      tags: [Auth]
+      operationId: getCurrentUser
       summary: Current user
-      description: Issue #4.
+      description: |
+        Issue #4.
       responses:
         "200":
           description: The user the session belongs to.
@@ -115,8 +202,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: UNAUTHORIZED,
+                      message: "Please log in to continue.",
+                    },
+                }
   /api/health:
     get:
+      tags: [Health]
+      operationId: getHealth
       summary: Whether the app and the database are up
       description: |
         Issue #100. Works without a session, so it says only up or down: no
@@ -154,6 +251,8 @@ paths:
                 status: error
   /api/overview:
     get:
+      tags: [Overview]
+      operationId: getOverview
       summary: Personal total, share per group, net balance
       description: |
         Issue #10. The landing screen's numbers for the session user. Each
@@ -169,9 +268,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/OverviewResponse"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
   /api/expenses:
     get:
+      tags: [Overview]
+      operationId: listMyExpenses
       summary: My expense history across groups, with filters
       description: |
         Issue #15, user story 1. Every expense the session user has a share
@@ -237,16 +338,35 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { to: "To can't be before From." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
           description: "`groupId` is a group the user isn't and never was in."
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: FORBIDDEN,
+                      message: "You are not a member of this group.",
+                    },
+                }
   /api/sidebar-groups:
     get:
+      tags: [Overview]
+      operationId: listSidebarGroups
       summary: The sidebar's groups, with my balance in each shared one
       description: |
         Issue #89. The groups the sidebar lists: the personal space and every
@@ -260,19 +380,26 @@ paths:
       responses:
         "200":
           description: The user's sidebar groups.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum: [no-store]
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/SidebarGroupListResponse"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
   /api/groups:
     get:
+      tags: [Groups]
+      operationId: listGroups
       summary: List my groups
       description: |
         Issue #6. Every group the user is or was in: the personal space
         first, then groups they can write to, then read-only ones (left or
-        archived). Each lists its current members.
+        archived). Each lists its members (see `Group.members`).
       responses:
         "200":
           description: The user's groups.
@@ -281,8 +408,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/GroupListResponse"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
     post:
+      tags: [Groups]
+      operationId: createGroup
       summary: Create a group
       description: |
         Issue #6. The session user becomes its first member, at share
@@ -306,10 +435,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { name: "Enter a group name." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
   /api/groups/{groupId}:
     get:
+      tags: [Groups]
+      operationId: getGroup
       summary: Group details
       description: |
         Issues #5, #6, #8. Current and former members can read it; anyone
@@ -331,11 +471,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
     patch:
+      tags: [Groups]
+      operationId: updateGroup
       summary: Rename a group or set its default split ratio
       description: |
         Issues #6, #8. Send `name`, `memberWeights`, or both. The weights
@@ -367,12 +518,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
   /api/groups/{groupId}/invitations:
     post:
+      tags: [Groups]
+      operationId: inviteMember
       summary: Invite by email
       description: |
         Issue #6. Any current member can invite someone who already has an
@@ -405,8 +567,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
           description: |
             A former member, an archived group, a personal space ("A
@@ -416,20 +587,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: FORBIDDEN,
+                      message: "You are not a member of this group.",
+                    },
+                }
         "404":
           description: "`No LifeBoard account uses that email.`"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    { code: NOT_FOUND, message: "This expense doesn't exist." },
+                }
         "409":
           description: "`They are already in this group.` or `A group can have at most 12 members.`"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: CONFLICT,
+                      message: "They are already in this group.",
+                    },
+                }
   /api/groups/{groupId}/leave:
     post:
+      tags: [Groups]
+      operationId: leaveGroup
       summary: Leave a group
       description: |
         Issue #22, user flow 8. The session user leaves the group, in one
@@ -447,9 +641,9 @@ paths:
         "204":
           description: They left. The group is archived if they were its last member.
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
           description: |
             A personal space (`You can't leave your personal space.`), a
@@ -459,6 +653,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: FORBIDDEN,
+                      message: "You are not a member of this group.",
+                    },
+                }
         "409":
           description: |
             `Settle up first: you can leave once your balance in this group
@@ -468,17 +670,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: CONFLICT,
+                      message: "They are already in this group.",
+                    },
+                }
   /api/groups/{groupId}/list-items:
     get:
+      tags: [Lists]
+      operationId: listListItems
       summary: List items
       description: |
         Issues #11, #12. Open items first, then done items, newest first in
         each. `addedBy` is a user id; the page names them from the group's
         members. A former member only sees what was added before they left.
         Each item also has `costCents`, what a done item cost, and
-        `expenseLock`, whether its expense is settled or in the open
-        settle-up (#12, #86), so the client never offers an uncheck that
-        would get a 409.
+        `expenseLock`, whether its expense is settled, in the open settle-up,
+        or shared by someone who has left the group with a non-zero share
+        (#12, #86, #22), so the client never offers an uncheck that would
+        get a 409.
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
@@ -488,11 +701,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListItemListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
     post:
+      tags: [Lists]
+      operationId: createListItem
       summary: Add an item
       description: |
         Issue #11. The item is added by the session user: the body has no
@@ -522,12 +739,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
   /api/groups/{groupId}/list-items/{itemId}:
     patch:
+      tags: [Lists]
+      operationId: updateListItem
       summary: Edit an open item
       description: |
         Issue #11. Any current member can edit an open item, whoever added
@@ -555,15 +783,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
     delete:
+      tags: [Lists]
+      operationId: deleteListItem
       summary: Delete an open item
       description: |
         Issue #11. Any current member can delete an open item, and the row is
@@ -580,16 +819,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/list-items/{itemId}/complete:
     post:
+      tags: [Lists]
+      operationId: completeListItem
       summary: Check off an item and create the expense
       description: |
         Issue #12. The current user is the payer and the one who completed
@@ -623,24 +873,29 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  item:
-                    $ref: "#/components/schemas/ListItem"
+                $ref: "#/components/schemas/ListItemResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/list-items/{itemId}/reopen:
     post:
+      tags: [Lists]
+      operationId: reopenListItem
       summary: Uncheck an item and delete its expense
-      description: Issue #12. Only the member who checked the item off; anyone else gets 403. An expense that is settled or in the open settle-up is 409 (#86), and so is one with a non-zero share of a member who has left the group, whose balance must stay as it was when they left (#22). A done item with no expense just reopens. An item that is already open is 409, and one that isn't in the group is 404.
+      description: |
+        Issue #12. Only the member who checked the item off; anyone else gets
+        403. An expense that is settled or in the open settle-up is 409 (#86),
+        and so is one with a non-zero share of a member who has left the
+        group, whose balance must stay as it was when they left (#22). A done
+        item with no expense just reopens. An item that is already open is
+        409, and one that isn't in the group is 404.
       parameters:
         - $ref: "#/components/parameters/GroupId"
         - $ref: "#/components/parameters/ItemId"
@@ -650,25 +905,27 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  item:
-                    $ref: "#/components/schemas/ListItem"
+                $ref: "#/components/schemas/ListItemResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/expenses:
     get:
-      summary: List expenses (with filters)
+      tags: [Expenses]
+      operationId: listGroupExpenses
+      summary: List the group's expenses
       description: |
-        Issues #7, #15. The group's expenses, newest day first and, within a
-        day, newest entry first. A former member only sees what was added
-        before they left. The filters are #15.
+        Issue #7. The group's expenses, newest day first and, within a day,
+        newest entry first. A former member only sees what was added before
+        they left. It takes no filters; `GET /api/expenses` filters the
+        user's expenses across groups (#15).
       parameters:
         - $ref: "#/components/parameters/GroupId"
       responses:
@@ -678,20 +935,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ExpenseListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
     post:
+      tags: [Expenses]
+      operationId: createExpense
       summary: Add an expense
       description: |
         Issues #7, #15. The payer is always the session user: the body has
         no payer field, and one sent anyway is ignored (AGENTS.md Section
         6.7). The expense and its shares are written in one transaction.
         Only current members of an active group can add; a former member or
-        an archived group gets 403. In a personal space the user is the only
-        sharer. A sharer who left the group between the `sharedBy` check
-        and the write is 409 (#22).
+        an archived group gets 403. In a personal space `sharedBy` must be
+        just the user; any other id is 400. A sharer who left the group
+        between the `sharedBy` check and the write is 409 (#22).
       parameters:
         - $ref: "#/components/parameters/GroupId"
       requestBody:
@@ -717,14 +978,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/expenses/{expenseId}:
     patch:
+      tags: [Expenses]
+      operationId: updateExpense
       summary: Edit an unsettled expense
       description: |
         Issue #20. Replaces the description, amount, day and split together,
@@ -758,16 +1030,18 @@ paths:
               schema:
                 $ref: "#/components/schemas/ExpenseResponse"
         "400":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
     delete:
+      tags: [Expenses]
+      operationId: deleteExpense
       summary: Delete an unsettled expense
       description: |
         Issue #20. Only the payer, and only while the expense is unsettled
@@ -783,16 +1057,20 @@ paths:
       responses:
         "204":
           description: The expense is gone.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/balances:
     get:
+      tags: [Balances]
+      operationId: getBalances
       summary: Each member's net balance
       description: |
         Issue #9. Each member's balance in cents for the current period:
@@ -813,12 +1091,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/BalanceListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
   /api/groups/{groupId}/bills/me:
     get:
+      tags: [Balances]
+      operationId: getMyBill
       summary: My itemized bill (current or past period)
       description: |
         Issue #21, user flow 7. The session user's bill for the group: the
@@ -853,10 +1135,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
           description: |
             `settlementId` isn't one of the group's closed periods: it is
@@ -865,8 +1156,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    { code: NOT_FOUND, message: "This expense doesn't exist." },
+                }
   /api/groups/{groupId}/payments:
     get:
+      tags: [Payments]
+      operationId: listPayments
       summary: List the group's payments
       description: |
         Issue #14. Every payment someone has sent, direct or from a
@@ -889,11 +1187,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
     post:
+      tags: [Payments]
+      operationId: recordPayment
       summary: Record a direct payment
       description: |
         Issue #14, user flow 6. Records money the session user sent another
@@ -930,12 +1239,23 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
   /api/groups/{groupId}/payments/{paymentId}/paid:
     post:
+      tags: [Payments]
+      operationId: markPaymentPaid
       summary: Sender marks a suggested payment paid
       description: |
         Issue #19. The person paying says they sent the money, for example
@@ -958,16 +1278,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/payments/{paymentId}/confirm:
     post:
+      tags: [Payments]
+      operationId: confirmPayment
       summary: Recipient confirms a payment
       description: |
         Issues #14, #19. The person receiving the money says it arrived.
@@ -992,16 +1323,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/payments/{paymentId}/decline:
     post:
+      tags: [Payments]
+      operationId: declinePayment
       summary: Recipient declines a payment marked paid
       description: |
         Issue #108. The person receiving the money says it never arrived.
@@ -1030,16 +1372,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+              example:
+                {
+                  error:
+                    {
+                      code: VALIDATION_ERROR,
+                      message: "Check the highlighted fields.",
+                      fields: { groupId: "Group id must be a UUID." },
+                    },
+                }
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/settlements:
     get:
+      tags: [Settle-up]
+      operationId: listSettlements
       summary: Closed past periods
       description: |
         Issue #19. The group's closed settle-ups, newest first, each with
@@ -1054,11 +1407,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PeriodListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
     post:
+      tags: [Settle-up]
+      operationId: startSettlement
       summary: Start a settle-up and get suggested payments
       description: |
         Issue #19. Any current member can start one. The app takes a
@@ -1087,14 +1444,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SettleUpResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
   /api/groups/{groupId}/settlements/current:
     get:
+      tags: [Settle-up]
+      operationId: getCurrentSettlement
       summary: Current settle-up and its payments
       description: |
         Issue #19. The open settle-up with every payment it suggested and
@@ -1109,14 +1470,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SettleUpResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
   /api/groups/{groupId}/settlements/current/cancel:
     post:
+      tags: [Settle-up]
+      operationId: cancelSettlement
       summary: Cancel the open settle-up
       description: |
         Issue #19. Any current member can cancel while every payment is
@@ -1128,14 +1493,16 @@ paths:
       responses:
         "204":
           description: Cancelled.
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Unauthorized"
         "403":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Forbidden"
         "404":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/NotFound"
         "409":
-          $ref: "#/components/responses/Error"
+          $ref: "#/components/responses/Conflict"
 components:
   securitySchemes:
     sessionCookie:
@@ -1164,6 +1531,7 @@ components:
       required: true
       schema:
         type: string
+        format: uuid
     ExpenseId:
       name: expenseId
       in: path
@@ -1177,6 +1545,7 @@ components:
       required: true
       schema:
         type: string
+        format: uuid
   schemas:
     Split:
       description: |
@@ -1456,7 +1825,8 @@ components:
           $ref: "#/components/schemas/Payment"
     CreatePaymentRequest:
       type: object
-      description: Issue #14. There is no sender field; the sender is the session user.
+      description: |
+        Issue #14. There is no sender field; the sender is the session user.
       required: [toUserId, amountCents]
       properties:
         toUserId:
@@ -1618,7 +1988,8 @@ components:
           nullable: true
           description: The estimated cost in cents. Null for no estimate.
     CreateListItemRequest:
-      description: Issue #11.
+      description: |
+        Issue #11.
       allOf:
         - type: object
           required: [title]
@@ -1627,7 +1998,8 @@ components:
               $ref: "#/components/schemas/ListItemTitle"
         - $ref: "#/components/schemas/ListItemFields"
     UpdateListItemRequest:
-      description: Issue #11. At least one field. The title can't be cleared.
+      description: |
+        Issue #11. At least one field. The title can't be cleared.
       minProperties: 1
       allOf:
         - type: object
@@ -1707,9 +2079,11 @@ components:
               description: What a done item cost. Null while open or for no cost.
             expenseLock:
               type: string
-              enum: [settled, settle-up]
+              enum: [settled, settle-up, member-left, null]
               nullable: true
-              description: Why its expense can't be deleted, so it can't be unchecked (#86). Null when it can.
+              description: |
+                Why its expense can't be deleted, so it can't be unchecked
+                (#86, #22). Null when it can.
     ListItemResponse:
       type: object
       required: [item]
@@ -1902,6 +2276,7 @@ components:
           minimum: 0
           description: The user's share of every current group's expenses this period.
         personal:
+          type: object
           allOf:
             - $ref: "#/components/schemas/PersonalOverview"
           nullable: true
@@ -2012,7 +2387,8 @@ components:
         user:
           $ref: "#/components/schemas/User"
     HealthResponse:
-      description: Issue #100. Nothing else is ever added, so nothing leaks.
+      description: |
+        Issue #100. Nothing else is ever added, so nothing leaks.
       type: object
       required: [status]
       additionalProperties: false
@@ -2030,21 +2406,83 @@ components:
           properties:
             code:
               type: string
-              example: FORBIDDEN
+              enum:
+                [
+                  VALIDATION_ERROR,
+                  UNAUTHORIZED,
+                  FORBIDDEN,
+                  NOT_FOUND,
+                  CONFLICT,
+                  INTERNAL_ERROR,
+                ]
             message:
               type: string
-              example: You are not a member of this group.
+              description: A sentence the app can show as it is.
             fields:
               type: object
               description: Only on 400. One message per invalid field.
               additionalProperties:
                 type: string
-              example:
-                password: Password must be at least 8 characters.
   responses:
-    Error:
-      description: Request failed.
+    BadRequest:
+      description: Invalid input. `fields` names each bad field.
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+          example:
+            {
+              error:
+                {
+                  code: VALIDATION_ERROR,
+                  message: "Check the highlighted fields.",
+                  fields: { groupId: "Group id must be a UUID." },
+                },
+            }
+    Unauthorized:
+      description: No session, an invalid token, or an expired token.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            {
+              error:
+                { code: UNAUTHORIZED, message: "Please log in to continue." },
+            }
+    Forbidden:
+      description: Logged in but not allowed, such as someone who isn't a member of the group.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            {
+              error:
+                {
+                  code: FORBIDDEN,
+                  message: "You are not a member of this group.",
+                },
+            }
+    NotFound:
+      description: The group, item, expense, payment or period isn't there.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            {
+              error:
+                { code: NOT_FOUND, message: "This expense doesn't exist." },
+            }
+    Conflict:
+      description: The request clashes with the current state; the message says how.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            {
+              error:
+                { code: CONFLICT, message: "They are already in this group." },
+            }

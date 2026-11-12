@@ -10,6 +10,7 @@ const PUBLIC_API_ROUTES = [
   "/api/auth/login",
   "/api/auth/logout",
   "/api/health",
+  "/api/docs",
 ];
 
 // A first check, not the security boundary: route handlers and pages check

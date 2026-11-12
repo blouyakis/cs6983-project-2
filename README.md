@@ -12,7 +12,7 @@ Your everyday plans and costs, alone or together.
 | | |
 |---|---|
 | **Production URL** | <https://cs6983-project-2.vercel.app> (from `main`) |
-| **API docs (Swagger)** | Swagger UI at `/api/docs` is planned in [#16](https://github.com/blouyakis/cs6983-project-2/issues/16). The spec is [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
+| **API docs (Swagger)** | Swagger UI at `/api/docs`, open without logging in ([#16](https://github.com/blouyakis/cs6983-project-2/issues/16)). The spec is [`docs/api/openapi.yaml`](./docs/api/openapi.yaml), checked by Redocly in `npm run lint` |
 | **Issues and milestones** | [Issues](https://github.com/blouyakis/cs6983-project-2/issues) · [Milestones](https://github.com/blouyakis/cs6983-project-2/milestones) |
 | **Project board** | [LifeBoard board](https://github.com/users/blouyakis/projects/3) (Backlog → Sprint ToDo → In Progress → In Review → Done) |
 | **PRD** | [`docs/PRD.md`](./docs/PRD.md) |
@@ -207,7 +207,7 @@ Full conventions are in [`AGENTS.md`](./AGENTS.md).
 
 ## API
 
-Thirty routes are implemented: `POST /api/auth/register`, `/login` and `/logout`, `GET /api/auth/me`, `GET /api/health`, `GET /api/overview`, `GET` and `POST /api/groups`, `GET` and `PATCH /api/groups/{groupId}`, and under `/api/groups/{groupId}`: `POST invitations`, `POST leave`, `GET balances`, `GET` and `POST expenses`, `PATCH` and `DELETE expenses/{expenseId}`, `GET` and `POST list-items`, `PATCH` and `DELETE list-items/{itemId}`, `GET` and `POST settlements`, `GET settlements/current`, `POST settlements/current/cancel`, `GET` and `POST payments`, and `POST payments/{paymentId}/paid`, `/confirm` and `/decline`. The full API is described in [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) and the routes not listed above are built issue by issue. Swagger UI will be served at `/api/docs` ([#16](https://github.com/blouyakis/cs6983-project-2/issues/16)).
+All 35 operations in [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) are implemented, on 27 paths: `POST /api/auth/register`, `/login` and `/logout`, `GET /api/auth/me`, `GET /api/health`, `GET /api/overview`, `GET /api/expenses`, `GET /api/sidebar-groups`, `GET` and `POST /api/groups`, `GET` and `PATCH /api/groups/{groupId}`, and under `/api/groups/{groupId}`: `POST invitations`, `POST leave`, `GET balances`, `GET bills/me`, `GET` and `POST expenses`, `PATCH` and `DELETE expenses/{expenseId}`, `GET` and `POST list-items`, `PATCH` and `DELETE list-items/{itemId}`, `POST list-items/{itemId}/complete` and `/reopen`, `GET` and `POST settlements`, `GET settlements/current`, `POST settlements/current/cancel`, `GET` and `POST payments`, and `POST payments/{paymentId}/paid`, `/confirm` and `/decline`. Swagger UI serves it at `/api/docs` ([#16](https://github.com/blouyakis/cs6983-project-2/issues/16)): log in first, in the app or with Try it out on `POST /api/auth/login`, to try the other routes.
 
 Errors use one body, `{ "error": { "code", "message", "fields"? } }`. The session is an `httpOnly` cookie named `session`; the API never returns the token.
 

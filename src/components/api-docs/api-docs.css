@@ -1,0 +1,118 @@
+/* Overrides for Swagger UI's own styles, so the API docs page meets WCAG 2.1
+   AA and fits a 375px screen like the rest of the app (#16). */
+
+/* Method badges: white text on the method colour. Swagger UI's colours fall
+   below 4.5:1, so each one here keeps its hue but is darker. The colours
+   below do the same for text on Swagger UI's light backgrounds. */
+.swagger-ui .opblock.opblock-get .opblock-summary-method {
+  background: #1d63a8;
+}
+.swagger-ui .opblock.opblock-post .opblock-summary-method {
+  background: #1a7346;
+}
+.swagger-ui .opblock.opblock-put .opblock-summary-method {
+  background: #9a5200;
+}
+.swagger-ui .opblock.opblock-patch .opblock-summary-method {
+  background: #0d6e58;
+}
+.swagger-ui .opblock.opblock-delete .opblock-summary-method {
+  background: #b42323;
+}
+
+/* The page's own h1 names it; Swagger UI's title would be a second h1 with
+   the same name. */
+.swagger-ui .info .title {
+  display: none;
+}
+
+/* No Authorize button or padlocks: the session cookie is httpOnly, so a
+   value typed into Swagger UI's dialog would never be sent. Logging in with
+   Try it out on POST /api/auth/login sets the real cookie instead. */
+.swagger-ui .scheme-container,
+.swagger-ui .authorization__btn {
+  display: none;
+}
+
+/* Buttons. */
+.swagger-ui .btn.cancel {
+  border-color: #b42323;
+  color: #b42323;
+}
+.swagger-ui .btn.execute {
+  background: #1d63a8;
+  border-color: #1d63a8;
+}
+.swagger-ui .download-contents {
+  background: #4b5060;
+}
+
+/* Text on the tinted panels of an open route. */
+.swagger-ui .renderedMarkdown code,
+.swagger-ui .opblock-description code {
+  color: #5a0aa0;
+}
+.swagger-ui .response-control-media-type__accept-message {
+  color: #005c00;
+}
+.swagger-ui .parameter__in {
+  color: #4d4d4d;
+}
+
+/* Text in the dark code boxes takes the box's white (12:1 on #333). Some of
+   Swagger UI's syntax colours fall below 4.5:1, and they are inline styles
+   with no class to aim a darker colour at, so the boxes go without them. */
+.swagger-ui .microlight span,
+.swagger-ui .curl span {
+  color: inherit !important;
+}
+
+/* Swagger UI sets outline: none on its fields, and its own focus border is
+   too pale to see, so its controls get the app's focus outline back. */
+.swagger-ui :is(textarea, input, select, button):focus-visible {
+  outline: 3px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* Code boxes wrap instead of scrolling sideways, so nobody has to scroll a
+   box the keyboard can't reach (WCAG "scrollable-region-focusable"). */
+.swagger-ui .microlight,
+.swagger-ui .microlight code,
+.swagger-ui .curl,
+.swagger-ui .curl code {
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere;
+}
+
+/* For the same reason, an example shows in full instead of scrolling inside a
+   400px box. */
+.swagger-ui .highlight-code > .microlight {
+  max-height: none;
+}
+
+/* The responses table fits a 375px screen: long values in the description
+   column wrap, while the Code and Links columns keep their words whole. */
+.swagger-ui .responses-table {
+  width: 100%;
+}
+.swagger-ui .responses-table .response-col_description {
+  overflow-wrap: anywhere;
+}
+.swagger-ui .responses-table .response-col_status,
+.swagger-ui .responses-table .response-col_links {
+  padding-right: 1em;
+  white-space: nowrap;
+}
+
+/* Swagger UI widens a route's "Copy path to clipboard" button only while the
+   mouse hovers the row, so Tab reached a 0px-wide button. It widens on
+   keyboard focus too, at once rather than over Swagger UI's 0.5s width
+   transition, so the focus outline is never drawn round nothing. */
+.swagger-ui
+  .opblock
+  .opblock-summary
+  .view-line-link.copy-to-clipboard:focus-within {
+  margin: 0 5px;
+  transition: none;
+  width: 24px;
+}
