@@ -215,3 +215,37 @@ describe("a former member's expense history", () => {
     expect(ids(await listExpenseHistory(eli))).toEqual([after, before]);
   });
 });
+
+// "former" in the Paid by filter (#130): costs paid by anyone who has left.
+describe("the history filtered by a payer who has left", () => {
+  it("lists the costs former members paid, and still filters by their id", async () => {
+    const { groupId, memberIds } = await createGroupWithMembers(3);
+    const [fay, gus, hal] = memberIds;
+    const gusPaid = await cost(groupId, gus, [fay, gus], "2026-10-05", "Gus");
+    const halPaid = await cost(groupId, hal, [fay, hal], "2026-10-06", "Hal");
+    const { error } = await db
+      .from("group_members")
+      .update({ left_at: await dbNow() })
+      .eq("group_id", groupId)
+      .eq("user_id", gus);
+    if (error) {
+      throw error;
+    }
+
+    expect(ids(await listExpenseHistory(fay))).toEqual([halPaid, gusPaid]);
+    expect(ids(await listExpenseHistory(fay, { paidBy: "former" }))).toEqual([
+      gusPaid,
+    ]);
+    expect(
+      ids(await listExpenseHistory(fay, { paidBy: "former", groupId })),
+    ).toEqual([gusPaid]);
+    expect(
+      ids(
+        await listExpenseHistory(fay, { paidBy: "former", from: "2026-10-06" }),
+      ),
+    ).toEqual([]);
+    expect(ids(await listExpenseHistory(fay, { paidBy: gus }))).toEqual([
+      gusPaid,
+    ]);
+  });
+});

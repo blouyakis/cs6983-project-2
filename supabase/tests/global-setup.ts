@@ -7,6 +7,7 @@ declare module "vitest" {
     supabaseUrl: string;
     serviceRoleKey: string;
     anonKey: string;
+    dbUrl: string;
   }
 }
 
@@ -89,14 +90,15 @@ async function waitForApi(url: string, key: string): Promise<void> {
 }
 
 export default async function setup(project: TestProject) {
-  const { API_URL, SERVICE_ROLE_KEY, ANON_KEY } = readLocalSupabase();
-  if (!API_URL || !SERVICE_ROLE_KEY || !ANON_KEY) {
+  const { API_URL, SERVICE_ROLE_KEY, ANON_KEY, DB_URL } = readLocalSupabase();
+  if (!API_URL || !SERVICE_ROLE_KEY || !ANON_KEY || !DB_URL) {
     fail(
-      "`supabase status` did not print API_URL, SERVICE_ROLE_KEY and ANON_KEY.",
+      "`supabase status` did not print API_URL, SERVICE_ROLE_KEY, ANON_KEY and DB_URL.",
     );
   }
   await waitForApi(API_URL, SERVICE_ROLE_KEY);
   project.provide("supabaseUrl", API_URL);
   project.provide("serviceRoleKey", SERVICE_ROLE_KEY);
   project.provide("anonKey", ANON_KEY);
+  project.provide("dbUrl", DB_URL);
 }

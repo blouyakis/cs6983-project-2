@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { Client } from "pg";
 import { inject } from "vitest";
 import { getDb } from "@/lib/db/client";
 
@@ -10,6 +11,16 @@ export function anonDb(): SupabaseClient {
   return createClient(inject("supabaseUrl"), inject("anonKey"), {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+}
+
+// A direct connection to the local database, for tests that need to hold a
+// transaction open between steps, such as two transactions waiting on each
+// other's locks (#124). PostgREST runs each request as its own transaction, so
+// it can't interleave two. Only tests use it; the app goes through lib/db.
+export async function connectDirect(): Promise<Client> {
+  const client = new Client({ connectionString: inject("dbUrl") });
+  await client.connect();
+  return client;
 }
 
 // The database's clock, for left_at and other times a test writes, so they

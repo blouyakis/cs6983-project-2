@@ -3,6 +3,8 @@ import { listExpenses, type Expense } from "@/lib/db/expenses";
 import { findOpenSettlement } from "@/lib/db/settlements";
 import {
   expenseHistory,
+  FORMER_PAYER,
+  paidByFormerMember,
   type GroupExpenses,
   type HistoryRow,
 } from "@/lib/domain/expense-history";
@@ -18,16 +20,22 @@ export type ExpenseHistoryRow = HistoryRow<Expense>;
 // (AGENTS.md Section 6.6), and a former member only gets what was added
 // before they left. The open settle-up only matters where the user could
 // still edit, so a read-only group and the personal space, which is never
-// settled, don't ask for it.
+// settled, don't ask for it. "former" as the payer (#130) means anyone who
+// has left this group, which the database can't answer with one id, so every
+// payer is read and the group's own members narrow the list.
 async function groupExpenses(
   userId: string,
   group: GroupSummary,
   filters: ExpenseHistoryFilters,
 ): Promise<GroupExpenses<Expense>> {
   const { readUntil } = await requireGroupAccess(userId, group.id, "read");
+  const formerOnly = filters.paidBy === FORMER_PAYER;
+  const currentMemberIds = new Set(
+    group.members.map((member) => member.userId),
+  );
   const [expenses, openSettleUp] = await Promise.all([
     listExpenses(group.id, readUntil, {
-      paidBy: filters.paidBy,
+      paidBy: formerOnly ? undefined : filters.paidBy,
       from: filters.from,
       to: filters.to,
     }),
@@ -39,8 +47,12 @@ async function groupExpenses(
     isPersonal: group.isPersonal,
     readOnly: group.readOnly,
     openSettleUpStartedAt: openSettleUp?.startedAt ?? null,
-    currentMemberIds: new Set(group.members.map((member) => member.userId)),
-    expenses,
+    currentMemberIds,
+    expenses: formerOnly
+      ? expenses.filter((expense) =>
+          paidByFormerMember(expense, currentMemberIds),
+        )
+      : expenses,
   };
 }
 

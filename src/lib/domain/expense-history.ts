@@ -77,6 +77,19 @@ function editLockOf(
   return lock === "member-left" ? "member-left" : null;
 }
 
+// The Paid by filter's value for anyone who has left (#130). A payer who has
+// left is "a former member" everywhere in the app, so the filter has one
+// entry for all of them. It isn't a uuid, so it can't be taken for a user id.
+export const FORMER_PAYER = "former";
+
+// Whether the expense's payer is no longer one of the group's members.
+export function paidByFormerMember(
+  expense: { payerId: string },
+  currentMemberIds: ReadonlySet<string>,
+): boolean {
+  return !currentMemberIds.has(expense.payerId);
+}
+
 // Newest day first and, within a day, newest entry first, as a group's own
 // list is ordered. The id settles two entries from the same moment, so the
 // order never depends on which group was read first.
