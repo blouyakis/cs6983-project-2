@@ -39,7 +39,15 @@ export function RegisterForm() {
   }
 
   return (
-    <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-4">
+    // method="post": until the page's script has loaded, the browser submits
+    // the form itself, and its default, GET, would put the password in the
+    // URL. A POST renders the page again with the empty form (#142).
+    <form
+      method="post"
+      noValidate
+      onSubmit={handleSubmit}
+      className="flex flex-col gap-4"
+    >
       <p aria-live="polite" className="text-owe empty:hidden">
         {formError}
       </p>
