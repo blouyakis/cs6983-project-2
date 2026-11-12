@@ -113,3 +113,32 @@ test("the API answers 401 without a valid session", async ({ request }) => {
   expect(response.status()).toBe(401);
   expect((await response.json()).error.code).toBe("UNAUTHORIZED");
 });
+
+// Until the page's script has loaded, React hasn't attached onSubmit, so the
+// browser submits the form itself. JavaScript is off here to stand in for
+// that moment. A form without method="post" is sent with GET, which puts the
+// email and password in the address bar, the history and the server's logs
+// (#142).
+test("a form submitted before the page's script has loaded keeps its fields out of the URL", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  for (const [path, button] of [
+    ["/login", "Log in"],
+    ["/register", "Create account"],
+  ]) {
+    await page.goto(path);
+    if (path === "/register") {
+      await page.getByLabel("Name").fill("Sam Lee");
+    }
+    await page.getByLabel("Email").fill("sam@example.com");
+    await page.getByLabel("Password").fill("correct horse");
+    await page.getByRole("button", { name: button }).click();
+    await page.waitForLoadState();
+    // The page comes back with the empty form and nothing in the address.
+    await expect(page.getByRole("button", { name: button })).toBeVisible();
+    await expect(page).toHaveURL(path);
+  }
+  await context.close();
+});
