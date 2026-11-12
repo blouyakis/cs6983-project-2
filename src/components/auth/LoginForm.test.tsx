@@ -110,4 +110,11 @@ describe("LoginForm", () => {
       screen.getByRole("link", { name: "Create an account" }),
     ).toHaveAttribute("href", "/register");
   });
+
+  // Until the page's script has loaded, the browser submits the form itself.
+  // Its default method is GET, which puts the password in the URL (#142).
+  it("submits with POST, so an early submit keeps the fields out of the URL", () => {
+    const { container } = render(<LoginForm next="/" expired={false} />);
+    expect(container.querySelector("form")).toHaveAttribute("method", "post");
+  });
 });
