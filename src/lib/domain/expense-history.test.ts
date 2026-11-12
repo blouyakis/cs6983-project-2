@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { expenseHistory, type GroupExpenses } from "./expense-history";
+import {
+  expenseHistory,
+  FORMER_PAYER,
+  paidByFormerMember,
+  type GroupExpenses,
+} from "./expense-history";
 
 const ana = "6f1c2d4e-1111-4222-8333-944455556666";
 const sam = "7a2d3e5f-1111-4222-8333-944455556666";
@@ -279,5 +284,22 @@ describe("expenseHistory", () => {
 
       expect(row.editLock).toBe("read-only");
     });
+  });
+});
+
+// The Paid by filter's "A former member" (#130).
+describe("paidByFormerMember", () => {
+  const current = new Set([ana, sam]);
+
+  it("is true for a payer who is no longer one of the group's members", () => {
+    expect(paidByFormerMember({ payerId: jo }, current)).toBe(true);
+  });
+
+  it("is false for a payer who is still a member", () => {
+    expect(paidByFormerMember({ payerId: sam }, current)).toBe(false);
+  });
+
+  it("has a filter value that can't be mistaken for a user id", () => {
+    expect(FORMER_PAYER).toBe("former");
   });
 });

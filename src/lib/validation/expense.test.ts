@@ -248,6 +248,13 @@ describe("expenseHistoryQuerySchema", () => {
     ).toEqual({ groupId: ANA, paidBy: BEN });
   });
 
+  // "former" is the Paid by filter's value for anyone who has left (#130).
+  it("accepts former for payers who have left", () => {
+    expect(parseInput(expenseHistoryQuerySchema, { paidBy: "former" })).toEqual(
+      { paidBy: "former" },
+    );
+  });
+
   it("accepts the same day for From and To", () => {
     const query = { from: "2026-10-20", to: "2026-10-20" };
 

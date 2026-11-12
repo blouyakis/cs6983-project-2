@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FORMER_PAYER } from "@/lib/domain/expense-history";
 import { MAX_CENTS, splitMessages } from "@/lib/domain/splits";
 import { splitSchema } from "./splits";
 
@@ -99,8 +100,15 @@ export const expenseHistoryQuerySchema = z
     groupId: optionalFilter(
       z.uuid({ error: "Choose one of your groups." }).transform(lower),
     ),
+    // A user's id, or "former" for anyone who has left (#130).
     paidBy: optionalFilter(
-      z.uuid({ error: "Choose who paid." }).transform(lower),
+      z.union(
+        [
+          z.literal(FORMER_PAYER),
+          z.uuid({ error: "Choose who paid." }).transform(lower),
+        ],
+        { error: "Choose who paid." },
+      ),
     ),
     from: optionalFilter(filterDay),
     to: optionalFilter(filterDay),

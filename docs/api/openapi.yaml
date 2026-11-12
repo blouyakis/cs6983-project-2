@@ -196,10 +196,17 @@ paths:
         - name: paidBy
           in: query
           required: false
-          description: Only what this user paid.
+          description: >-
+            Only what this user paid. `former` instead of an id lists what
+            anyone who is no longer a member of the group paid. In a group the
+            user has left, that goes by the members as they were when the user
+            left, so someone who left after them doesn't count.
           schema:
-            type: string
-            format: uuid
+            anyOf:
+              - type: string
+                format: uuid
+              - type: string
+                enum: [former]
         - name: from
           in: query
           required: false
