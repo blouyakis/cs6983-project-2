@@ -4,13 +4,11 @@
 **Sprint goal:** finish the Should Haves and ship the final submission: direct payments, the itemized bill, leaving a group, expense history with filters and the default split screen, with the API docs, the end-to-end suite in CI and the demo video.  
 **Product Owner:** Barbara · **Scrum Master:** Ziye
 
-> Written by Ziye (Scrum Master) on 2026-11-12 (#103), from the facts Barbara compiled from the planning notes, the milestone and the git and pull request history. Numbers are for `main` at `1b4cdf1`, after #135. Sections 3 to 5 combine both partners' points.
-
 ---
 
 ## 1. Planned and delivered
 
-Twenty-two issues and 80 points were committed: sixteen at planning (67 points) and six added on 2026-11-08 (13 points). Twenty of them are closed, which is 72 points. The two still open are #102 (5 points) and #103 (3), both submission work due on 2026-11-15. Three more issues came out of reviews after planning, #121, #124 and #130, and all three are done. #54 and #77 were left out at planning and were not done.
+22 issues and 80 points were committed: 16 at planning (67 points) and 6 added on 2026-11-08 (13 points). 20 of them are closed, which is 72 points. The 2 still open are #102 (5 points) and #103 (3), both submission work due on 2026-11-15. 3 more issues came out of reviews after planning, #121, #124 and #130, and all 3 are done. #54 and #77 were left out at planning and were not done.
 
 The sprint goal was met apart from the demo video, which is recorded and being put together under #102.
 
