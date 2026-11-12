@@ -66,6 +66,27 @@ async function inviteSomeone(page: Page, browser: Browser, name: string) {
   await expect(page.getByText(`${name} joined the group.`)).toBeVisible();
 }
 
+// Registers someone else, invites them to the group on `page`, and keeps them
+// signed in on a page of their own, for a step only another member can take:
+// marking a settle-up payment paid, so a period of the bill closes (#21).
+async function inviteAndStay(page: Page, browser: Browser, name: string) {
+  const context = await browser.newContext();
+  const other = await context.newPage();
+  const email = uniqueEmail(name.toLowerCase());
+  await other.goto("/register");
+  await other.getByLabel("Name").fill(name);
+  await other.getByLabel("Email").fill(email);
+  await other.getByLabel("Password").fill("correct horse");
+  await other.getByRole("button", { name: "Create account" }).click();
+  await expect(other).toHaveURL("/");
+
+  const invite = page.getByRole("form", { name: "Invite a member" });
+  await invite.getByLabel("Email").fill(email);
+  await invite.getByRole("button", { name: "Invite" }).click();
+  await expect(page.getByText(`${name} joined the group.`)).toBeVisible();
+  return { context, other };
+}
+
 // Registers someone else, invites them to the group on `page`, and has them
 // record a direct payment to the owner of `page`, so `page` has a paid payment
 // to decline (#108). Leaves `page` on the group page.
@@ -136,6 +157,16 @@ async function fillGroup(page: Page) {
   await cost.getByLabel("Amount", { exact: true }).fill("30");
   await cost.getByRole("button", { name: "Add expense" }).click();
   await expect(cost).toBeHidden();
+}
+
+// Opens the check-off form for the list item fillGroup adds (#12), with the
+// actual cost filled in, so the split under it is there to check.
+async function openCheckOffForm(page: Page) {
+  await page.getByRole("checkbox", { name: "Check off Paper towels" }).click();
+  const form = page.getByRole("dialog", { name: "Check off Paper towels" });
+  await expect(form).toBeVisible();
+  await form.getByLabel("Actual cost").fill("4.50");
+  return form;
 }
 
 async function focusIsInside(page: Page, dialog: Locator) {
@@ -491,6 +522,67 @@ for (const viewport of viewports) {
     await page.keyboard.press("Escape");
     await expect(form).toBeHidden();
   });
+
+  // The check-off form (#12): the actual cost and, in a group, who shares it.
+  test(`the check-off form passes the WCAG 2.1 AA check, traps focus and closes with Escape on ${viewport.name}`, async ({
+    page,
+    browser,
+  }) => {
+    await page.setViewportSize(viewport);
+    await register(page, "Mia");
+    await createGroup(page, "🏠 Dorm 4B");
+    await inviteSomeone(page, browser, "Ned");
+    await fillGroup(page);
+
+    const form = await openCheckOffForm(page);
+    await expectNoViolations(page);
+    await expectFitsTheScreen(page);
+    for (let press = 0; press < 12; press += 1) {
+      await page.keyboard.press("Tab");
+      await focusIsInside(page, form);
+    }
+    await page.keyboard.press("Escape");
+    await expect(form).toBeHidden();
+  });
+
+  // A past period of the bill (#21). /groups/{groupId}?period=… only exists
+  // once a settle-up has closed, so the signed-in pages check above, which
+  // scans the group page, only ever sees the current period.
+  test(`a past period of the bill passes the WCAG 2.1 AA check and fits the screen on ${viewport.name}`, async ({
+    page,
+    browser,
+  }) => {
+    await page.setViewportSize(viewport);
+    await register(page, "Oda");
+    const groupId = await createGroup(page, "🏠 Dorm 4B");
+    const { context, other } = await inviteAndStay(page, browser, "Pip");
+    await fillGroup(page);
+
+    // The period closes: Oda starts a settle-up, Pip pays, Oda confirms.
+    const started = await page.request.post(
+      `/api/groups/${groupId}/settlements`,
+    );
+    expect(started.status()).toBe(201);
+    const [payment] = (await started.json()).settleUp.payments;
+    const paid = await other.request.post(
+      `/api/groups/${groupId}/payments/${payment.id}/paid`,
+    );
+    expect(paid.status()).toBe(200);
+    const confirmed = await page.request.post(
+      `/api/groups/${groupId}/payments/${payment.id}/confirm`,
+    );
+    expect(confirmed.status()).toBe(200);
+    await context.close();
+
+    await page.goto(`/groups/${groupId}`);
+    const bill = page.getByRole("region", { name: /Your bill/ });
+    const periods = bill.getByRole("navigation", { name: "Bill period" });
+    await periods.getByRole("link").nth(1).click();
+    await expect(page).toHaveURL(/\?period=[0-9a-f-]{36}#bill$/);
+    await expect(bill).toContainText("This period is closed");
+    await expectNoViolations(page);
+    await expectFitsTheScreen(page);
+  });
 }
 
 test("tabbing through the login and register forms reaches every control with a visible focus style", async ({
@@ -640,6 +732,23 @@ test("tabbing through the default split form reaches every control with a visibl
   await inviteSomeone(page, browser, "Lou");
 
   const form = await openDefaultSplitForm(page);
+  await form.evaluate((element) => element.setAttribute("data-tab-scope", ""));
+  const stops = await tabStopsIn(form);
+  const result = await tabThrough(page);
+  expect(result.reached).toBeGreaterThanOrEqual(stops - 1);
+  expect(result.withoutFocusStyle).toEqual([]);
+});
+
+test("tabbing through the check-off form reaches every control with a visible focus style", async ({
+  page,
+  browser,
+}) => {
+  await register(page, "Quin");
+  await createGroup(page, "🏠 Dorm 4B");
+  await inviteSomeone(page, browser, "Rae");
+  await fillGroup(page);
+
+  const form = await openCheckOffForm(page);
   await form.evaluate((element) => element.setAttribute("data-tab-scope", ""));
   const stops = await tabStopsIn(form);
   const result = await tabThrough(page);
