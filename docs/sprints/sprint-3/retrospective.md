@@ -50,7 +50,7 @@ On `main` at `1b4cdf1`:
 
 | Measure | Value |
 |---|---|
-| Merged pull requests in Sprint 3 | 25 (Ziye 17, Barbara 8) |
+| Merged pull requests in Sprint 3 | 25 |
 | Partner reviews in Sprint 3 | All 25 merged pull requests were approved by the other partner: Barbara reviewed Ziye's 17, Ziye reviewed Barbara's 8 |
 | Partner reviews over the whole project | Barbara 36, Ziye 34 (pull requests reviewed that the reviewer did not author) |
 | Merged pull requests over the whole project | 73 |
