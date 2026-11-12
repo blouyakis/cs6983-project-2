@@ -198,9 +198,11 @@ paths:
           required: false
           description: >-
             Only what this user paid. `former` instead of an id lists what
-            anyone who has since left the group paid.
+            anyone who is no longer a member of the group paid. In a group the
+            user has left, that goes by the members as they were when the user
+            left, so someone who left after them doesn't count.
           schema:
-            oneOf:
+            anyOf:
               - type: string
                 format: uuid
               - type: string
