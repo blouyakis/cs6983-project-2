@@ -81,8 +81,9 @@ On `main` at `1b4cdf1`:
 
 - **The plan didn't leave room for follow-up work.** We committed 16 issues at planning, and 6 more had to be added on 2026-11-08, the first day of the sprint (#79, #108, #112, #113, #114, #115). Reviews then turned up 3 more: #121, #124 and #130. Most of them were real bugs that had to be fixed, but they all competed with the planned features for the same 6 days, and #121 and #130 were closed without an estimate, so the points in Section 1 undercount the work.
 - **The accessibility rule was missed in review.** AGENTS.md has said since 2026-11-06 that a new page or form goes into `e2e/accessibility.spec.ts` in the same pull request, but the check-off form (#98) and a past period of the bill (#125) were approved and merged without it. The gap was found at the end of the sprint and fixed in #135.
-
-<!-- TODO(#103): add Barbara's points from her separate message. -->
+- **A migration reached `main` a day before it reached production.** #126 merged on 2026-11-11, but its `start_settlement` migration was only applied to the hosted database on 2026-11-12, so production ran for about a day without the #112 check. The migration checklist depends on someone remembering to push.
+- **The submission work landed in the last days anyway.** #102 was open from the first day, but the video, the reflections and the communication log were all still open on 2026-11-12, the day the plan set for recording.
+- **One branch drifted far from `main`.** #117 fell 121 commits behind and needed conflicts resolved in 5 files before it could merge.
 
 ---
 
@@ -90,8 +91,9 @@ On `main` at `1b4cdf1`:
 
 1. **Leave room in the plan for follow-ups.** Commit fewer points than we think we can do, since Sprint 2 and Sprint 3 both added issues after planning, and put an estimate on each new issue when it is opened, including the ones found in review.
 2. **Add "new page or form → accessibility spec" to the review checklist.** The rule exists; the reviewer should tick it like the migration checklist.
-
-<!-- TODO(#103): add Barbara's points from her separate message. -->
+3. **Make the hosted migration a step that can't be skipped.** Push migrations from CI on merge, or have the reviewer paste `migration list --linked` into the pull request before approving.
+4. **Give submission tasks their own dates at planning,** with the video recorded 2 days before the deadline, not on it.
+5. **Merge `main` into open branches daily,** and cap each sprint at what 2 people can review, not what 2 agents can write.
 
 ---
 
