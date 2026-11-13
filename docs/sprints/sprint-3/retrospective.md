@@ -54,7 +54,7 @@ On `main` at `1b4cdf1`:
 | Partner reviews in Sprint 3 | All 25 merged pull requests were approved by the other partner |
 | Partner reviews over the whole project | Barbara 36, Ziye 34 (pull requests reviewed that the reviewer did not author) |
 | Merged pull requests over the whole project | 73 |
-| Non-merge commits in Sprint 3 | 175 |
+| Non-merge commits in Sprint 3 | 175, counted from midnight Pacific time on 2026-11-08 (183 from midnight Eastern) |
 | Unit and integration tests (Vitest) | 1,674 tests across 154 test files, 96.6% line coverage, coverage thresholds passing |
 | Database tests (local Supabase Postgres) | 337 tests across 41 test files in `supabase/tests/`, as reported in #132 |
 | Playwright E2E scenarios | 81 tests across 16 spec files, run in CI against a production build (#129) |
@@ -100,5 +100,5 @@ On `main` at `1b4cdf1`:
 ## 6. Open items
 
 - [#102](https://github.com/blouyakis/cs6983-project-2/issues/102): put the 2 halves of the demo video together, link it from the README, write each partner's 300-word reflection, and check the contribution log, standups and review counts. Due 2026-11-15.
-- Open an issue for the register and login forms sending their fields as a query string when submitted before the page has loaded, which turned up while recording the demo.
+- [#142](https://github.com/blouyakis/cs6983-project-2/issues/142): the register and login forms sent their fields as a query string when submitted before the page had loaded, which turned up while recording the demo. The fix is in [#143](https://github.com/blouyakis/cs6983-project-2/pull/143).
 - [#54](https://github.com/blouyakis/cs6983-project-2/issues/54) and [#77](https://github.com/blouyakis/cs6983-project-2/issues/77) stay in the backlog.
