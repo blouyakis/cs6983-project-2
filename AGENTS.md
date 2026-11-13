@@ -42,7 +42,7 @@ _Why: Every request takes the same path, so access checks and validation live in
 
 ### Folder structure
 
-This is the **target structure**. Paths marked `(planned)` do not exist yet; create them there when the first issue needs them.
+These are the main folders on `main` at the end of Sprint 3.
 
 ```text
 .
@@ -57,9 +57,8 @@ This is the **target structure**. Paths marked `(planned)` do not exist yet; cre
 │   ├── user-stories.md
 │   ├── architecture.md
 │   ├── research/ design/ hw3/
-│   ├── decisions/           # (planned)
 │   ├── api/openapi.yaml
-│   └── sprints/             # sprint-1/ retrospective, sprint-2/ planning and retrospective, sprint-3/ planning, issue-4-comparison.md
+│   └── sprints/             # sprint-1/ retrospective, sprint-2/ planning and retrospective, sprint-3/ planning and retrospective, issue-4-comparison.md
 ├── supabase/
 │   ├── migrations/
 │   ├── seed.sql             # demo data for local development
@@ -211,6 +210,7 @@ Non-negotiable values, check them before opening a PR: bcrypt cost **12** · ses
 
 ## Changelog
 
+- 2026-11-12, Ziye: added `sprint-3/ retrospective` to the `docs/sprints/` line of the folder tree in Section 2, and removed `docs/decisions/ (planned)` with the note about planned paths (#103). The Sprint 3 retrospective now exists, and `docs/decisions/` was never created because the decisions are in architecture.md Section 8, so at the end of the project the tree describes what is there rather than what might be.
 - 2026-11-11, Ziye: added the `/api/docs` page to the public routes in Section 8, and said in Section 1 that `npm run lint` also checks `docs/api/openapi.yaml` with Redocly (#16). The docs have to open without logging in, so an agent or reviewer reading the old list of four would take the page for a missing session check. The spec check went into `npm run lint` instead of a new CI job, so CI's lint job runs it without a change to `ci.yml`, which an agent may not edit.
 - 2026-11-10, Barbara: said in Section 6.10 that a settle-up can't start while a direct payment in the group is still `paid` and not confirmed (#112). Ziye's review of #107 showed that balances count only confirmed payments, so a settle-up started while Ana's $8.83 to Sam was waiting suggested "Ana → Sam $8.83" again, and Ana would pay twice. Refusing in `start_settlement` was chosen over showing the pending payment on the settle-up page, because a note can be missed and a refusal can't.
 - 2026-11-08, Ziye: said in Section 6.10 that the recipient of a paid payment can decline it, which puts a settle-up payment back to suggested and deletes a direct payment (#108). Without it, a settle-up whose recipient never confirmed a paid payment could neither close nor be cancelled, so its expenses stayed locked and no new settle-up could start. Since #112, declining also clears a direct payment that keeps a settle-up from starting. A declined direct payment is deleted rather than given a `declined` status, because it never counted in a balance and a declined settle-up payment keeps no trace either; architecture.md's "Payment lifecycle" has the reasoning.
