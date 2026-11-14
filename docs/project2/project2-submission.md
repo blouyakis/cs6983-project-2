@@ -45,14 +45,3 @@ Other project documents: [PRD](https://github.com/blouyakis/cs6983-project-2/blo
 ## 5. Individual reflections
 
 Each partner submits their reflection separately. Copies are in the repository: [Barbara](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/reflections/barbara.md) · [Ziye](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/reflections/ziye.md).
-
-## Rubric evidence
-
-| Category | Where to look |
-|---|---|
-| Functionality (45) | README [Features](https://github.com/blouyakis/cs6983-project-2#features): every Must Have and Should Have in the PRD is built · [production app](https://cs6983-project-2.vercel.app) |
-| Technical Excellence (60) | Layers in [`docs/architecture.md`](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/architecture.md#2-layers) · TDD: failing `test(...)` commits come before each `feat(...)` commit ([`AGENTS.md` Section 4](https://github.com/blouyakis/cs6983-project-2/blob/main/AGENTS.md#4-testing-strategy)) · unit, database and E2E test counts in the [Sprint 3 retrospective](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-3/retrospective.md#2-the-sprint-in-numbers) · security rules in [`AGENTS.md` Section 8](https://github.com/blouyakis/cs6983-project-2/blob/main/AGENTS.md#8-dos-and-donts) and [architecture Section 4](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/architecture.md#4-authentication-and-access-control) |
-| AI Mastery (30) | Shared rules file [`AGENTS.md`](https://github.com/blouyakis/cs6983-project-2/blob/main/AGENTS.md) (loaded through [`CLAUDE.md`](https://github.com/blouyakis/cs6983-project-2/blob/main/CLAUDE.md)) and its [Changelog](https://github.com/blouyakis/cs6983-project-2/blob/main/AGENTS.md#changelog) · before/after test of the rules on issue #4: [`docs/sprints/issue-4-comparison.md`](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/issue-4-comparison.md) · [HW3 submission](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/hw3/hw3-submission.md) |
-| CI/CD & DevOps (30) | [`ci.yml`](https://github.com/blouyakis/cs6983-project-2/blob/main/.github/workflows/ci.yml): install, lint, typecheck, test, db-test, build, e2e and `npm audit`, all required on every pull request · Vercel preview per pull request and production from `main` (README [CI/CD](https://github.com/blouyakis/cs6983-project-2#cicd)) |
-| Agile Process & Pair Workflow (20) | Three sprints with planning notes and retrospectives (Section 3) · standups in the [communication log](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?usp=sharing&ouid=108877617046558983136&rtpof=true&sd=true) · partner reviews: Barbara 36, Ziye 34 ([Sprint 3 retrospective](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-3/retrospective.md#2-the-sprint-in-numbers)) |
-| Documentation (15) | Section 3 above |
