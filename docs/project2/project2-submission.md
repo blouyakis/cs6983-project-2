@@ -74,10 +74,10 @@ Counted on 2026-11-14.
 | Database schema diagram | [ER diagram and tables](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/architecture.md#5-database-schema) · [SQL migrations](https://github.com/blouyakis/cs6983-project-2/tree/main/supabase/migrations) |
 | Setup/deployment guide | README [Getting started](https://github.com/blouyakis/cs6983-project-2#getting-started) and [Deploying](https://github.com/blouyakis/cs6983-project-2#deploying) · [Environments and hosted migrations](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/architecture.md#7-environments-and-configuration) |
 | Sprint retrospectives | [Sprint 1](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-1/retrospective.md) · [Sprint 2](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-2/retrospective.md) · [Sprint 3](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-3/retrospective.md) · planning notes for [Sprint 2](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-2/planning.md) and [Sprint 3](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-3/planning.md) |
-| 10-minute demo video | See [Section 4](#4-demo-video) |
+| 10-minute demo video | [Watch on Google Drive](https://drive.google.com/file/d/1494diXEHRoWIOhft6suQb5_lidpIGMdy/view?usp=sharing) |
 | Partner contribution log | [README Contributors](https://github.com/blouyakis/cs6983-project-2#contributors): who did what, with the issues each partner built |
 | Communication log (standups and meetings) | [Google Sheet](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?usp=sharing&ouid=108877617046558983136&rtpof=true&sd=true): 68 entries, each with its date, type, attendees, topics, decisions and action items |
-| Individual reflections | See [Section 5](#5-individual-reflections) |
+| Individual reflections | [Barbara](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/reflections/barbara.md) · [Ziye](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/reflections/ziye.md) |
 
 Other project documents: [PRD](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/PRD.md) · [User stories](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/user-stories.md) · [`DESIGN.md`](https://github.com/blouyakis/cs6983-project-2/blob/main/DESIGN.md) and [mockups](https://github.com/blouyakis/cs6983-project-2/tree/main/docs/design).
 
