@@ -43,7 +43,6 @@ Counted on 2026-11-14.
 | Issues | 69 [issues](https://github.com/blouyakis/cs6983-project-2/issues?q=is%3Aissue), 65 closed: 9 in Sprint 1, 22 in Sprint 2, 37 in Sprint 3 |
 | Pull requests | 78 [merged](https://github.com/blouyakis/cs6983-project-2/pulls?q=is%3Apr+is%3Amerged) (Barbara 37, Ziye 41), 75 of them approved by the other partner |
 | Partner PR reviews | Barbara reviewed 38 of Ziye's pull requests, Ziye reviewed 37 of Barbara's |
-| Commits | Both partners commit throughout; see the [contributors graph](https://github.com/blouyakis/cs6983-project-2/graphs/contributors) |
 | Tests | 1,674 unit and integration tests (96.6% line coverage, 100% of `src/lib/domain`), 337 database tests, 81 Playwright E2E tests including WCAG 2.1 AA checks ([Sprint 3 retrospective](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-3/retrospective.md#2-the-sprint-in-numbers)) |
 | CI | 8 required checks on every pull request: install, lint, typecheck, test, db-test, build, e2e, audit; Vercel preview per pull request, production from `main` |
 | Communication log | 68 entries in the [communication log](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?usp=sharing&ouid=108877617046558983136&rtpof=true&sd=true), from 2026-10-22 to 2026-11-13: 28 in Sprint 1, 18 in Sprint 2, 22 in Sprint 3. 58 are async standup updates, 4 sprint planning sessions, 1 live meeting and 5 other discussions, and each records the topics, decisions and action items |
@@ -53,7 +52,7 @@ Counted on 2026-11-14.
 | | Link |
 |---|---|
 | Repository | <https://github.com/blouyakis/cs6983-project-2> |
-| Commit history from both partners | [Commits on `main`](https://github.com/blouyakis/cs6983-project-2/commits/main) · [Contributors graph](https://github.com/blouyakis/cs6983-project-2/graphs/contributors) |
+| Commit history from both partners | [Commits on `main`](https://github.com/blouyakis/cs6983-project-2/commits/main) |
 | Pull requests and reviews | [Merged pull requests](https://github.com/blouyakis/cs6983-project-2/pulls?q=is%3Apr+is%3Amerged): 78, 75 of them approved by the other partner · [README Contributors](https://github.com/blouyakis/cs6983-project-2#contributors) |
 | Issues, board and milestones | [Issues](https://github.com/blouyakis/cs6983-project-2/issues) · [Project board](https://github.com/users/blouyakis/projects/3) · [Milestones](https://github.com/blouyakis/cs6983-project-2/milestones) (3 sprints) |
 
