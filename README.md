@@ -16,7 +16,7 @@ Your everyday plans and costs, alone or together.
 | **Issues and milestones** | [Issues](https://github.com/blouyakis/cs6983-project-2/issues) · [Milestones](https://github.com/blouyakis/cs6983-project-2/milestones) |
 | **Project board** | [LifeBoard board](https://github.com/users/blouyakis/projects/3) (Backlog → Sprint ToDo → In Progress → In Review → Done) |
 | **PRD** | [`docs/PRD.md`](./docs/PRD.md) |
-| **Demo video** | [Watch on Google Drive](https://drive.google.com/drive/folders/1dOVQpAarLt3qiBRZIM22gT1CYrFqPUqt) |
+| **Demo video** | [Watch on Google Drive](https://drive.google.com/file/d/1494diXEHRoWIOhft6suQb5_lidpIGMdy/view?usp=sharing) |
 
 ---
 
@@ -226,7 +226,7 @@ Main resources: `/api/auth`, `/api/health`, `/api/overview`, and `/api/groups/{g
 | API spec | [`docs/api/openapi.yaml`](./docs/api/openapi.yaml) |
 | Sprint planning and retrospectives | [Sprint 1 retrospective](./docs/sprints/sprint-1/retrospective.md) · [Sprint 2 planning](./docs/sprints/sprint-2/planning.md) · [Sprint 2 retrospective](./docs/sprints/sprint-2/retrospective.md) · [Sprint 3 planning](./docs/sprints/sprint-3/planning.md) · [Sprint 3 retrospective](./docs/sprints/sprint-3/retrospective.md) |
 | Communication log | [Google Sheet](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?usp=sharing&ouid=108877617046558983136&rtpof=true&sd=true) |
-| Demo video | [Watch on Google Drive](https://drive.google.com/drive/folders/1dOVQpAarLt3qiBRZIM22gT1CYrFqPUqt) |
+| Demo video | [Watch on Google Drive](https://drive.google.com/file/d/1494diXEHRoWIOhft6suQb5_lidpIGMdy/view?usp=sharing) |
 | Partner reflections | [Barbara](./docs/reflections/barbara.md) · [Ziye](./docs/reflections/ziye.md) |
 | Contribution log | [Contributors](#contributors) section below |
 | HW3 submission (Scrum setup, rules file, before/after test, reflection) | [`docs/hw3/hw3-submission.md`](./docs/hw3/hw3-submission.md) |
