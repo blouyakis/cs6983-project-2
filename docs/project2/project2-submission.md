@@ -3,7 +3,32 @@
 **CS6983 AI Coding · Project 2 (Full-Stack Application) · Fall 2026**
 **Team:** Barbara Louyakis ([@blouyakis](https://github.com/blouyakis)) · Ziye Huang ([@SeraphimHuang](https://github.com/SeraphimHuang))
 
-LifeBoard is a web app for planning and paying for everyday life, alone or with others: shared lists, expenses with even or custom splits, balances, and a settle-up that suggests the fewest payments. The [README](https://github.com/blouyakis/cs6983-project-2#readme) has the full overview.
+## About LifeBoard
+
+LifeBoard is a web app for planning and paying for everyday life, alone or with others.
+
+### The problem
+
+Everyday plans cost money: restocking the kitchen, paying the internet bill, a weekend picnic, a date night. Many of them are shared with roommates, a partner, friends or a co-parent. Today the pieces live in different places. What to buy sits in a notes app or a group chat, who paid for what is scattered across receipts and memory, and who owes whom is worked out by hand in a spreadsheet. So items get bought twice or not at all, nobody knows what a plan really cost, and settling up takes more transfers than it needs to. Money is also awkward to bring up, so small amounts turn into friction. List apps track plans but not money, and expense splitters track money but not the plans behind it.
+
+### What LifeBoard does
+
+LifeBoard puts the plan and the money in one place. Users organize their life into **groups**, such as "Dorm 4B", "Saturday picnic" or "Date nights", and every user also has a private **personal space**. The core loop is:
+
+**add an item to the shared shopping and to-do list → check it off with what it actually cost → the cost is split among the members who share it → everyone sees who owes whom → settle up with the fewest payments.**
+
+- **Shared shopping and to-do lists:** every member sees the same list, who added each item and an optional estimated cost, with a running total. Checking an item off records the actual cost and who shares it (everyone by default) and turns it into a group expense paid by the member who bought it. The item then shows who completed it, the cost and when, so nothing gets bought twice.
+- **Expenses and splits:** costs that were never on the list, like the electricity bill, can be added directly. Each cost is split evenly or by custom amounts, or by the group's default ratio such as 60/40. Money is stored in integer cents, and leftover cents go to the payer, so shares always add up exactly.
+- **Balances and settle-up:** each group shows every member's balance in words ("you owe" or "you are owed"). Any member can start a settle-up, and the app suggests the **fewest possible payments** that clear every balance, found by an exact search rather than a greedy guess. Payers mark payments paid, recipients confirm them, and the period closes and locks its expenses. Members can also pay each other directly between settle-ups. The app records payments made elsewhere; it never moves money.
+- **Bills and history:** each member sees an itemized bill of only the costs they share and what they owe each member, including past periods, and can filter the expense history by group, person and date.
+- **Overview:** one page shows personal spending, your share in each group and your net balance across all groups.
+- **Leaving a group:** a member with a zero balance can leave and keeps read-only access to the history up to the day they left.
+
+It is for roommates sharing a dorm or apartment, partners sharing a home, friends planning outings, co-parents splitting childcare costs, and anyone who wants their own plans and spending in the same place. Every Must Have and Should Have in the [PRD](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/PRD.md) is built; the [README Features](https://github.com/blouyakis/cs6983-project-2#features) section lists each one with its issue.
+
+### How it is built
+
+One Next.js 16 (App Router) app on Vercel serves both the pages and a REST API, with React 19, TypeScript strict and Tailwind CSS 4. Data lives in Supabase Postgres, reached only from the server, with Row Level Security on every table. Login uses our own JWT in an `httpOnly` cookie and bcrypt password hashing. Every request goes route handler → service → domain and database, with Zod validation at the boundary and one access check, `requireGroupAccess`, for every group. The money rules are pure functions in `src/lib/domain` with 100% test coverage. Details are in [`docs/architecture.md`](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/architecture.md).
 
 ## 1. GitHub repository
 
