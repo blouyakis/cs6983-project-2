@@ -40,7 +40,7 @@ Counted on 2026-11-14.
 | REST API | 35 operations on 27 paths, all implemented and documented in [`openapi.yaml`](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/api/openapi.yaml) |
 | Database | 8 tables, 28 SQL [migrations](https://github.com/blouyakis/cs6983-project-2/tree/main/supabase/migrations), Row Level Security on every table |
 | Sprints | 3, each a [milestone](https://github.com/blouyakis/cs6983-project-2/milestones) with a retrospective |
-| Issues | 69 [issues](https://github.com/blouyakis/cs6983-project-2/issues?q=is%3Aissue), 65 closed: 9 in Sprint 1, 22 in Sprint 2, 37 in Sprint 3 |
+| Issues | 69 [issues](https://github.com/blouyakis/cs6983-project-2/issues?q=is%3Aissue), all closed: 9 in Sprint 1, 22 in Sprint 2, 37 in Sprint 3, and 1 with no milestone ([#142](https://github.com/blouyakis/cs6983-project-2/issues/142)) |
 | Pull requests | 78 [merged](https://github.com/blouyakis/cs6983-project-2/pulls?q=is%3Apr+is%3Amerged) (Barbara 37, Ziye 41), 75 of them approved by the other partner |
 | Partner PR reviews | Barbara reviewed 38 of Ziye's pull requests, Ziye reviewed 37 of Barbara's |
 | Tests | 1,674 unit and integration tests (96.6% line coverage, 100% of `src/lib/domain`), 337 database tests, 81 Playwright E2E tests including WCAG 2.1 AA checks ([Sprint 3 retrospective](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-3/retrospective.md#2-the-sprint-in-numbers)) |
