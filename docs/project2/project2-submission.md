@@ -30,13 +30,30 @@ It is for roommates sharing a dorm or apartment, partners sharing a home, friend
 
 One Next.js 16 (App Router) app on Vercel serves both the pages and a REST API, with React 19, TypeScript strict and Tailwind CSS 4. Data lives in Supabase Postgres, reached only from the server, with Row Level Security on every table. Login uses our own JWT in an `httpOnly` cookie and bcrypt password hashing. Every request goes route handler → service → domain and database, with Zod validation at the boundary and one access check, `requireGroupAccess`, for every group. The money rules are pure functions in `src/lib/domain` with 100% test coverage. Details are in [`docs/architecture.md`](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/architecture.md).
 
+### At a glance
+
+Counted on 2026-11-14.
+
+| Measure | Count |
+|---|---|
+| Features | 14 of 14 planned: all 8 Must Haves and all 6 Should Haves in the [PRD](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/PRD.md), from 8 [user stories](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/user-stories.md) |
+| REST API | 35 operations on 27 paths, all implemented and documented in [`openapi.yaml`](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/api/openapi.yaml) |
+| Database | 8 tables, 28 SQL [migrations](https://github.com/blouyakis/cs6983-project-2/tree/main/supabase/migrations), Row Level Security on every table |
+| Sprints | 3, each a [milestone](https://github.com/blouyakis/cs6983-project-2/milestones) with a retrospective |
+| Issues | 69 [issues](https://github.com/blouyakis/cs6983-project-2/issues?q=is%3Aissue), 65 closed: 9 in Sprint 1, 22 in Sprint 2, 37 in Sprint 3 |
+| Pull requests | 78 [merged](https://github.com/blouyakis/cs6983-project-2/pulls?q=is%3Apr+is%3Amerged) (Barbara 37, Ziye 41), 75 of them approved by the other partner |
+| Partner PR reviews | Barbara reviewed 38 of Ziye's pull requests, Ziye reviewed 37 of Barbara's |
+| Commits | Both partners commit throughout; see the [contributors graph](https://github.com/blouyakis/cs6983-project-2/graphs/contributors) |
+| Tests | 1,674 unit and integration tests (96.6% line coverage, 100% of `src/lib/domain`), 337 database tests, 81 Playwright E2E tests including WCAG 2.1 AA checks ([Sprint 3 retrospective](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-3/retrospective.md#2-the-sprint-in-numbers)) |
+| CI | 8 required checks on every pull request: install, lint, typecheck, test, db-test, build, e2e, audit; Vercel preview per pull request, production from `main` |
+
 ## 1. GitHub repository
 
 | | Link |
 |---|---|
 | Repository | <https://github.com/blouyakis/cs6983-project-2> |
 | Commit history from both partners | [Commits on `main`](https://github.com/blouyakis/cs6983-project-2/commits/main) · [Contributors graph](https://github.com/blouyakis/cs6983-project-2/graphs/contributors) |
-| Pull requests and reviews | [Merged pull requests](https://github.com/blouyakis/cs6983-project-2/pulls?q=is%3Apr+is%3Amerged): 73, all but 3 approved by the other partner ([README Contributors](https://github.com/blouyakis/cs6983-project-2#contributors)) |
+| Pull requests and reviews | [Merged pull requests](https://github.com/blouyakis/cs6983-project-2/pulls?q=is%3Apr+is%3Amerged): 78, 75 of them approved by the other partner · [README Contributors](https://github.com/blouyakis/cs6983-project-2#contributors) |
 | Issues, board and milestones | [Issues](https://github.com/blouyakis/cs6983-project-2/issues) · [Project board](https://github.com/users/blouyakis/projects/3) · [Milestones](https://github.com/blouyakis/cs6983-project-2/milestones) (3 sprints) |
 
 ## 2. Deployed app
