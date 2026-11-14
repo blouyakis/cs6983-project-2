@@ -41,8 +41,8 @@ Counted on 2026-11-14.
 | Database | 8 tables, 28 SQL [migrations](https://github.com/blouyakis/cs6983-project-2/tree/main/supabase/migrations), Row Level Security on every table |
 | Sprints | 3, each a [milestone](https://github.com/blouyakis/cs6983-project-2/milestones) with a retrospective |
 | Issues | 69 [issues](https://github.com/blouyakis/cs6983-project-2/issues?q=is%3Aissue), all closed: 9 in Sprint 1, 22 in Sprint 2, 38 in Sprint 3 |
-| Pull requests | 78 [merged](https://github.com/blouyakis/cs6983-project-2/pulls?q=is%3Apr+is%3Amerged) (Barbara 37, Ziye 41), 75 of them approved by the other partner |
-| Partner PR reviews | Barbara reviewed 38 of Ziye's pull requests, Ziye reviewed 37 of Barbara's |
+| Pull requests | 81 [merged](https://github.com/blouyakis/cs6983-project-2/pulls?q=is%3Apr+is%3Amerged) (Barbara 38, Ziye 43), 78 of them approved by the other partner |
+| Partner PR reviews | Barbara reviewed 40 of Ziye's 43 pull requests, Ziye reviewed all 38 of Barbara's |
 | Tests | 1,674 unit and integration tests (96.6% line coverage, 100% of `src/lib/domain`), 337 database tests, 81 Playwright E2E tests including WCAG 2.1 AA checks ([Sprint 3 retrospective](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-3/retrospective.md#2-the-sprint-in-numbers)) |
 | CI | 8 required checks on every pull request: install, lint, typecheck, test, db-test, build, e2e, audit; Vercel preview per pull request, production from `main` |
 | Communication log | 68 entries in the [communication log](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?usp=sharing&ouid=108877617046558983136&rtpof=true&sd=true), from 2026-10-22 to 2026-11-13: 28 in Sprint 1, 18 in Sprint 2, 22 in Sprint 3. 58 are async standup updates, 4 sprint planning sessions, 1 live meeting and 5 other discussions, and each records the topics, decisions and action items |
@@ -53,7 +53,7 @@ Counted on 2026-11-14.
 |---|---|
 | Repository | <https://github.com/blouyakis/cs6983-project-2> |
 | Commit history from both partners | [Commits on `main`](https://github.com/blouyakis/cs6983-project-2/commits/main) |
-| Pull requests and reviews | [Merged pull requests](https://github.com/blouyakis/cs6983-project-2/pulls?q=is%3Apr+is%3Amerged): 78, 75 of them approved by the other partner · [README Contributors](https://github.com/blouyakis/cs6983-project-2#contributors) |
+| Pull requests and reviews | [Merged pull requests](https://github.com/blouyakis/cs6983-project-2/pulls?q=is%3Apr+is%3Amerged): 81, 78 of them approved by the other partner · [README Contributors](https://github.com/blouyakis/cs6983-project-2#contributors) |
 | Issues, board and milestones | [Issues](https://github.com/blouyakis/cs6983-project-2/issues) · [Project board](https://github.com/users/blouyakis/projects/3) · [Milestones](https://github.com/blouyakis/cs6983-project-2/milestones) (3 sprints) |
 
 ## 2. Deployed app
