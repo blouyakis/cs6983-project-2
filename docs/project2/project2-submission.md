@@ -46,6 +46,7 @@ Counted on 2026-11-14.
 | Commits | Both partners commit throughout; see the [contributors graph](https://github.com/blouyakis/cs6983-project-2/graphs/contributors) |
 | Tests | 1,674 unit and integration tests (96.6% line coverage, 100% of `src/lib/domain`), 337 database tests, 81 Playwright E2E tests including WCAG 2.1 AA checks ([Sprint 3 retrospective](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-3/retrospective.md#2-the-sprint-in-numbers)) |
 | CI | 8 required checks on every pull request: install, lint, typecheck, test, db-test, build, e2e, audit; Vercel preview per pull request, production from `main` |
+| Communication log | 68 entries in the [communication log](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?usp=sharing&ouid=108877617046558983136&rtpof=true&sd=true), from 2026-10-22 to 2026-11-13: 28 in Sprint 1, 18 in Sprint 2, 22 in Sprint 3. 58 are async standup updates, 4 sprint planning sessions, 1 live meeting and 5 other discussions, and each records the topics, decisions and action items |
 
 ## 1. GitHub repository
 
@@ -75,7 +76,8 @@ Counted on 2026-11-14.
 | Setup/deployment guide | README [Getting started](https://github.com/blouyakis/cs6983-project-2#getting-started) and [Deploying](https://github.com/blouyakis/cs6983-project-2#deploying) · [Environments and hosted migrations](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/architecture.md#7-environments-and-configuration) |
 | Sprint retrospectives | [Sprint 1](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-1/retrospective.md) · [Sprint 2](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-2/retrospective.md) · [Sprint 3](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-3/retrospective.md) · planning notes for [Sprint 2](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-2/planning.md) and [Sprint 3](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/sprints/sprint-3/planning.md) |
 | 10-minute demo video | See [Section 4](#4-demo-video) |
-| Partner contribution log | [README Contributors](https://github.com/blouyakis/cs6983-project-2#contributors) · standups and meetings in the [communication log](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?usp=sharing&ouid=108877617046558983136&rtpof=true&sd=true) |
+| Partner contribution log | [README Contributors](https://github.com/blouyakis/cs6983-project-2#contributors): who did what, with the issues each partner built |
+| Communication log (standups and meetings) | [Google Sheet](https://docs.google.com/spreadsheets/d/1xbZLsDWi8kCrbk7bfrR18Wg7M5aKSlbO/edit?usp=sharing&ouid=108877617046558983136&rtpof=true&sd=true): 68 entries, each with its date, type, attendees, topics, decisions and action items |
 | Individual reflections | See [Section 5](#5-individual-reflections) |
 
 Other project documents: [PRD](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/PRD.md) · [User stories](https://github.com/blouyakis/cs6983-project-2/blob/main/docs/user-stories.md) · [`DESIGN.md`](https://github.com/blouyakis/cs6983-project-2/blob/main/DESIGN.md) and [mockups](https://github.com/blouyakis/cs6983-project-2/tree/main/docs/design).
